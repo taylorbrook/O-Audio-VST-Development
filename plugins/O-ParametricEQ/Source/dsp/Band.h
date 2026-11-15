@@ -509,6 +509,37 @@ public:
         return v;
     }
 
+    //==========================================================================
+    // Added in Phase 2.6 (PLAN-2.6 P1, P10, R6): read only, for a test
+    // accessor of the processor (getBandRealisedDesign).
+    //==========================================================================
+
+    /** The section parameters the band runs on, as a BandDesign. Only
+        numSections and params[0 ... numSections - 1] are realised values:
+        the band stores the parameters, not the rest of the design. Settled
+        (not interpolating), they are the params of the last design applied
+        (snapTo, or the arrived design of a ramp), bit for bit; while an
+        interval interpolates, they are the parameters of the sample last
+        stepped. Entries from numSections on hold what the band holds there
+        (value-initialised parameters). The fields the band does not store
+        are written with defined values: cls gain2, trueProto all 0,
+        polishWeight 0, inverted false. */
+    void getRealisedDesign (BandDesign& out) const noexcept
+    {
+        out.numSections = numSections;
+
+        for (int i = 0; i < maxSections; ++i)
+        {
+            const auto u = static_cast<std::size_t> (i);
+            out.params[u] = current[i];
+            out.cls[u] = SectionClass::gain2;
+            out.trueProto[u] = AnalogSection { 0.0, 0.0, 0.0, 0.0, 0.0 };
+            out.polishWeight[u] = 0.0f;
+        }
+
+        out.inverted = false;
+    }
+
 private:
     /** Per section: the two lanes side by side. */
     struct SectionState

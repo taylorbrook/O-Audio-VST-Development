@@ -1,5 +1,20 @@
 # O-ParametricEQ Changelog
 
+## [0.6.0] - 2026-11-15
+
+Stage 2, Phase 2.6 (analyzer taps, display model, listen). The engine side of the editor's band listen, analyzer and response curve; the editor itself comes in Stage 3.
+
+### Added
+- Band listen engine: solos the region of the input the listened band works on (a bell's band, a shelf's or cut's side of the spectrum), after auto gain and before output gain, so the solo plays at the input's level whatever auto gain is doing. It engages, changes band and lets go in 50 ms without a burst, even on a narrow band under heavy bass.
+- Analyzer engine: pre and post spectra, calibrated (a −12 dBFS sine reads −12 dB at every rate). It costs the audio thread nothing while no analyzer is open or the analyzer is off.
+- Display model: the response curve is drawn from the plugin's own filter designs at the session's sample rate, so the drawn curve is the plugin's exact response.
+
+### Changed
+- Nothing audible changes with listen off: the output is bit-identical to 0.5.0.
+
+### Known in this build
+- A steep low cut switched in under sustained bass can thump at a slope change (under listening).
+
 ## [0.5.0] - 2026-11-14
 
 Stage 2, Phase 2.5 (output stage and auto gain).

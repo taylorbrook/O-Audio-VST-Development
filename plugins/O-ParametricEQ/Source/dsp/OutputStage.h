@@ -261,6 +261,49 @@ public:
     const GainSmoother& getAutoSmoother() const noexcept    { return ag; }
     double getPendingOutput() const noexcept                { return pendingOg; }
 
+    //==========================================================================
+    // Added in Phase 2.6 (PLAN-2.6 P9, call C3): the two gains apart
+    //==========================================================================
+
+    /** The gains process (L, R, n) would apply to the next n samples, as two
+        factors, and the smoothers advanced exactly as process advances them:
+        the same test at the call's start, then per sample ag.next() before
+        og.next(). Both settled: ag[i] = auto target, og[i] = output target
+        (process uses their product as its constant g). Otherwise
+        ag[i] = ag.next(), og[i] = og.next(). Hence, for any history,
+        ag[i] * og[i] is bit for bit the g process would use at that sample,
+        and both smoothers end in the state process leaves them in. For the
+        listen path: lanes x ag[i], listen, lanes x og[i]. Two multiplies
+        round differently from the one multiply by g (and process skips a g
+        of exactly 1.0, which two factors need not reproduce): the caller
+        chooses one form per segment (PLAN-2.6 R1). */
+    void nextGains (double* agOut, double* ogOut, int n) noexcept
+    {
+        if (n <= 0)
+            return;
+
+        if (ag.isSettled() && og.isSettled())
+        {
+            const double a = ag.getTarget();
+            const double o = og.getTarget();
+
+            for (int i = 0; i < n; ++i)
+            {
+                agOut[i] = a;
+                ogOut[i] = o;
+            }
+
+            return;
+        }
+
+        for (int i = 0; i < n; ++i)
+        {
+            const double gA = ag.next();
+            agOut[i] = gA;
+            ogOut[i] = og.next();
+        }
+    }
+
 private:
     GainSmoother og, ag;
     double pendingOg = 1.0;

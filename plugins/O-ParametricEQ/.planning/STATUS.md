@@ -1,13 +1,13 @@
 ---
 plugin: O-ParametricEQ
 stage: 2
-phase: plan
-status: stage_2_phase_2_6_planned
-last_updated: 2026-11-15 12:00:00
+phase: execute
+status: stage_2_phase_2_6_executed
+last_updated: 2026-11-15 20:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_2_execute_phase_2_6
+next_action: stage_2_verify_phase_2_6
 next_stage: 2
 ready_for_implementation: true
 ui_scaffolding_phase_complete: true
@@ -28,7 +28,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); verify 2.2 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED); research 2.3 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.3.md`); plan 2.3 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.3.md`, 10 tasks); execute 2.3 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.3.md`, designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, default and `--long`, 0.3.0 installed); verify 2.3 ✓ 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`, VERIFIED); research 2.4 ✓ 2026-11-14 (`stages/2-dsp/RESEARCH-2.4.md`); plan 2.4 ✓ 2026-11-14 (`stages/2-dsp/PLAN-2.4.md`, 10 tasks); execute 2.4 ✓ 2026-11-14 (`stages/2-dsp/SUMMARY-2.4.md`, designer harness 114 PASS / 0 FAIL / 16 INFO, render harness 100 PASS / 0 FAIL, default and `--long`, 0.4.0 installed); verify 2.4 ✓ 2026-11-14 (`stages/2-dsp/VERIFICATION-2.4.md`, VERIFIED; one open issue: stop-band burst on a steep cut's slope change, listen first); research 2.5 ✓ 2026-11-14 (`stages/2-dsp/RESEARCH-2.5.md`; one call for Taylor, C1: auto-gain grid 64 → 512); plan 2.5 ✓ 2026-11-14 (`stages/2-dsp/PLAN-2.5.md`, 10 tasks; C1: 512 midpoint cells); execute 2.5 ✓ 2026-11-14 (`stages/2-dsp/SUMMARY-2.5.md`, designer harness 131 PASS / 0 FAIL / 17 INFO, render harness 122 PASS / 0 FAIL, default and `--long`, 0.5.0 installed); verify 2.5 ✓ 2026-11-15 (`stages/2-dsp/VERIFICATION-2.5.md`, VERIFIED; probe 17 / 17; five gate gaps held by the probe only, for the 2.6 plan); research 2.6 ✓ 2026-11-15 (`stages/2-dsp/RESEARCH-2.6.md`; three calls for Taylor: C1 G9 (a) on the damped circle, relative floor; C2 listen engages over 50 ms (30 ms input ramp + 20 ms fade); C3 listen after auto gain); plan 2.6 ✓ 2026-11-15 (`stages/2-dsp/PLAN-2.6.md`, 12 tasks; C1 – C3 taken as recommended, ARCHITECTURE and ROADMAP amended); next is execute 2.6. Stage 1 (Foundation): VERIFIED
+Stage: 2 of 4 (DSP) — discuss ✓ 2026-11-12 (`stages/2-dsp/CONTEXT.md`, D6–D11); research 2.1 / 2.1b ✓ 2026-11-12 (`stages/2-dsp/RESEARCH-2.1.md`); plan 2.1 / 2.1b ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1.md`, `PLAN-2.1b.md`); execute 2.1 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1.md`, designer harness 28 PASS / 0 FAIL / 6 INFO); verify 2.1 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1.md`, VERIFIED); execute 2.1b **BLOCKED** 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b.md`: harness 47 PASS / 1 FAIL, C1 continuity; uncommitted); research on the C1 failure ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.1b-continuity.md`); plan 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.1b-rework.md`, 10 tasks); execute 2.1b rework ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.1b-rework.md`, designer harness 54 PASS / 0 FAIL / 12 INFO); verify 2.1b ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.1b.md`, VERIFIED); research 2.2 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.2.md`); plan 2.2 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.2.md`, 10 tasks); execute 2.2 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.2.md`, designer harness 67 PASS / 0 FAIL / 12 INFO, render harness 64 PASS / 0 FAIL, 0.2.0 installed); verify 2.2 ✓ 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`, VERIFIED); research 2.3 ✓ 2026-11-13 (`stages/2-dsp/RESEARCH-2.3.md`); plan 2.3 ✓ 2026-11-13 (`stages/2-dsp/PLAN-2.3.md`, 10 tasks); execute 2.3 ✓ 2026-11-13 (`stages/2-dsp/SUMMARY-2.3.md`, designer harness 88 PASS / 0 FAIL / 14 INFO, render harness 83 PASS / 0 FAIL, default and `--long`, 0.3.0 installed); verify 2.3 ✓ 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`, VERIFIED); research 2.4 ✓ 2026-11-14 (`stages/2-dsp/RESEARCH-2.4.md`); plan 2.4 ✓ 2026-11-14 (`stages/2-dsp/PLAN-2.4.md`, 10 tasks); execute 2.4 ✓ 2026-11-14 (`stages/2-dsp/SUMMARY-2.4.md`, designer harness 114 PASS / 0 FAIL / 16 INFO, render harness 100 PASS / 0 FAIL, default and `--long`, 0.4.0 installed); verify 2.4 ✓ 2026-11-14 (`stages/2-dsp/VERIFICATION-2.4.md`, VERIFIED; one open issue: stop-band burst on a steep cut's slope change, listen first); research 2.5 ✓ 2026-11-14 (`stages/2-dsp/RESEARCH-2.5.md`; one call for Taylor, C1: auto-gain grid 64 → 512); plan 2.5 ✓ 2026-11-14 (`stages/2-dsp/PLAN-2.5.md`, 10 tasks; C1: 512 midpoint cells); execute 2.5 ✓ 2026-11-14 (`stages/2-dsp/SUMMARY-2.5.md`, designer harness 131 PASS / 0 FAIL / 17 INFO, render harness 122 PASS / 0 FAIL, default and `--long`, 0.5.0 installed); verify 2.5 ✓ 2026-11-15 (`stages/2-dsp/VERIFICATION-2.5.md`, VERIFIED; probe 17 / 17; five gate gaps held by the probe only, for the 2.6 plan); research 2.6 ✓ 2026-11-15 (`stages/2-dsp/RESEARCH-2.6.md`; three calls for Taylor: C1 G9 (a) on the damped circle, relative floor; C2 listen engages over 50 ms (30 ms input ramp + 20 ms fade); C3 listen after auto gain); plan 2.6 ✓ 2026-11-15 (`stages/2-dsp/PLAN-2.6.md`, 12 tasks; C1 – C3 taken as recommended, ARCHITECTURE and ROADMAP amended); execute 2.6 ✓ 2026-11-15 (`stages/2-dsp/SUMMARY-2.6.md`, designer harness 150 PASS / 0 FAIL / 18 INFO, render harness 155 PASS / 0 FAIL, default and `--long`, 0.6.0 installed; three Taylor calls in session: G9 floor, XR-ovf reworded to P2, listen κ void into silence); next is verify 2.6 (closes Stage 2). Stage 1 (Foundation): VERIFIED
 Status: 0.1.0 built and installed (VST3 + AU + Standalone); harness 36 PASS / 0 FAIL, pluginval 10 and auval pass (`stages/1-foundation/SUMMARY.md`). Verified 2026-11-12 by an independent re-run on a fresh compile and reinstalled bundles, plus a mutation run (`stages/1-foundation/VERIFICATION.md`); next is Stage 2 discuss
 Progress: [####................] 20%
 
@@ -103,6 +103,7 @@ Progress: [####................] 20%
 | verify 2.5 | ✓ | 2026-11-15 | |
 | research 2.6 | ✓ | 2026-11-15 | |
 | plan 2.6 | ✓ | 2026-11-15 | |
+| execute 2.6 | ✓ | 2026-11-15 | |
 
 ## Next Steps
 
@@ -155,7 +156,8 @@ Progress: [####................] 20%
    - **Display model.** Polls the atomics and sends packets of changed bands. JUCE JSON precision costs ≤ 1.5e-8 dB; a full push takes ≤ 41 µs. New row: the packet equals the realised design bit for bit.
    - **Owed rows from 2.5.** PX17, PX11, PX4, AG3, OS18.
 34. ~~Plan Phase 2.6~~ Done 2026-11-15: `stages/2-dsp/PLAN-2.6.md`, 12 tasks in seven waves. Taylor's calls, all as recommended: C1 G9 (a) on the damped circle within 80 dB of each response's maximum (plus a unit-circle confirming row, packet = realised design bit for bit, four controls); C2 listen engages over a 30 ms input ramp + 20 ms crossfade; C3 listen after auto gain, before output gain. ARCHITECTURE amended (§ 8, § 10, Processing Chain, Analyzer, Processing Order 3 – 7, Thread Boundaries, G6, G9) and ROADMAP 2.6 criteria; both checksums refreshed. New std-only `SpectrumTap.h` and `Listen.h`; JUCE `Source/analysis/SpectrumAnalyzer` and `DisplayModel`; additive edits to `OutputStage.h` (`nextGains`), `BandParams.h` (`effectiveBandInput`), `ResponseEval.h` (response at z). Listen-off identity against a 0.5.0 session dump taken at T1. The five rows owed by VERIFICATION-2.5. Version 0.6.0 at execute.
-35. Execute Phase 2.6: `/plugin-execute O-ParametricEQ 2-dsp`.
+35. ~~Execute Phase 2.6~~ Done 2026-11-15: `stages/2-dsp/SUMMARY-2.6.md`. `Source/dsp/SpectrumTap.h`, `Source/dsp/Listen.h`, `Source/analysis/SpectrumAnalyzer`, `Source/analysis/DisplayModel`; additive edits to OutputStage.h, BandParams.h, ResponseEval.h, Band.h; processor taps, listen after auto gain, `pathIdleForBlock`; version 0.6.0. Designer 150 / 0 / 18, render 155 / 0, default and `--long`; pluginval 10 (VST3 x2, AU), auval, Standalone ALIVE. Listen-off output `memcmp` equal to 0.5.0 on 16 sessions. Taylor's calls: G9 scored within 80 dB of the loudest response and above an absolute floor (-120 dB float, -150 dB double; XG-exact 646 / 4000 void); XR-ovf reworded to P2 (block tail push); listen kappa void where the destination is > 40 dB under the source.
+36. Verify Phase 2.6: `/plugin-verify O-ParametricEQ 2-dsp`. Regenerate the 0.5.0 session dump for XR-lid (SUMMARY-2.6 deviation 8).
 
 ## Context to Preserve
 
@@ -260,3 +262,10 @@ Progress: [####................] 20%
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/RESEARCH-2.6.md
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/research-2.6/
 - plugins/O-ParametricEQ/.planning/stages/2-dsp/PLAN-2.6.md
+- plugins/O-ParametricEQ/.planning/stages/2-dsp/SUMMARY-2.6.md
+- plugins/O-ParametricEQ/Source/dsp/SpectrumTap.h
+- plugins/O-ParametricEQ/Source/dsp/Listen.h
+- plugins/O-ParametricEQ/Source/analysis/SpectrumAnalyzer.h
+- plugins/O-ParametricEQ/Source/analysis/SpectrumAnalyzer.cpp
+- plugins/O-ParametricEQ/Source/analysis/DisplayModel.h
+- plugins/O-ParametricEQ/Source/analysis/DisplayModel.cpp

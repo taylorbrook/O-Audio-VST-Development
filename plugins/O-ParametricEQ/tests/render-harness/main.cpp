@@ -236,6 +236,88 @@
     variant also sets output_gain to exactly 0 dB and auto_gain off
     (execute-session call).
 
+    Stage 2, Phase 2.6 (PLAN-2.6 T9): the display model, the analyzer taps
+    and band listen through the plugin.
+
+      O-ParametricEQ-render-harness --lid-dir <dir>     XR-lid's 0.5.0 session dump (else $OPEQ_LID_DIR)
+      O-ParametricEQ-render-harness --dump-sessions <dir>
+                                                        write the 16 XR-lid sessions (PLAN-2.6 T1, P13)
+
+    Harness references (PLAN-2.6 P12), none of which calls eq::Listen,
+    OutputStage::process / nextGains or a DisplayModel design call:
+    listenRefRender (P4 - P6 re-stated per sample: the D11 mapping, the solo
+    router, two static RefChain voices, the 30 ms input ramp and the 20 ms
+    fade from the weight formula, the tick schedule, the latch, the gains as
+    constants; fed the plugin's dry input and its EQ path), listenHardRender
+    (R = 0, N = 1; or N = 20 ms, the fade from rest), and the G9 closed form
+    (composeFromPackets: the display model's packets parsed back from their
+    var, eq::bandResponseAtZ, the 2x2 placement matrices in index order;
+    dampedResponse: the weighted direct sum of the plugin's float impulse
+    responses; slowestPoleRadius from the packets). Rows with many renders
+    run on worker threads, one instance per worker (makePool / poolFor).
+
+      XR-g9     G9 (a) (C1): 50 random 1 - 24 band configurations x 44.1 / 48 / 88.2 / 96 /
+                192 kHz stereo + 10 mono; four impulses, 2^17 samples, a^N = 1e-9; the closed
+                form from the processor's own DisplayModel packets: LL / RR / MM / SS <= 0.05 dB
+                within 80 dB of the largest maximum among the four and >= -120 dB re the impulse
+                (Taylor's call 2026-11-15; configurations with no such point: void, listed)
+      XR-g9u    the unit circle on draws whose slowest pole falls 200 dB within 6 s, rendered
+                1.25x that time, >= 25 per rate: <= 0.05 dB
+      XR-g9n    controls on the closed form (k x 1.01, one-pole dropped, an L band and an M band
+                in the wrong order, Mid for Side): each > 0.05 dB
+      XR-g9id   packets (parsed var and the model's BandDesign) == getBandRealisedDesign field
+                by field, bit for bit; disabled / bypassed / 0 dB Bell / gain scale 0 %: inactive
+      XR-g9j    JSON round trip: <= 1e-7 dB from the unserialised composition
+      XR-dm     DisplayModel::poll: no edit, one band, a preset load of 5 bands, a new rate,
+                before any prepare (rateKnown false, 48 kHz)
+      XR-an     -12 dBFS 1 kHz, five rates, 8 phases, pre and post: -12 +- 0.5 dB
+      XR-answ   50 log tones 20 Hz - 20 kHz, five rates: -12 +- 0.25 dB
+      XR-ann    zero-pad 1x re-stated in the harness at 96 kHz: below -12.5 dB (control)
+      XR-anpp   +12 dB Bell 1 kHz: post - pre = +12 +- 0.5 dB
+      XR-anrel  no processBlock: the display falls 20 dB/s (+-1 dB over 2 s); instant attack
+      XR-gate   consumer and analyzerMode gate the tap writes on every path; unprepared: none
+      XR-ovf    no drain for 2 s at blocks 32 / 4096 / 65 536: every block returns, exact drops,
+                the oldest fitting run (a 65 536 block: its last 32 768), the reading within 3
+                process calls (P2; Taylor's call 2026-11-15)
+      XR-gen    prepareToPlay at a new rate between drains (one thread; and a second-thread
+                reader): no old-rate sample reaches a transform; re-prepared at the new size
+      XR-lon    listen on / off, the 20 XL-on bands, 50 Hz / 1 kHz, 4 phases, blocks 32 / 512,
+                48 / 96 kHz: (a) <= 2.0x; 1 kHz kappa <= 2.5x (kappa-void when the two held
+                levels at the tone are > 40 dB apart: Taylor's call 2026-11-15)
+      XR-lonh   listenHardRender on the same: >= 10x on every non-void reading (block 512)
+      XR-lchg   64 sampled ordered band changes, 48 kHz, blocks 32 / 512: (a) <= 2.0x, (b) <= 2.5x
+      XR-lref   every XR-lon / XR-lchg render against listenRefRender: <= -120 dB re peak
+      XR-lid    the 16 T1 sessions == the 0.5.0 dump (memcmp), also with the analyzer drained
+                by a second thread
+      XR-lidn   one listenBand write must differ (control)
+      XR-loff   listen on -> off, no band: memcmp-equal to the input from the release end (the
+                denormal tail: from the first block after it)
+      XR-lroute the solo router per placement, stereo and mono, settled; R2 Left / Right engage
+                at block 2048: <= -140 dB re peak of listenRefRender
+      XR-lseed  listen at session open, changed while bypassed, with a latched un-bypass, both
+                routes: the settled listen from the first processed sample, <= -140 dB
+      XR-lseedn the same against an unseeded engage must differ (control)
+      XR-lag    C3: listen level independent of auto gain (1e-6 dB); output gain +6 -> +6 dB
+      XR-blk6   XR-blk5 + listenBand events off the grid + analyzer on: blocks 1 / 32 / 64 /
+                512 / 2048 / offline bit-identical at 44.1 / 96 / 192 kHz
+      XR-lbyp   bypass during listening and each move kind, both routes: (a) <= 2.0x, the fade
+                mixes the listen output with the dry input (<= -120 dB)
+      XR-px17   VERIFICATION-2.5 PX17: latched un-bypass, no band, output +12 dB: no fade-in
+      XR-px11   PX11: output-gain edits off the tick grid at random offsets: bit-identical
+      XR-px4    PX4: an auto-gain toggle in an otherwise idle block lands on the refresh tick
+      XR-ag3    AG3: auto gain at 22.05 / 32 kHz against the pink truth with the 0.45 fs top
+      A5        G6 with the rings saturated, listen switching, the A4 load: 0 allocations
+      A5n       a planted allocation inside the window is counted
+      X-cpu5    CPU with the taps and listen (one / two voices), INFO, beside X-cpu4
+
+    Existing rows amended in Phase 2.6, by name (PLAN-2.6 P16; a comment at
+    its code): S5 also redraws listenBand (p 1/200 per block) and the
+    analyzer mode (p 1/500) with the consumer registered and no reader, and
+    sets listen -1 before its end clause. Every other existing row runs with
+    listen -1 and no consumer. A4's and A3's stress loop passes no listen
+    draw (stressLoopCore's new argument is nullptr there: the 2.5 loop bit
+    for bit).
+
   ==============================================================================
 */
 
@@ -251,6 +333,10 @@
 #include "dsp/Fade.h"
 #include "dsp/OutputStage.h"
 #include "dsp/AutoGain.h"
+#include "dsp/Listen.h"
+#include "dsp/SpectrumTap.h"
+#include "analysis/SpectrumAnalyzer.h"
+#include "analysis/DisplayModel.h"
 
 #include <algorithm>
 #include <array>
@@ -5417,6 +5503,68 @@ namespace
         }
     };
 
+    /** Phase 2.6 (PLAN-2.6 P16, the S5 amendment; A5): listenBand and
+        analyzerMode per block, from their own stream, so the band and gain
+        draws are unchanged. mode 1 (S5): listenBand redrawn with p 1/200 per
+        block (-1 with p 0.5, else a uniform band), analyzerMode redrawn with
+        p 1/500 (uniform 0 ... 3; 3 at the start). mode 2 (A5): listenBand
+        switched every 100 ms of audio (bands 1, 8, 15, 22, 5 in turn, then
+        off, cycling), analyzerMode 3. The caller registers the analyzer
+        consumer; nothing drains the rings. */
+    struct StressListenDraw
+    {
+        Xorshift random;
+        int mode = 0;               // 0: none (2.5 and earlier); 1: S5; 2: A5
+        int band = -1;
+        int analyzer = 3;
+        int listenChanges = 0, modeChanges = 0, step = 0;
+        std::int64_t nextSwitch = 0;
+
+        void begin (int listenMode, std::uint64_t seed)
+        {
+            mode = listenMode;
+            random.state = seed ^ 0x4C495354454E3236ull;
+
+            if (random.state == 0)
+                random.state = 1;
+
+            band = -1;
+            analyzer = 3;
+            listenChanges = modeChanges = step = 0;
+            nextSwitch = 0;
+        }
+
+        void nextBlock (std::int64_t position, double rate)
+        {
+            if (mode == 1)
+            {
+                if (random.uniform() < 1.0 / 200.0)
+                {
+                    band = random.uniform() < 0.5 ? -1 : juce::jmin (Processor::kNumBands - 1, (int) (random.uniform() * (double) Processor::kNumBands));
+                    ++listenChanges;
+                }
+
+                if (random.uniform() < 1.0 / 500.0)
+                {
+                    analyzer = juce::jmin (3, (int) (random.uniform() * 4.0));
+                    ++modeChanges;
+                }
+            }
+            else if (mode == 2)
+            {
+                while (position >= nextSwitch)
+                {
+                    band = (step % 6 == 5) ? -1 : (step * 7) % Processor::kNumBands;
+                    ++step;
+                    ++listenChanges;
+                    nextSwitch += std::llround (0.100 * rate);
+                }
+
+                analyzer = 3;
+            }
+        }
+    };
+
     struct StressResult
     {
         StressSeed chosen;
@@ -5425,6 +5573,9 @@ namespace
         bool offFinite = true;
         double offEqualFromMs = 0.0;    // after "all bands off": the last block that still differed from its input ends here
         StressGainDraw gains;           // Phase 2.5: the gain draw's final state
+        StressListenDraw listen;        // Phase 2.6: the listen / analyzer draw's final state
+        std::int64_t listeningBlocks = 0, moveBlocks = 0;
+        std::uint32_t dropsPre = 0, dropsPost = 0;
     };
 
     // (Phase 2.4: the 2.3 S5 driver runStress was replaced by runStress24
@@ -5714,23 +5865,26 @@ namespace
     /** stressLoop24 with the Phase 2.5 gain draw (gainMode 1: S5, 2: A4;
         0: none, the 2.4 loop bit for bit). The gain values are stored with
         the band values before each block; *gainsOut receives the draw's
-        final state (toggle count, range). */
+        final state (toggle count, range). Phase 2.6 (PLAN-2.6 P16; A5):
+        listenDraw, when given and its mode is not 0, stores listenBand and
+        analyzerMode after the gains before each block and keeps its counts
+        (nullptr: the 2.5 loop bit for bit). */
     template <typename ProcessFn>
     StressOutcome stressLoopCore (Processor& p, const Handles& h, double rate, double seconds, std::uint64_t seed,
                                   int structEvery, bool alternateRoute, int gainMode, StressGainDraw* gainsOut,
-                                  ProcessFn&& process);
+                                  StressListenDraw* listenDraw, ProcessFn&& process);
 
     template <typename ProcessFn>
     StressOutcome stressLoop24 (Processor& p, const Handles& h, double rate, double seconds, std::uint64_t seed,
                                 int structEvery, bool alternateRoute, ProcessFn&& process)
     {
-        return stressLoopCore (p, h, rate, seconds, seed, structEvery, alternateRoute, 0, nullptr, process);
+        return stressLoopCore (p, h, rate, seconds, seed, structEvery, alternateRoute, 0, nullptr, nullptr, process);
     }
 
     template <typename ProcessFn>
     StressOutcome stressLoopCore (Processor& p, const Handles& h, double rate, double seconds, std::uint64_t seed,
                                   int structEvery, bool alternateRoute, int gainMode, StressGainDraw* gainsOut,
-                                  ProcessFn&& process)
+                                  StressListenDraw* listenDraw, ProcessFn&& process)
     {
         StressOutcome out;
 
@@ -5790,6 +5944,13 @@ namespace
                 gains.nextBlock();
                 h.outputGain->store (gains.outputDb);
                 h.autoGain->store (gains.autoOn ? 1.0f : 0.0f);
+            }
+
+            if (listenDraw != nullptr && listenDraw->mode != 0)
+            {
+                listenDraw->nextBlock (position, rate);
+                p.listenBand.store (listenDraw->band);
+                p.analyzerMode.store (listenDraw->analyzer);
             }
 
             block.setSize (2, m, false, false, true);
@@ -5853,7 +6014,13 @@ namespace
         (execute-session call: no +12 dB peak margin; up to 256 seeds) (chooseStressSeed24, gain mode 1); afterwards every band
         off, output gain 0 dB and auto gain off, and the output must be the
         input again within 300 ms (the auto-gain smoother snaps at about
-        232 ms after its refresh tick). */
+        232 ms after its refresh tick).
+
+        Amended in Phase 2.6 (PLAN-2.6 P16): listenBand redrawn with p 1/200
+        per block (-1 with p 0.5, else a uniform band) and the analyzer
+        (consumer registered, analyzerMode redrawn with p 1/500, never
+        drained, so the rings overflow), from their own stream
+        (StressListenDraw mode 1); the end clause sets listen -1 first. */
     StressResult runStress24 (Processor& p, const Handles& h, double rate, double seconds, int structEvery)
     {
         StressResult result;
@@ -5862,15 +6029,27 @@ namespace
         if (! result.chosen.ok)
             return result;
 
-        result.outcome = stressLoopCore (p, h, rate, seconds, result.chosen.seed, structEvery, false, 1, &result.gains,
-                                         [&p] (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages, bool viaBypassed)
+        result.listen.begin (1, result.chosen.seed);
+        p.setAnalyzerConsumer (true);
+
+        result.outcome = stressLoopCore (p, h, rate, seconds, result.chosen.seed, structEvery, false, 1, &result.gains, &result.listen,
+                                         [&p, &result] (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages, bool viaBypassed)
                                          {
                                              if (viaBypassed)
                                                  p.processBlockBypassed (buffer, midiMessages);
                                              else
                                                  p.processBlock (buffer, midiMessages);
+
+                                             const eq::ListenState state = p.getListenState();
+                                             result.listeningBlocks += state.target >= 0 ? 1 : 0;
+                                             result.moveBlocks += state.move != eq::ListenMove::none ? 1 : 0;
                                          });
         result.ran = true;
+        result.dropsPre = p.getPreTap().getDropCount();
+        result.dropsPost = p.getPostTap().getDropCount();
+
+        // PLAN-2.6 P16: listen off first.
+        p.listenBand.store (-1);
 
         // Every band off, the bypass off, output gain 0 dB and auto gain off
         // (PLAN-2.5 P12): the output must be the input again within 300 ms.
@@ -5916,6 +6095,7 @@ namespace
         }
 
         result.offEqualFromMs = 1000.0 * (double) lastUnequalEnd / rate;
+        p.setAnalyzerConsumer (false);
         p.releaseResources();
         return result;
     }
@@ -5945,6 +6125,16 @@ namespace
         // 176.4 and 192 kHz. The margin is dropped and this gain mode tries up
         // to 256 seeds (A3 and every other caller keep 32).
         // See runStress24 and chooseStressSeed24 (gain mode 1).
+        //
+        // Amended in Phase 2.6 (PLAN-2.6 P16): the same, plus listenBand
+        // (redrawn with p 1/200 per block: -1 with p 0.5, else a uniform
+        // band) and the analyzer (consumer registered, analyzerMode redrawn
+        // with p 1/500, never drained, so the rings overflow) in both runs,
+        // from their own stream (StressListenDraw), so the band and gain draws
+        // and the stack guard are unchanged; the end clause "all bands off,
+        // output 0 dB, auto off -> memcmp equal within 300 ms" sets listen -1
+        // first. The tally also asks that listen moved and was heard and that
+        // both rings overflowed.
         {
             const double seconds = longRunRequested ? 600.0 : 60.0;
             const double everyBlockSeconds = 10.0;
@@ -6005,23 +6195,30 @@ namespace
                 largestGuardDb = juce::jmax (largestGuardDb, s.chosen.largestStackDb);
                 slowestOffMs = juce::jmax (slowestOffMs, s.offEqualFromMs);
 
-                std::printf ("      S5 %-9s %g s, seed attempt %d: largest static stack %.1f dB, guard (stack + output gain + 12) %.1f dB (below +600); output gain drawn %+.1f ... %+.1f dB, auto gain toggled %d times; %lld non-finite samples in %lld blocks (%lld acting); peak %+.1f dB re input peak; all bands off, output 0 dB, auto off: memcmp-equal to input from %.1f ms\n",
+                std::printf ("      S5 %-9s %g s, seed attempt %d: largest static stack %.1f dB, guard (stack + output gain + 12) %.1f dB (below +600); output gain drawn %+.1f ... %+.1f dB, auto gain toggled %d times; listenBand redrawn %d times (%lld blocks listening, %lld ending in a move), analyzerMode %d times, tap drops %u / %u; %lld non-finite samples in %lld blocks (%lld acting); peak %+.1f dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from %.1f ms\n",
                              where.toRawUTF8(), runSeconds, s.chosen.attempt, s.chosen.plainStackDb, s.chosen.largestStackDb,
                              (double) s.gains.lowestDb, (double) s.gains.highestDb, s.gains.autoToggles,
+                             s.listen.listenChanges, (long long) s.listeningBlocks, (long long) s.moveBlocks, s.listen.modeChanges,
+                             (unsigned) s.dropsPre, (unsigned) s.dropsPost,
                              (long long) s.outcome.nonFinite, (long long) s.outcome.blocks, (long long) s.outcome.actingBlocks,
                              peakDb, s.offEqualFromMs);
 
+                const bool listened = s.listen.listenChanges > 0 && s.listeningBlocks > 0 && s.moveBlocks > 0;
+                const bool overflowed = s.dropsPre > 0 && s.dropsPost > 0;
+
                 tally.check (s.outcome.nonFinite == 0 && s.offFinite && s.outcome.actingBlocks > 0 && s.offEqualFromMs <= offLimitMs
-                                 && s.gains.autoToggles > 0,
+                                 && s.gains.autoToggles > 0 && listened && overflowed,
                              where + ": " + juce::String ((juce::int64) s.outcome.nonFinite) + " non-finite samples"
                                  + (s.outcome.actingBlocks > 0 ? "" : "; the bands never act")
                                  + (s.gains.autoToggles > 0 ? "" : "; auto gain never toggled")
+                                 + (listened ? "" : "; listen never engaged")
+                                 + (overflowed ? "" : "; a ring never overflowed")
                                  + "; bands off, equal to input from " + fmtG (s.offEqualFromMs, 4) + " ms");
             }
 
             row (tally.bad == 0 && tally.total == 16,
-                 "S5 G5 through processBlock: 24 bands, every parameter redrawn (P13), output_gain and auto_gain per block (PLAN-2.5 P12), blocks 4096 / 512 / 64 / 7 / 1, 8 rates: stack guard (stack + output gain + 12 dB) holds; every sample finite; all bands off, output 0 dB, auto off -> memcmp-equal to input within 300 ms",
-                 tally.detail() + "  P14 draw (PLAN-2.4) + gains (PLAN-2.5): " + fmtG (seconds, 4) + " s per rate" + (longRunRequested ? " (--long)" : "")
+                 "S5 G5 through processBlock: 24 bands, every parameter redrawn (P13), output_gain and auto_gain per block (PLAN-2.5 P12), listenBand and the analyzer (mode redrawn, never drained) per block (PLAN-2.6 P16), blocks 4096 / 512 / 64 / 7 / 1, 8 rates: stack guard (stack + output gain + 12 dB) holds; every sample finite; listen -1, all bands off, output 0 dB, auto off -> memcmp-equal to input within 300 ms",
+                 tally.detail() + "  P14 draw (PLAN-2.4) + gains (PLAN-2.5) + listen and taps (PLAN-2.6): " + fmtG (seconds, 4) + " s per rate" + (longRunRequested ? " (--long)" : "")
                      + " + every-block run " + fmtG (everyBlockSeconds, 3) + " s per rate"
                      + "; largest peak " + fmtG (largestPeakDb, 4) + " dB re input peak; largest static stack (fading bands: larger of their two slots) "
                      + fmtG (largestStackDb, 4) + " dB, largest guard " + fmtG (largestGuardDb, 4) + " dB; slowest return to the input "
@@ -11092,7 +11289,7 @@ namespace
         bool plantNext = plant;
         int viaEntry = 0;
 
-        const StressOutcome outcome = stressLoopCore (*p, h, rate, seconds, chosen.seed, 1, true, 2, nullptr,
+        const StressOutcome outcome = stressLoopCore (*p, h, rate, seconds, chosen.seed, 1, true, 2, nullptr, nullptr,
                                                       [&p, &plantNext, &viaEntry] (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages, bool viaBypassed)
                                                       {
                                                           allocArmed = true;
@@ -11168,6 +11365,9 @@ namespace
     //==========================================================================
     // X-cpu4. CPU with auto gain (INFO; PLAN-2.5 P11)
     //==========================================================================
+    // Kept for X-cpu5 (Phase 2.6), which prints beside it.
+    double xcpu4Percent[4][4] = {};
+
     void cpuInfoGains()
     {
         section ("X4. CPU with the output stage and auto gain (INFO, not gated; G10 binds in Stage 4)");
@@ -11252,6 +11452,7 @@ namespace
             for (int mode = 0; mode < 4; ++mode)
             {
                 const double percent = timeRun (c, mode, true, finite);
+                xcpu4Percent[ci][mode] = percent;
                 line += juce::String (" ") + modeNames[mode] + " " + fmtG (percent, 3) + " % (X-cpu3 " + fmtG (xcpu3Percent[ci][mode], 3) + " %)"
                       + (mode < 3 ? ";" : "");
             }
@@ -11270,12 +11471,4901 @@ namespace
         }
     }
 
+    //==========================================================================
+    //==========================================================================
+    // Stage 2, Phase 2.6: listen-off identity sessions (PLAN-2.6 T1, P13)
+    //
+    // `--dump-sessions <dir>` renders the 16 sessions of lidSessions() through
+    // a fresh processor each and writes <dir>/session-NN.f32 (NN = 00 ... 15).
+    // Row XR-lid (2.6 T9) re-renders the same sessions through renderLidSession
+    // on the changed processor and memcmps against the files written by the
+    // unchanged 0.5.0 processor (R7: same compiler, flags and machine).
+    //
+    // File format: raw 32-bit IEEE float, host byte order (little-endian on
+    // every target here), no header, CHANNEL-PLANAR: all samples of channel 0,
+    // then all samples of channel 1 (stereo sessions only). Length per channel
+    // is llround (4.0 * rate): 176400 at 44.1 kHz, 384000 at 96 kHz.
+    //
+    // A session is a pure function of its index: a seeded Xorshift stream per
+    // concern (band draw, block sizes, gains, bypass), juce::Random for the
+    // input; nothing time-dependent. Parameters are raw-value stores before
+    // each block, as S5 does.
+    //   - bands: the S5 / P14 draw (StressDraw24, structEvery 50), all 24
+    //     bands every block; its own global-bypass bit is ignored (no listen:
+    //     listen does not exist in 0.5.0)
+    //   - block sizes: log-uniform 1 ... 4096 (prepared at 4096)
+    //   - output_gain: redrawn with p 0.1 per block (uniform -36 ... +36 dB,
+    //     each range end with p 0.05); auto_gain toggled with p 1/40
+    //   - global bypass toggled with p 1/40 per block; successive bypassed
+    //     spans alternate between the routes: the bypass parameter
+    //     (processBlock) and processBlockBypassed (parameter left off)
+    //   - input: white noise at -12 dBFS for the first total - 2048 samples,
+    //     then makeNoiseTail's 2048-sample denormal tail
+    //   - layouts x rates: index bit 0 = rate (44.1 / 96 kHz), bit 1 = layout
+    //     (mono / stereo): all four combinations, four sessions each
+    //==========================================================================
+    //==========================================================================
+    constexpr int kLidSessionCount = 16;
+    constexpr int kLidPrepared = 4096;
+    constexpr double kLidSeconds = 4.0;
+
+    struct LidSession
+    {
+        int index = 0;
+        double rate = 44100.0;
+        int channels = 2;
+        std::uint64_t seed = 1;
+    };
+
+    std::vector<LidSession> lidSessions()
+    {
+        std::vector<LidSession> sessions;
+
+        for (int i = 0; i < kLidSessionCount; ++i)
+        {
+            LidSession s;
+            s.index = i;
+            s.rate = (i & 1) != 0 ? 96000.0 : 44100.0;
+            s.channels = (i & 2) != 0 ? 2 : 1;
+            s.seed = 0x4C49442D53455353ull ^ ((std::uint64_t) (i + 1) * 0x9E3779B97F4A7C15ull);
+
+            if (s.seed == 0)
+                s.seed = 1;
+
+            sessions.push_back (s);
+        }
+
+        return sessions;
+    }
+
+    struct LidStats
+    {
+        int blocks = 0;
+        int bypassToggles = 0;          // on and off, both routes
+        int bypassOnViaParameter = 0;   // bypassed spans entered through the bypass parameter
+        int bypassOnViaBypassed = 0;    // bypassed spans entered through processBlockBypassed
+        int outputGainEdits = 0;
+        int autoGainToggles = 0;
+        int minBlock = 0, maxBlock = 0;
+        std::int64_t nonFinite = 0;     // output samples
+        double peak = 0.0;              // of the finite output samples
+    };
+
+    // A Xorshift stream for one concern of a session, never state 0.
+    Xorshift lidStream (std::uint64_t seed, std::uint64_t salt)
+    {
+        Xorshift x;
+        x.state = seed ^ salt;
+
+        if (x.state == 0)
+            x.state = 1;
+
+        return x;
+    }
+
+    /** Renders session `idx` of lidSessions() through a fresh processor and
+        returns its output (channels x llround (4 s x rate)).
+          afterPrepare (Processor&): once, after prepareToPlay, before block 0
+            (XR-lid registers its analyzer consumer here).
+          afterBlock (Processor&, const juce::AudioBuffer<float>& out, int blockIndex):
+            after every processBlock / processBlockBypassed, with that block's
+            output (the hook must not write to the processor's parameters).
+        *stats, when given, receives the session's counts. */
+    template <typename PreparedFn, typename BlockFn>
+    juce::AudioBuffer<float> renderLidSession (int idx, PreparedFn&& afterPrepare, BlockFn&& afterBlock,
+                                               LidStats* stats = nullptr)
+    {
+        const LidSession session = lidSessions()[(size_t) juce::jlimit (0, kLidSessionCount - 1, idx)];
+        const int channels = session.channels;
+        const double rate = session.rate;
+        const auto total = (int) std::llround (kLidSeconds * rate);
+
+        // Input: noise at -12 dBFS, the last kTailLength samples the denormal tail.
+        auto input = makeNoiseAt (channels, total, (juce::int64) (session.seed & 0x7FFFFFFFFFFFull), kNoise12);
+        {
+            const auto tail = makeNoiseTail (channels, (juce::int64) ((session.seed >> 17) & 0x7FFFFFFFFFFFull));
+
+            for (int channel = 0; channel < channels; ++channel)
+                input.copyFrom (channel, total - kTailLength, tail, channel, kNoiseLength, kTailLength);
+        }
+
+        auto p = makeBands (channels, 0, mixedSpec);
+        const Handles h = handlesOf (*p);
+
+        StressDraw24 draw;
+        draw.random.state = session.seed;
+        Xorshift sizes = lidStream (session.seed, 0x5A17E5B10C55EEDull);
+        Xorshift gains = lidStream (session.seed, 0x6A09E667F3BCC909ull);
+        Xorshift bypass = lidStream (session.seed, 0xB7E151628AED2A6Bull);
+
+        LidStats st;
+        float outputDb = 0.0f;
+        bool autoOn = false, bypassOn = false, viaBypassed = false;
+
+        h.bypass->store (0.0f);
+        h.outputGain->store (0.0f);
+        h.autoGain->store (0.0f);
+
+        juce::AudioBuffer<float> output (channels, total);
+        output.clear();
+        juce::AudioBuffer<float> block (channels, kLidPrepared);
+        juce::MidiBuffer midi;
+
+        p->prepareToPlay (rate, kLidPrepared);
+        afterPrepare (*p);
+
+        st.minBlock = kLidPrepared;
+
+        for (int position = 0; position < total; ++st.blocks)
+        {
+            // Block size: log-uniform 1 ... 4096.
+            const int drawn = juce::jlimit (1, kLidPrepared, (int) std::exp (sizes.uniform() * std::log ((double) kLidPrepared + 1.0)));
+            const int n = juce::jmin (drawn, total - position);
+            st.minBlock = juce::jmin (st.minBlock, n);
+            st.maxBlock = juce::jmax (st.maxBlock, n);
+
+            // Bands: the S5 draw, every value stored before every block.
+            draw.nextBlock (50);
+            h.gainScale->store (draw.scale);
+
+            for (size_t b = 0; b < h.band.size(); ++b)
+            {
+                const StressBand& s = draw.bands[b];
+                const BandHandles& hb = h.band[b];
+
+                hb.freq->store (s.freq);
+                hb.gain->store (s.gain);
+                hb.q->store (s.q);
+                hb.type->store (s.type);
+                hb.slope->store (s.slope);
+                hb.placement->store (s.placement);
+                hb.enabled->store (s.enabled);
+                hb.bypass->store (s.bypass);
+            }
+
+            // Output gain and auto gain.
+            if (gains.uniform() < 0.1)
+            {
+                const double u = gains.uniform();
+                outputDb = (float) (u < 0.05 ? -36.0 : (u > 0.95 ? 36.0 : -36.0 + 72.0 * gains.uniform()));
+                ++st.outputGainEdits;
+            }
+
+            if (gains.uniform() < 1.0 / 40.0)
+            {
+                autoOn = ! autoOn;
+                ++st.autoGainToggles;
+            }
+
+            h.outputGain->store (outputDb);
+            h.autoGain->store (autoOn ? 1.0f : 0.0f);
+
+            // Global bypass, alternating routes between bypassed spans.
+            if (bypass.uniform() < 1.0 / 40.0)
+            {
+                bypassOn = ! bypassOn;
+                ++st.bypassToggles;
+
+                if (bypassOn)
+                {
+                    viaBypassed = ((st.bypassOnViaParameter + st.bypassOnViaBypassed) % 2) == 1;
+                    ++(viaBypassed ? st.bypassOnViaBypassed : st.bypassOnViaParameter);
+                }
+            }
+
+            const bool callBypassed = bypassOn && viaBypassed;
+            h.bypass->store (bypassOn && ! viaBypassed ? 1.0f : 0.0f);
+
+            block.setSize (channels, n, false, false, true);
+
+            for (int channel = 0; channel < channels; ++channel)
+                block.copyFrom (channel, 0, input, channel, position, n);
+
+            if (callBypassed)
+                p->processBlockBypassed (block, midi);
+            else
+                p->processBlock (block, midi);
+
+            afterBlock (*p, static_cast<const juce::AudioBuffer<float>&> (block), st.blocks);
+
+            for (int channel = 0; channel < channels; ++channel)
+            {
+                output.copyFrom (channel, position, block, channel, 0, n);
+                const float* const data = block.getReadPointer (channel);
+
+                for (int i = 0; i < n; ++i)
+                {
+                    if (! std::isfinite (data[i]))
+                        ++st.nonFinite;
+                    else
+                        st.peak = juce::jmax (st.peak, (double) std::abs (data[i]));
+                }
+            }
+
+            position += n;
+        }
+
+        p->releaseResources();
+
+        if (stats != nullptr)
+            *stats = st;
+
+        return output;
+    }
+
+    // renderLidSession with no hooks.
+    juce::AudioBuffer<float> renderLidSession (int idx, LidStats* stats = nullptr)
+    {
+        return renderLidSession (idx, [] (Processor&) {},
+                                 [] (Processor&, const juce::AudioBuffer<float>&, int) {}, stats);
+    }
+
+    // --dump-sessions <dir>: the 16 sessions as raw channel-planar float files.
+    // Returns 0 when every file was written and every session's output is finite.
+    int dumpLidSessions (const juce::File& dir)
+    {
+        if (! keepsDenormals())
+        {
+            std::printf ("FATAL: this thread flushes denormals to zero; the session input needs them\n");
+            return 255;
+        }
+
+        if (! dir.createDirectory())
+        {
+            std::printf ("FATAL: cannot create %s\n", dir.getFullPathName().toRawUTF8());
+            return 255;
+        }
+
+        int bad = 0;
+
+        for (const auto& session : lidSessions())
+        {
+            LidStats st;
+            const auto out = renderLidSession (session.index, &st);
+            const auto file = dir.getChildFile (juce::String::formatted ("session-%02d.f32", session.index));
+
+            bool written = false;
+
+            if (FILE* f = std::fopen (file.getFullPathName().toRawUTF8(), "wb"))
+            {
+                written = true;
+
+                for (int channel = 0; channel < out.getNumChannels(); ++channel)
+                    written = written && std::fwrite (out.getReadPointer (channel), sizeof (float), (size_t) out.getNumSamples(), f)
+                                             == (size_t) out.getNumSamples();
+
+                written = (std::fclose (f) == 0) && written;
+            }
+
+            if (! written || st.nonFinite != 0)
+                ++bad;
+
+            std::printf ("session-%02d  %5.1f kHz  %-6s  %4d blocks (%d ... %d)  bypass toggles %2d (on via parameter %d, via processBlockBypassed %d)  "
+                         "output_gain edits %3d  auto_gain toggles %2d  peak %.6g (%+.1f dBFS)  non-finite %lld%s\n",
+                         session.index, session.rate / 1000.0, session.channels == 1 ? "mono" : "stereo",
+                         st.blocks, st.minBlock, st.maxBlock, st.bypassToggles, st.bypassOnViaParameter, st.bypassOnViaBypassed,
+                         st.outputGainEdits, st.autoGainToggles, st.peak, 20.0 * std::log10 (juce::jmax (st.peak, 1.0e-300)),
+                         (long long) st.nonFinite, written ? "" : "  WRITE FAILED");
+        }
+
+        std::fflush (stdout);
+        return bad == 0 ? 0 : 1;
+    }
+
+    //==========================================================================
+    //==========================================================================
+    // Stage 2, Phase 2.6: analyzer taps, display model, listen (PLAN-2.6 T9)
+    //
+    // Harness references (PLAN-2.6 P12). None of them calls eq::Listen,
+    // OutputStage::process / nextGains or a DisplayModel design call:
+    //   - listenRefRender: P4 - P6 re-stated per sample. The D11 mapping
+    //     (lrMap), the solo router, two static voices (RefChain: Designer::
+    //     design -> toRuntime -> svfTick / onePoleTick), the 30 ms input ramp
+    //     and the 20 ms fade from the weight formula, the tick schedule and
+    //     the latch. It is fed the plugin's dry input and its EQ path (the
+    //     float output of the same instance with listen off and the gains
+    //     neutral, widened), and the gains are re-stated as constants (the
+    //     rows that use it hold them settled). listenHardRender: the same with
+    //     R = 0 and N = 1 (the hard control), or R = 0 and N = 20 ms (the fade
+    //     from rest of the bench, printed).
+    //   - G9: composeFromPackets (the display model's packets parsed back
+    //     from their var, eq::bandResponseAtZ per band, the 2x2 placement
+    //     matrices in index order), dampedResponse (the weighted direct sum
+    //     of the plugin's own float impulse responses, a recursive phasor
+    //     re-set every 4096 samples), slowestPoleRadius (from the packets).
+    //
+    // Rows with many renders run on worker threads: one instance per worker,
+    // constructed on the main thread (makePool), reused across that worker's
+    // jobs; every job first writes every raw value back to its default
+    // (resetAllRaw), then the values it uses.
+    //==========================================================================
+    //==========================================================================
+    using Cd = std::complex<double>;
+
+    /** XR-lid's 0.5.0 session dump (PLAN-2.6 T1, P13; not committed):
+        --lid-dir <dir>, else the environment variable OPEQ_LID_DIR. */
+    juce::File lidDumpDir;
+
+    /** Every raw value back to the layout's defaults, listen off, analyzer
+        mode 2 (the default), no consumer. */
+    void resetAllRaw (Processor& p, const Handles& h)
+    {
+        h.bypass->store (0.0f);
+        h.gainScale->store (100.0f);
+        h.outputGain->store (0.0f);
+        h.autoGain->store (0.0f);
+
+        for (const auto& hb : h.band)
+            storeRaw (hb, rawBandOff());
+
+        p.listenBand.store (-1);
+        p.analyzerMode.store (2);
+        p.setAnalyzerConsumer (false);
+    }
+
+    /** Up to 12 instances on one layout, constructed here (main thread). */
+    std::vector<std::unique_ptr<Processor>> makePool (int channels, int jobs)
+    {
+        const int hardware = (int) std::thread::hardware_concurrency();
+        const int count = juce::jlimit (1, 12, juce::jmin (jobs, hardware > 0 ? hardware : 1));
+        std::vector<std::unique_ptr<Processor>> pool;
+
+        for (int i = 0; i < count; ++i)
+            pool.push_back (makeBands (channels, 0, mixedSpec));
+
+        return pool;
+    }
+
+    /** job (j, instance, handles) for j = 0 ... count - 1, one worker thread
+        per instance of `pool` (this thread included). Jobs print nothing and
+        touch no tally. */
+    template <typename JobFn>
+    void poolFor (int count, std::vector<std::unique_ptr<Processor>>& pool, JobFn&& job)
+    {
+        if (count <= 0 || pool.empty())
+            return;
+
+        std::vector<Handles> handles;
+
+        for (auto& instance : pool)
+            handles.push_back (handlesOf (*instance));
+
+        std::atomic<int> next { 0 };
+
+        const auto work = [&next, &job, &pool, &handles, count] (size_t w)
+        {
+            for (;;)
+            {
+                const int mine = next.fetch_add (1);
+
+                if (mine >= count)
+                    return;
+
+                job (mine, *pool[w], handles[w]);
+            }
+        };
+
+        std::vector<std::thread> threads;
+
+        for (size_t w = 1; w < pool.size(); ++w)
+            threads.emplace_back (work, w);
+
+        work (0);
+
+        for (auto& thread : threads)
+            thread.join();
+    }
+
+    /** A render at `rate`, prepared at `prepared`: block n's length from
+        sizeAt (index, position), a block starting at each sample of `cuts`,
+        hook (BlockInfo&) before each block (it may switch the entry point).
+        Worker-safe (no std::function); it does not release the instance. */
+    template <typename SizeFn, typename HookFn>
+    juce::AudioBuffer<float> renderSized (Processor& p, const juce::AudioBuffer<float>& input, double rate, int prepared,
+                                          SizeFn&& sizeAt, std::vector<int> cuts, HookFn&& hook)
+    {
+        std::sort (cuts.begin(), cuts.end());
+
+        const int numChannels = input.getNumChannels();
+        const int length = input.getNumSamples();
+
+        juce::AudioBuffer<float> output (numChannels, length);
+        output.clear();
+        juce::AudioBuffer<float> block (numChannels, juce::jmax (1, prepared));
+        juce::MidiBuffer midi;
+
+        p.prepareToPlay (rate, juce::jmax (1, prepared));
+
+        size_t nextCut = 0;
+        int index = 0;
+
+        for (int position = 0; position < length; ++index)
+        {
+            int n = juce::jlimit (1, length - position, (int) sizeAt (index, position));
+
+            while (nextCut < cuts.size() && cuts[nextCut] <= position)
+                ++nextCut;
+
+            if (nextCut < cuts.size() && cuts[nextCut] - position < n)
+                n = cuts[nextCut] - position;
+
+            BlockInfo current;
+            current.index = index;
+            current.position = position;
+            current.viaBypassed = false;
+
+            hook (current);
+
+            block.setSize (numChannels, n, false, false, true);
+
+            for (int channel = 0; channel < numChannels; ++channel)
+                block.copyFrom (channel, 0, input, channel, position, n);
+
+            if (current.viaBypassed)
+                p.processBlockBypassed (block, midi);
+            else
+                p.processBlock (block, midi);
+
+            for (int channel = 0; channel < numChannels; ++channel)
+                output.copyFrom (channel, position, block, channel, 0, n);
+
+            position += n;
+        }
+
+        return output;
+    }
+
+    /** renderSized with every block blockSize long (prepared: blockSize). */
+    template <typename HookFn>
+    juce::AudioBuffer<float> renderAt (Processor& p, const juce::AudioBuffer<float>& input, double rate, int blockSize,
+                                       const std::vector<int>& cuts, HookFn&& hook, int prepared = 0)
+    {
+        return renderSized (p, input, rate, prepared > 0 ? prepared : blockSize,
+                            [blockSize] (int, int) { return blockSize; }, cuts, hook);
+    }
+
+    const auto noHook = [] (BlockInfo&) {};
+
+    /** max |y - ref| over [from, to) re the largest |y| there, one lane, dB. */
+    double laneErrorReDb (const juce::AudioBuffer<float>& y, int channel, const std::vector<double>& ref, int from, int to)
+    {
+        if (ref.size() != (size_t) y.getNumSamples())
+            return std::numeric_limits<double>::infinity();
+
+        const float* data = y.getReadPointer (channel);
+        double error = 0.0, peak = 0.0;
+
+        for (int i = juce::jmax (0, from); i < juce::jmin (to, y.getNumSamples()); ++i)
+        {
+            const double d = std::abs ((double) data[i] - ref[(size_t) i]);
+
+            if (! (d <= error))
+                error = d;
+
+            peak = juce::jmax (peak, std::abs ((double) data[i]));
+        }
+
+        if (! (peak > 0.0))
+            return std::numeric_limits<double>::infinity();
+
+        return 20.0 * std::log10 (juce::jmax (error, 1.0e-300) / peak);
+    }
+
+    double dbOf (double magnitude)
+    {
+        return 20.0 * std::log10 (juce::jmax (magnitude, 1.0e-300));
+    }
+
+    //==========================================================================
+    // G9 (a): the display's closed form against the measured response
+    // (PLAN-2.6 C1, T9; RESEARCH-2.6 Q1; tap_bench damped, g9unit, json)
+    //==========================================================================
+    constexpr int kG9Length = 1 << 17;
+    constexpr int kG9Points = 192;
+    constexpr int kG9StereoPerRate = 50;
+    constexpr int kG9MonoPerRate = 2;               // 10 mono over the five rates
+    constexpr int kG9UnitKeep = 25, kG9UnitMaxDraws = 200;
+    constexpr double kG9Limit = 0.05, kG9WithinDb = 80.0, kG9JsonLimit = 1.0e-7;
+    constexpr double kG9AbsoluteFloorDb = -120.0;     // PLAN-2.6 execute, Taylor's call 2026-11-15
+    const double kG9Rates[5] = { 44100.0, 48000.0, 88200.0, 96000.0, 192000.0 };
+
+    struct G9Config
+    {
+        int numBands = 1;
+        std::array<eq::RawBand, (size_t) Processor::kNumBands> raw {};
+    };
+
+    /** A full-range draw (G5 / tap_bench randomConfig): 1 - 24 enabled bands;
+        every band type 0 - 7, frequency log 10 Hz - 30 kHz, gain +-30 dB, Q
+        log 0.025 - 40, slope 0 - 7, placement 0 - 4. */
+    G9Config g9Draw (Xorshift& random)
+    {
+        G9Config c;
+        c.numBands = 1 + juce::jmin (23, (int) (random.uniform() * 24.0));
+
+        for (int b = 0; b < Processor::kNumBands; ++b)
+        {
+            eq::RawBand r;
+            r.enabled = b < c.numBands ? 1.0f : 0.0f;
+            r.bypass = 0.0f;
+            r.type = (float) juce::jmin (7, (int) (random.uniform() * 8.0));
+            r.freq = juce::jlimit (10.0f, 30000.0f, (float) std::exp (std::log (10.0) + random.uniform() * std::log (3000.0)));
+            r.gain = juce::jlimit (-30.0f, 30.0f, (float) (-30.0 + 60.0 * random.uniform()));
+            r.q = juce::jlimit (0.025f, 40.0f, (float) std::exp (std::log (0.025) + random.uniform() * std::log (1600.0)));
+            r.slope = (float) juce::jmin (7, (int) (random.uniform() * 8.0));
+            r.placement = (float) juce::jmin (4, (int) (random.uniform() * 5.0));
+            c.raw[(size_t) b] = r;
+        }
+
+        return c;
+    }
+
+    /** XR-g9n: the L / M order control needs a draw holding an L band and an
+        M band that do not commute (PLAN-2.6 XG-ctl wording): bands 1 and 2. */
+    void g9ForcePair (G9Config& c)
+    {
+        c.numBands = juce::jmax (c.numBands, 2);
+        c.raw[0] = rawBandSpec (makeSpec (kBell, 1000.0f, 12.0f, 1.0f, 1, kLeft));
+        c.raw[1] = rawBandSpec (makeSpec (kBell, 1000.0f, -9.0f, 2.0f, 1, kMid));
+    }
+
+    void storeG9Config (Processor& p, const Handles& h, const G9Config& c)
+    {
+        resetAllRaw (p, h);
+
+        for (int b = 0; b < Processor::kNumBands; ++b)
+            storeRaw (h.band[(size_t) b], c.raw[(size_t) b]);
+    }
+
+    /** 192 log points, 10 Hz - min (30 kHz, 0.49 fs). */
+    std::vector<double> g9Grid (double rate)
+    {
+        const double top = juce::jmin (30000.0, 0.49 * rate);
+        std::vector<double> hz;
+
+        for (int i = 0; i < kG9Points; ++i)
+            hz.push_back (std::exp (std::log (10.0) + (std::log (top) - std::log (10.0)) * (double) i / (double) (kG9Points - 1)));
+
+        return hz;
+    }
+
+    /** One band of the display, parsed back from its packet. */
+    struct G9Band
+    {
+        int band = -1, type = -1, placement = 0;
+        bool active = false;
+        eq::BandDesign design {};
+    };
+
+    bool g9Numbers (const juce::var& v, double* out, int count, bool& finite)
+    {
+        const juce::Array<juce::var>* a = v.getArray();
+
+        if (a == nullptr || a->size() != count)
+            return false;
+
+        for (int i = 0; i < count; ++i)
+        {
+            const juce::var& e = a->getReference (i);
+
+            if (! (e.isDouble() || e.isInt() || e.isInt64()))
+                return false;
+
+            out[i] = (double) e;
+            finite = finite && std::isfinite (out[i]);
+        }
+
+        return true;
+    }
+
+    /** The packet's var back to a design. The packet carries no half flags:
+        a half sent as its neutral values (all ones, DisplayModel.h) is read
+        as absent, which is what the designer writes for an absent half. */
+    bool g9Parse (const juce::var& v, G9Band& out, bool& finite)
+    {
+        if (! v.isObject())
+            return false;
+
+        const juce::var sections = v.getProperty ("sections", juce::var());
+        const juce::var onePoles = v.getProperty ("onePoles", juce::var());
+        const juce::Array<juce::var>* s = sections.getArray();
+        const juce::Array<juce::var>* o = onePoles.getArray();
+
+        if (s == nullptr || o == nullptr || s->size() != o->size() || s->size() > (int) eq::maxSections)
+            return false;
+
+        out.band = (int) v.getProperty ("band", -1);
+        out.type = (int) v.getProperty ("type", -1);
+        out.placement = (int) v.getProperty ("placement", 0);
+        out.active = (bool) v.getProperty ("active", false);
+        out.design = eq::BandDesign {};
+        out.design.numSections = s->size();
+
+        for (int i = 0; i < s->size(); ++i)
+        {
+            double svf[5] = {}, onePole[3] = {};
+
+            if (! g9Numbers (s->getReference (i), svf, 5, finite) || ! g9Numbers (o->getReference (i), onePole, 3, finite))
+                return false;
+
+            eq::SectionParams& p = out.design.params[(size_t) i];
+            p.g = svf[0];
+            p.k = svf[1];
+            p.mL = svf[2];
+            p.mB = svf[3];
+            p.mH = svf[4];
+            p.G = onePole[0];
+            p.cL = onePole[1];
+            p.cH = onePole[2];
+            p.hasSvf = ! (svf[0] == 1.0 && svf[1] == 1.0 && svf[2] == 1.0 && svf[3] == 1.0 && svf[4] == 1.0);
+            p.hasOnePole = ! (onePole[0] == 1.0 && onePole[1] == 1.0 && onePole[2] == 1.0);
+        }
+
+        return true;
+    }
+
+    bool g9SameBits (double a, double b)
+    {
+        return std::memcmp (&a, &b, sizeof (double)) == 0;
+    }
+
+    /** Field by field (wave-1 notes 13: SectionParams has padding, so no memcmp of the struct). */
+    bool g9SameSection (const eq::SectionParams& a, const eq::SectionParams& b)
+    {
+        return a.hasSvf == b.hasSvf && a.hasOnePole == b.hasOnePole
+            && g9SameBits (a.g, b.g) && g9SameBits (a.k, b.k) && g9SameBits (a.mL, b.mL) && g9SameBits (a.mB, b.mB)
+            && g9SameBits (a.mH, b.mH) && g9SameBits (a.G, b.G) && g9SameBits (a.cL, b.cL) && g9SameBits (a.cH, b.cH);
+    }
+
+    bool g9SameSections (const eq::BandDesign& a, const eq::BandDesign& b)
+    {
+        if (a.numSections != b.numSections || a.numSections < 0 || a.numSections > (int) eq::maxSections)
+            return false;
+
+        for (int i = 0; i < a.numSections; ++i)
+            if (! g9SameSection (a.params[(size_t) i], b.params[(size_t) i]))
+                return false;
+
+        return true;
+    }
+
+    struct M2 { Cd a, b, c, d; };   // [[a b] [c d]]
+
+    M2 m2Mul (const M2& x, const M2& y)
+    {
+        return { x.a * y.a + x.b * y.c, x.a * y.b + x.b * y.d,
+                 x.c * y.a + x.d * y.c, x.c * y.b + x.d * y.d };
+    }
+
+    /** ARCHITECTURE "True-response display": the placement's 2x2 in L / R. */
+    M2 g9Matrix (int placement, Cd F)
+    {
+        const Cd one (1.0, 0.0), zero (0.0, 0.0);
+        const Cd h = 0.5 * (F - one);
+
+        switch (placement)
+        {
+            case kLeft:  return { F, zero, zero, one };
+            case kRight: return { one, zero, zero, F };
+            case kMid:   return { one + h, h, h, one + h };
+            case kSide:  return { one + h, -h, -h, one + h };
+            default:     break;
+        }
+
+        return { F, zero, zero, F };
+    }
+
+    /** LL, RR, MM = 1/2 sum M_ij, SS = 1/2 (M00 - M01 - M10 + M11). */
+    std::array<Cd, 4> g9Drawn (const M2& m)
+    {
+        return { m.a, m.d, 0.5 * (m.a + m.b + m.c + m.d), 0.5 * (m.a - m.b - m.c + m.d) };
+    }
+
+    /** The four XR-g9n controls, applied to the closed form only (P12). */
+    enum class G9Control { none, kScaled, onePoleDropped, swappedLM, midForSide };
+
+    /** The display's closed form at z: the active packets in index order,
+        each band's response eq::bandResponseAtZ, its placement matrix
+        multiplied on the left. */
+    std::array<Cd, 4> composeFromPackets (const std::vector<G9Band>& bands, Cd z, G9Control control = G9Control::none)
+    {
+        std::vector<int> order;
+
+        for (int i = 0; i < (int) bands.size(); ++i)
+            if (bands[(size_t) i].active)
+                order.push_back (i);
+
+        if (control == G9Control::swappedLM)
+        {
+            int l = -1, m = -1;
+
+            for (int k = 0; k < (int) order.size(); ++k)
+            {
+                const int pl = bands[(size_t) order[(size_t) k]].placement;
+
+                if (pl == kLeft && l < 0)
+                    l = k;
+
+                if (pl == kMid && m < 0)
+                    m = k;
+            }
+
+            if (l >= 0 && m >= 0)
+                std::swap (order[(size_t) l], order[(size_t) m]);
+        }
+
+        M2 m { Cd (1.0, 0.0), Cd (0.0, 0.0), Cd (0.0, 0.0), Cd (1.0, 0.0) };
+
+        for (const int i : order)
+        {
+            const G9Band& b = bands[(size_t) i];
+            Cd F (1.0, 0.0);
+
+            if (control == G9Control::kScaled || control == G9Control::onePoleDropped)
+            {
+                for (int s = 0; s < b.design.numSections; ++s)
+                {
+                    eq::SectionParams p = b.design.params[(size_t) s];
+
+                    if (control == G9Control::kScaled && p.hasSvf)
+                        p.k *= 1.01;
+
+                    if (control == G9Control::onePoleDropped)
+                        p.hasOnePole = false;
+
+                    F *= eq::sectionResponseAtZ (z, p);
+                }
+            }
+            else
+            {
+                F = eq::bandResponseAtZ (b.design, z);
+            }
+
+            const int placement = (control == G9Control::midForSide && b.placement == kSide) ? kMid : b.placement;
+            m = m2Mul (g9Matrix (placement, F), m);
+        }
+
+        return g9Drawn (m);
+    }
+
+    /** Whether a control changes this draw's closed form at all. */
+    bool g9ControlApplies (const std::vector<G9Band>& bands, G9Control control)
+    {
+        bool left = false, mid = false;
+
+        for (const auto& b : bands)
+        {
+            if (! b.active)
+                continue;
+
+            left = left || b.placement == kLeft;
+            mid = mid || b.placement == kMid;
+
+            for (int s = 0; s < b.design.numSections; ++s)
+            {
+                const auto& p = b.design.params[(size_t) s];
+
+                if (control == G9Control::kScaled && p.hasSvf)
+                    return true;
+
+                if (control == G9Control::onePoleDropped && p.hasOnePole)
+                    return true;
+            }
+
+            if (control == G9Control::midForSide && b.placement == kSide)
+                return true;
+        }
+
+        return control == G9Control::swappedLM && left && mid;
+    }
+
+    /** The largest pole radius of the active packets' sections: SVF poles
+        x = (-k +- sqrt (k^2 - 4)) / 2, s = g x; one-pole s = -G; z = (1 + s) / (1 - s). */
+    double slowestPoleRadius (const std::vector<G9Band>& bands)
+    {
+        double radius = 0.0;
+
+        for (const auto& b : bands)
+        {
+            if (! b.active)
+                continue;
+
+            for (int s = 0; s < b.design.numSections; ++s)
+            {
+                const auto& p = b.design.params[(size_t) s];
+
+                if (p.hasSvf)
+                {
+                    const Cd disc = std::sqrt (Cd (p.k * p.k - 4.0, 0.0));
+
+                    for (const Cd x : { (-p.k + disc) / 2.0, (-p.k - disc) / 2.0 })
+                    {
+                        const Cd sv = p.g * x;
+                        radius = juce::jmax (radius, std::abs ((1.0 + sv) / (1.0 - sv)));
+                    }
+                }
+
+                if (p.hasOnePole)
+                    radius = juce::jmax (radius, std::abs ((1.0 - p.G) / (1.0 + p.G)));
+            }
+        }
+
+        return radius;
+    }
+
+    /** sum_n v[n] a^n e^{-j w n} at each w: a direct sum with a recursive
+        phasor, re-set to its exact value a^(n+1) e^{-j w (n+1)} every 4096
+        samples (a = 1: the unit circle; a^N = 1e-9: the damped circle). */
+    std::vector<Cd> dampedResponse (const std::vector<double>& v, double a, const std::vector<double>& w)
+    {
+        std::vector<Cd> out (w.size());
+
+        for (size_t k = 0; k < w.size(); ++k)
+        {
+            const double cr = a * std::cos (w[k]), ci = -a * std::sin (w[k]);
+            double pr = 1.0, pm = 0.0, ar = 0.0, ai = 0.0;
+
+            for (size_t n = 0; n < v.size(); ++n)
+            {
+                ar += v[n] * pr;
+                ai += v[n] * pm;
+
+                const double t = pr * cr - pm * ci;
+                pm = pr * ci + pm * cr;
+                pr = t;
+
+                if ((n & 4095u) == 4095u)
+                {
+                    const double magnitude = std::pow (a, (double) (n + 1));
+                    const double angle = -w[k] * (double) (n + 1);
+                    pr = magnitude * std::cos (angle);
+                    pm = magnitude * std::sin (angle);
+                }
+            }
+
+            out[k] = Cd (ar, ai);
+        }
+
+        return out;
+    }
+
+    /** The response q of the impulse set: LL (impulse L, lane L), RR
+        (impulse R, lane R), MM (impulse (1, 1), 1/2 (L + R)), SS (impulse
+        (1, -1), 1/2 (L - R)); mono: lane 0 of the one impulse. */
+    std::vector<double> g9ResponseOf (const std::vector<std::array<std::vector<float>, 2>>& irs, int q)
+    {
+        const auto& set = irs[(size_t) (irs.size() == 1 ? 0 : q)];
+        std::vector<double> v (set[0].size());
+
+        for (size_t n = 0; n < v.size(); ++n)
+        {
+            switch (irs.size() == 1 ? 0 : q)
+            {
+                case 0:  v[n] = (double) set[0][n]; break;
+                case 1:  v[n] = (double) set[1][n]; break;
+                case 2:  v[n] = 0.5 * ((double) set[0][n] + (double) set[1][n]); break;
+                default: v[n] = 0.5 * ((double) set[0][n] - (double) set[1][n]); break;
+            }
+        }
+
+        return v;
+    }
+
+    /** The largest closed-form value (dB) over the grid of one response. */
+    double g9TopOf (const std::vector<Cd>& closed)
+    {
+        double top = -std::numeric_limits<double>::infinity();
+
+        for (const auto& c : closed)
+            top = juce::jmax (top, dbOf (std::abs (c)));
+
+        return top;
+    }
+
+    /** Worst |dB measured - dB closed| over the points where the closed form
+        is within 80 dB of floorTop. PLAN-2.6 execute, Taylor's call
+        2026-11-15 (the G9 floor): floorTop is the LARGEST maximum among the
+        configuration's LL / RR / MM / SS, not each response's own (C1 as
+        first written scored a response cancelled to -345 dB down to -425 dB,
+        below the float output's resolution of the louder lanes). *topOut
+        receives this response's own maximum (the INFO diagnostic). */
+    double g9Worst (const std::vector<Cd>& closed, const std::vector<Cd>& measured, int& scored, double floorTop, double* topOut = nullptr)
+    {
+        if (topOut != nullptr)
+            *topOut = g9TopOf (closed);
+
+        double worst = 0.0;
+
+        for (size_t k = 0; k < closed.size(); ++k)
+        {
+            const double ref = dbOf (std::abs (closed[k]));
+
+            // PLAN-2.6 execute, Taylor's call 2026-11-15: and an absolute
+            // floor, -120 dB re the unit impulse.
+            if (ref < floorTop - kG9WithinDb || ref < kG9AbsoluteFloorDb)
+                continue;
+
+            const double e = std::abs (dbOf (std::abs (measured[k])) - ref);
+            ++scored;
+
+            if (! (e <= worst))
+                worst = e;
+        }
+
+        return worst;
+    }
+
+    struct G9Out
+    {
+        bool rendered = false, polled = false, parsedOk = true, finiteDesigns = true, finiteOutput = true;
+        bool idOk = true, jsonOk = true;
+        int numActive = 0, idCompared = 0, scored = 0;
+        std::string idNote;
+        double worst = 0.0;
+        std::array<double, 4> control {};       // k x 1.01, one-pole dropped, L / M swapped, Mid for Side
+        std::array<bool, 4> controlApplies {};
+        double jsonDb = 0.0;
+        double radius = 0.0;
+
+        // Diagnostics (printed, not gated): the worst error per response,
+        // by that response's own maximum over the grid: >= -20 dB,
+        // -20 ... -80 dB, below -80 dB (re the unit impulse).
+        std::array<double, 3> worstByTop {}, jsonByTop {};
+        std::array<int, 3> responsesByTop {}, failingByTop {};
+    };
+
+    int g9TopBucket (double top)
+    {
+        return top >= -20.0 ? 0 : (top >= -80.0 ? 1 : 2);
+    }
+
+    /** One configuration: four impulses (stereo; mono: one), each from a
+        fresh prepare (the first block starts every band settled, so no ramp),
+        blocks of 4096, `length` samples. After the first block of the first
+        impulse: DisplayModel::poll, every packet parsed and compared with
+        getBandRealisedDesign (XR-g9id), and through JSON (XR-g9j). Then the
+        closed form from the packets against the measured response on the
+        damped circle (damped) or the unit circle. */
+    G9Out g9RunJob (Processor& p, const Handles& h, const G9Config& c, double rate, bool stereo, int length, bool damped, bool controls)
+    {
+        G9Out out;
+        storeG9Config (p, h, c);
+
+        auto model = std::make_unique<DisplayModel> (p);
+        std::vector<G9Band> bands ((size_t) Processor::kNumBands), jsonBands ((size_t) Processor::kNumBands);
+
+        const auto afterFirst = [&] ()
+        {
+            out.polled = true;
+            model->poll();
+
+            for (int b = 0; b < Processor::kNumBands; ++b)
+            {
+                const juce::var packet = model->packetFor (b);
+                G9Band& pb = bands[(size_t) b];
+                bool finite = true;
+
+                if (! g9Parse (packet, pb, finite) || pb.band != b)
+                {
+                    out.parsedOk = false;
+                    continue;
+                }
+
+                out.finiteDesigns = out.finiteDesigns && finite;
+
+                bool jsonFinite = true;
+
+                if (! g9Parse (juce::JSON::parse (juce::JSON::toString (packet)), jsonBands[(size_t) b], jsonFinite))
+                    out.jsonOk = false;
+
+                eq::BandDesign realised {};
+                const bool has = p.getBandRealisedDesign (b, realised);
+                ++out.idCompared;
+
+                bool ok = ! has;
+
+                if (pb.active)
+                {
+                    ++out.numActive;
+                    ok = has && g9SameSections (pb.design, realised) && g9SameSections (model->getBandDesign (b), realised);
+                }
+
+                if (! ok)
+                {
+                    out.idOk = false;
+
+                    if (out.idNote.empty())
+                        out.idNote = "band " + std::to_string (b + 1)
+                                   + (pb.active ? (has ? ": the packet differs from the realised design" : ": an active packet, no realised design")
+                                                : ": an inactive packet, but a realised design");
+                }
+            }
+        };
+
+        const int numImpulses = stereo ? 4 : 1;
+        const float impulses[4][2] = { { 1.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, -1.0f } };
+        std::vector<std::array<std::vector<float>, 2>> irs ((size_t) numImpulses);
+
+        for (int s = 0; s < numImpulses; ++s)
+        {
+            juce::AudioBuffer<float> input (stereo ? 2 : 1, length);
+            input.clear();
+            input.setSample (0, 0, impulses[s][0]);
+
+            if (stereo)
+                input.setSample (1, 0, impulses[s][1]);
+
+            bool first = (s == 0);
+
+            const auto y = renderAt (p, input, rate, 4096, {}, [&first, &afterFirst] (BlockInfo& current)
+            {
+                if (first && current.index == 1)
+                {
+                    first = false;
+                    afterFirst();
+                }
+            });
+
+            if (first)
+                afterFirst();
+
+            out.finiteOutput = out.finiteOutput && allFinite (y);
+
+            for (int channel = 0; channel < y.getNumChannels(); ++channel)
+                irs[(size_t) s][(size_t) channel] = channelOf (y, channel);
+        }
+
+        p.releaseResources();
+        out.rendered = true;
+        out.radius = slowestPoleRadius (bands);
+
+        if (! out.parsedOk)
+            return out;
+
+        const auto hz = g9Grid (rate);
+        std::vector<double> w;
+
+        for (const double f : hz)
+            w.push_back (2.0 * eq::pi * f / rate);
+
+        const double a = damped ? std::pow (1.0e-9, 1.0 / (double) length) : 1.0;
+        const int numResponses = stereo ? 4 : 1;
+
+        const G9Control kinds[4] = { G9Control::kScaled, G9Control::onePoleDropped, G9Control::swappedLM, G9Control::midForSide };
+        std::array<std::vector<std::array<Cd, 4>>, 5> closed;      // [0] the closed form, [1 ... 4] the controls
+
+        for (size_t k = 0; k < w.size(); ++k)
+        {
+            const Cd z = std::polar (1.0 / a, w[k]);
+            closed[0].push_back (composeFromPackets (bands, z));
+
+            if (controls)
+                for (int ci = 0; ci < 4; ++ci)
+                    closed[(size_t) ci + 1].push_back (composeFromPackets (bands, z, kinds[ci]));
+        }
+
+        if (controls)
+            for (int ci = 0; ci < 4; ++ci)
+                out.controlApplies[(size_t) ci] = g9ControlApplies (bands, kinds[ci]);
+
+        // The scoring floor: 80 dB below the largest maximum among the
+        // configuration's responses (PLAN-2.6 execute, Taylor's call
+        // 2026-11-15), per closed form (the controls use their own).
+        std::array<double, 5> floorTop;
+
+        for (size_t f = 0; f < 5; ++f)
+        {
+            floorTop[f] = -std::numeric_limits<double>::infinity();
+
+            if (f > 0 && ! controls)
+                continue;
+
+            for (int q = 0; q < numResponses; ++q)
+            {
+                std::vector<Cd> one;
+
+                for (const auto& c4 : closed[f])
+                    one.push_back (c4[(size_t) q]);
+
+                floorTop[f] = juce::jmax (floorTop[f], g9TopOf (one));
+            }
+        }
+
+        for (int q = 0; q < numResponses; ++q)
+        {
+            const auto measured = dampedResponse (g9ResponseOf (irs, q), a, w);
+            std::vector<Cd> reference;
+
+            for (const auto& c4 : closed[0])
+                reference.push_back (c4[(size_t) q]);
+
+            double top = 0.0;
+            const double e = g9Worst (reference, measured, out.scored, floorTop[0], &top);
+            const int bucket = g9TopBucket (top);
+            out.worst = juce::jmax (out.worst, e);
+            out.worstByTop[(size_t) bucket] = juce::jmax (out.worstByTop[(size_t) bucket], e);
+            ++out.responsesByTop[(size_t) bucket];
+            out.failingByTop[(size_t) bucket] += (e <= kG9Limit) ? 0 : 1;
+
+            if (! std::isfinite (out.worst))
+                out.worst = std::numeric_limits<double>::infinity();
+
+            if (controls)
+            {
+                for (int ci = 0; ci < 4; ++ci)
+                {
+                    std::vector<Cd> perturbed;
+
+                    for (const auto& c4 : closed[(size_t) ci + 1])
+                        perturbed.push_back (c4[(size_t) q]);
+
+                    int ignored = 0;
+                    out.control[(size_t) ci] = juce::jmax (out.control[(size_t) ci], g9Worst (perturbed, measured, ignored, floorTop[(size_t) ci + 1]));
+                }
+            }
+        }
+
+        // XR-g9j: the JSON round trip, composed again on the unit circle,
+        // against the unserialised packets, within 80 dB of the largest
+        // response maximum (PLAN-2.6 execute, Taylor's call 2026-11-15).
+        if (out.jsonOk)
+        {
+            std::array<std::vector<Cd>, 4> plain, serial;
+
+            for (size_t k = 0; k < w.size(); ++k)
+            {
+                const Cd z = std::polar (1.0, w[k]);
+                const auto a4 = composeFromPackets (bands, z);
+                const auto b4 = composeFromPackets (jsonBands, z);
+
+                for (int q = 0; q < 4; ++q)
+                {
+                    plain[(size_t) q].push_back (a4[(size_t) q]);
+                    serial[(size_t) q].push_back (b4[(size_t) q]);
+                }
+            }
+
+            double jsonFloor = -std::numeric_limits<double>::infinity();
+
+            for (int q = 0; q < numResponses; ++q)
+                jsonFloor = juce::jmax (jsonFloor, g9TopOf (plain[(size_t) q]));
+
+            for (int q = 0; q < numResponses; ++q)
+            {
+                int ignored = 0;
+                double top = 0.0;
+                const double e = g9Worst (plain[(size_t) q], serial[(size_t) q], ignored, jsonFloor, &top);
+                out.jsonDb = juce::jmax (out.jsonDb, e);
+                const auto bucket = (size_t) g9TopBucket (top);
+                out.jsonByTop[bucket] = juce::jmax (out.jsonByTop[bucket], e);
+            }
+        }
+
+        return out;
+    }
+
+    /** XR-g9id's named cases: one instance, 48 kHz stereo, one block of
+        noise, then the packets against the realised designs. Returns the
+        number of bands that disagree; `note` names the first. */
+    int g9IdCase (Processor& p, const Handles& h, const std::vector<std::pair<int, eq::RawBand>>& bandsSet, float gainScale,
+                  const std::vector<int>& expectInactive, const std::vector<int>& expectActive, std::string& note)
+    {
+        resetAllRaw (p, h);
+        h.gainScale->store (gainScale);
+
+        for (const auto& entry : bandsSet)
+            storeRaw (h.band[(size_t) entry.first], entry.second);
+
+        auto model = std::make_unique<DisplayModel> (p);
+        const auto input = makeNoiseAt (2, 512, 0x6739D000, kNoise12);
+        int bad = 0;
+
+        renderAt (p, input, 48000.0, 512, {}, noHook);
+        model->poll();
+
+        const auto check = [&] (int b, bool wantActive)
+        {
+            G9Band pb;
+            bool finite = true;
+            eq::BandDesign realised {};
+            const bool parsed = g9Parse (model->packetFor (b), pb, finite);
+            const bool has = p.getBandRealisedDesign (b, realised);
+            const bool ok = parsed && pb.active == wantActive && has == wantActive
+                            && (! wantActive || (g9SameSections (pb.design, realised) && g9SameSections (model->getBandDesign (b), realised)));
+
+            if (! ok)
+            {
+                ++bad;
+
+                if (note.empty())
+                    note = "band " + std::to_string (b + 1) + ": packet active " + (pb.active ? "true" : "false") + ", realised design "
+                         + (has ? "present" : "absent") + " (wanted " + (wantActive ? "active" : "inactive") + ")";
+            }
+        };
+
+        for (const int b : expectInactive)
+            check (b, false);
+
+        for (const int b : expectActive)
+            check (b, true);
+
+        p.releaseResources();
+        return bad;
+    }
+
+    /** The diagnostic line of a set of G9 runs (not gated). */
+    juce::String g9BucketText (const std::vector<G9Out>& outs, bool json)
+    {
+        std::array<double, 3> worst {};
+        std::array<int, 3> responses {}, failing {};
+
+        for (const auto& o : outs)
+            for (size_t b = 0; b < 3; ++b)
+            {
+                worst[b] = juce::jmax (worst[b], json ? o.jsonByTop[b] : o.worstByTop[b]);
+                responses[b] += o.responsesByTop[b];
+                failing[b] += o.failingByTop[b];
+            }
+
+        const char* const names[3] = { "response maximum >= -20 dB", "-20 ... -80 dB", "below -80 dB" };
+        juce::String text;
+
+        for (size_t b = 0; b < 3; ++b)
+            text += (b == 0 ? "" : "; ") + juce::String (names[b]) + ": worst " + fmtG (worst[b], 3) + " dB"
+                  + (json ? juce::String() : " (" + juce::String (failing[b]) + " of " + juce::String (responses[b]) + " responses above 0.05)");
+
+        return text;
+    }
+
+    void displayRowsXr()
+    {
+        section ("XR-g9 / XR-dm. the display model and G9 (a) (Phase 2.6: UI-02 C++ half; C1; PLAN-2.6 P8, T9)");
+
+        struct Job
+        {
+            int rate = 0;
+            bool stereo = true;
+            G9Config config;
+        };
+
+        std::vector<Job> stereoJobs, monoJobs;
+
+        for (int r = 0; r < 5; ++r)
+        {
+            Xorshift draw;
+            draw.state = 0x4739410000000000ull ^ (std::uint64_t) kG9Rates[r];
+
+            for (int d = 0; d < kG9StereoPerRate; ++d)
+            {
+                Job j;
+                j.rate = r;
+                j.config = g9Draw (draw);
+
+                if (d == 0)
+                    g9ForcePair (j.config);
+
+                stereoJobs.push_back (j);
+            }
+
+            Xorshift drawMono;
+            drawMono.state = 0x47394D4F4E4F0000ull ^ (std::uint64_t) kG9Rates[r];
+
+            for (int d = 0; d < kG9MonoPerRate; ++d)
+            {
+                Job j;
+                j.rate = r;
+                j.stereo = false;
+                j.config = g9Draw (drawMono);
+                monoJobs.push_back (j);
+            }
+        }
+
+        std::vector<G9Out> stereoOut (stereoJobs.size()), monoOut (monoJobs.size());
+
+        {
+            auto pool = makePool (2, (int) stereoJobs.size());
+            poolFor ((int) stereoJobs.size(), pool, [&stereoJobs, &stereoOut] (int j, Processor& p, const Handles& h)
+            {
+                const Job& job = stereoJobs[(size_t) j];
+                stereoOut[(size_t) j] = g9RunJob (p, h, job.config, kG9Rates[job.rate], true, kG9Length, true, true);
+            });
+        }
+
+        {
+            auto pool = makePool (1, (int) monoJobs.size());
+            poolFor ((int) monoJobs.size(), pool, [&monoJobs, &monoOut] (int j, Processor& p, const Handles& h)
+            {
+                const Job& job = monoJobs[(size_t) j];
+                monoOut[(size_t) j] = g9RunJob (p, h, job.config, kG9Rates[job.rate], false, kG9Length, true, false);
+            });
+        }
+
+        //======================================================================
+        // XR-g9
+        //======================================================================
+        {
+            Tally tally;
+            double worstStereo[5] = {}, worstMono = 0.0;
+            int scored = 0, activeBands = 0, voids[5] = {};
+            juce::String voidNames;
+
+            for (size_t j = 0; j < stereoJobs.size(); ++j)
+            {
+                const G9Out& o = stereoOut[j];
+                const juce::String where = fmtG (kG9Rates[stereoJobs[j].rate] / 1000.0, 4) + " kHz draw " + juce::String ((int) j % kG9StereoPerRate);
+                worstStereo[stereoJobs[j].rate] = juce::jmax (worstStereo[stereoJobs[j].rate], o.worst);
+                scored += o.scored;
+                activeBands += o.numActive;
+                if (o.rendered && o.parsedOk && o.scored == 0)
+                {
+                    ++voids[stereoJobs[j].rate];
+                    voidNames += (voidNames.isEmpty() ? "" : ", ") + where;
+                    continue;
+                }
+
+                tally.check (o.rendered && o.parsedOk && o.finiteOutput && o.worst <= kG9Limit,
+                             where + ": " + fmtG (o.worst, 3) + " dB" + (o.finiteOutput ? "" : ", output not finite") + (o.parsedOk ? "" : ", a packet did not parse"));
+            }
+
+            for (size_t j = 0; j < monoJobs.size(); ++j)
+            {
+                const G9Out& o = monoOut[j];
+                worstMono = juce::jmax (worstMono, o.worst);
+                scored += o.scored;
+                activeBands += o.numActive;
+
+                if (o.rendered && o.parsedOk && o.scored == 0)
+                {
+                    ++voids[monoJobs[j].rate];
+                    voidNames += (voidNames.isEmpty() ? "" : ", ") + juce::String ("mono ") + fmtG (kG9Rates[monoJobs[j].rate] / 1000.0, 4) + " kHz draw "
+                               + juce::String ((int) j % kG9MonoPerRate);
+                    continue;
+                }
+
+                tally.check (o.rendered && o.parsedOk && o.finiteOutput && o.worst <= kG9Limit,
+                             "mono " + fmtG (kG9Rates[monoJobs[j].rate] / 1000.0, 4) + " kHz: " + fmtG (o.worst, 3) + " dB");
+            }
+
+            juce::String figures;
+
+            int voidTotal = 0;
+
+            for (int r = 0; r < 5; ++r)
+            {
+                figures += (r == 0 ? "" : ", ") + fmtG (kG9Rates[r] / 1000.0, 4) + " kHz " + fmtG (worstStereo[r], 3) + " (" + juce::String (voids[r]) + " void)";
+                voidTotal += voids[r];
+            }
+
+            figures += "; VOID (no point at or above -120 dB re the impulse): " + juce::String (voidTotal) + (voidNames.isEmpty() ? juce::String() : " (" + voidNames + ")");
+
+            row (tally.bad == 0 && tally.total + voidTotal == (int) (stereoJobs.size() + monoJobs.size()),
+                 "XR-g9 G9 (a) as amended (C1): 50 random full-range 1 - 24 band configurations at each of 44.1 / 48 / 88.2 / 96 / 192 kHz, stereo, plus 10 mono; four impulses (L, R, (1, 1), (1, -1)), 2^17 samples, a^N = 1e-9; the closed form from the processor's own DisplayModel packets: LL / RR / MM / SS <= 0.05 dB where the closed form is within 80 dB of the largest maximum among the four responses and at or above -120 dB re the impulse (192 log points; floors: PLAN-2.6 execute, Taylor's call 2026-11-15; a configuration with no such point is void, listed)",
+                 tally.detail() + "  worst dB per rate (stereo): " + figures + "; mono " + fmtG (worstMono, 3) + " (bench <= 1.2e-3); "
+                     + juce::String (scored) + " points scored, " + juce::String (activeBands) + " active bands");
+
+            std::vector<G9Out> all (stereoOut);
+            all.insert (all.end(), monoOut.begin(), monoOut.end());
+            info ("XR-g9 by each response's own maximum (re the unit impulse; diagnostic, not gated): " + g9BucketText (all, false));
+        }
+
+        //======================================================================
+        // XR-g9u: the unit circle on draws whose slowest pole decays
+        //======================================================================
+        {
+            struct UnitJob
+            {
+                int rate = 0;
+                G9Config config;
+                int length = 4096;
+            };
+
+            std::vector<UnitJob> unitJobs;
+            int drawn[5] = {}, kept[5] = {};
+
+            {
+                auto selector = makeBands (2, 0, mixedSpec);
+                const Handles hs = handlesOf (*selector);
+                auto model = std::make_unique<DisplayModel> (*selector);
+
+                for (int r = 0; r < 5; ++r)
+                {
+                    const double rate = kG9Rates[r];
+                    Xorshift draw;
+                    draw.state = 0x4739554E49540000ull ^ (std::uint64_t) rate;
+
+                    while (kept[r] < kG9UnitKeep && drawn[r] < kG9UnitMaxDraws)
+                    {
+                        ++drawn[r];
+                        const G9Config c = g9Draw (draw);
+                        storeG9Config (*selector, hs, c);
+                        selector->prepareToPlay (rate, 512);
+                        model->poll();
+
+                        std::vector<G9Band> bands ((size_t) Processor::kNumBands);
+                        bool parsed = true, finite = true;
+
+                        for (int b = 0; b < Processor::kNumBands; ++b)
+                            parsed = g9Parse (model->packetFor (b), bands[(size_t) b], finite) && parsed;
+
+                        const double radius = slowestPoleRadius (bands);
+
+                        if (! parsed || ! (radius > 0.0 && radius < 1.0))
+                            continue;
+
+                        const double seconds = 200.0 / (-20.0 * std::log10 (radius) * rate);
+
+                        if (! (seconds <= 6.0))
+                            continue;
+
+                        ++kept[r];
+                        UnitJob j;
+                        j.rate = r;
+                        j.config = c;
+                        j.length = juce::jmax (4096, (int) std::llround (1.25 * seconds * rate));
+                        unitJobs.push_back (j);
+                    }
+                }
+
+                selector->releaseResources();
+            }
+
+            std::vector<G9Out> unitOut (unitJobs.size());
+
+            {
+                auto pool = makePool (2, (int) unitJobs.size());
+                poolFor ((int) unitJobs.size(), pool, [&unitJobs, &unitOut] (int j, Processor& p, const Handles& h)
+                {
+                    const UnitJob& job = unitJobs[(size_t) j];
+                    unitOut[(size_t) j] = g9RunJob (p, h, job.config, kG9Rates[job.rate], true, job.length, false, false);
+                });
+            }
+
+            Tally tally;
+            double worst[5] = {};
+            int longest[5] = {}, unitVoids = 0;
+            bool unitIdOk = true;
+            juce::String unitVoidNames;
+
+            for (size_t j = 0; j < unitJobs.size(); ++j)
+            {
+                const G9Out& o = unitOut[j];
+                const int r = unitJobs[j].rate;
+                worst[r] = juce::jmax (worst[r], o.worst);
+                longest[r] = juce::jmax (longest[r], unitJobs[j].length);
+                unitIdOk = unitIdOk && o.idOk;
+
+                if (o.rendered && o.parsedOk && o.scored == 0)
+                {
+                    ++unitVoids;
+                    unitVoidNames += (unitVoidNames.isEmpty() ? "" : ", ") + fmtG (kG9Rates[r] / 1000.0, 4) + " kHz kept draw " + juce::String ((int) j);
+                    continue;
+                }
+
+                tally.check (o.rendered && o.parsedOk && o.finiteOutput && o.worst <= kG9Limit,
+                             fmtG (kG9Rates[r] / 1000.0, 4) + " kHz: " + fmtG (o.worst, 3) + " dB");
+            }
+
+            for (int r = 0; r < 5; ++r)
+                tally.check (kept[r] >= kG9UnitKeep, fmtG (kG9Rates[r] / 1000.0, 4) + " kHz: only " + juce::String (kept[r]) + " decaying draws in "
+                                                         + juce::String (drawn[r]));
+
+            juce::String figures;
+
+            for (int r = 0; r < 5; ++r)
+                figures += (r == 0 ? "" : "; ") + fmtG (kG9Rates[r] / 1000.0, 4) + " kHz " + juce::String (kept[r]) + " of " + juce::String (drawn[r])
+                         + " drawn, worst " + fmtG (worst[r], 3) + " dB, longest " + fmtG ((double) longest[r] / kG9Rates[r], 3) + " s";
+
+            row (tally.bad == 0,
+                 "XR-g9u confirming unit-circle row: draws whose slowest pole (from the packets) falls 200 dB within 6 s, rendered 1.25x that time (at least 25 per rate, drawn until kept, max 200): LL / RR / MM / SS <= 0.05 dB within 80 dB of the largest maximum among the four responses and at or above -120 dB re the impulse (void configurations listed)",
+                 tally.detail() + "  " + figures + " (bench <= 3.8e-2 at 48 kHz, 1 - 8 bands); VOID " + juce::String (unitVoids)
+                     + (unitVoidNames.isEmpty() ? juce::String() : " (" + unitVoidNames + ")") + (unitIdOk ? "" : "; PACKET IDENTITY FAILED in a unit-circle render"));
+
+            info ("XR-g9u by each response's own maximum (re the unit impulse; diagnostic, not gated): " + g9BucketText (unitOut, false));
+        }
+
+        //======================================================================
+        // XR-g9n: the four controls on the XR-g9 draws
+        //======================================================================
+        {
+            const char* const names[4] = { "k x 1.01", "one-pole dropped", "L band and M band in the wrong order", "Mid matrix for Side" };
+            double largest[4] = {};
+            int applied[4] = {}, fired[4] = {};
+
+            for (const auto& o : stereoOut)
+                for (int c = 0; c < 4; ++c)
+                {
+                    if (! o.controlApplies[(size_t) c])
+                        continue;
+
+                    ++applied[c];
+                    largest[c] = juce::jmax (largest[c], o.control[(size_t) c]);
+
+                    if (o.control[(size_t) c] > kG9Limit)
+                        ++fired[c];
+                }
+
+            juce::String figures;
+            bool all = true;
+
+            for (int c = 0; c < 4; ++c)
+            {
+                all = all && largest[c] > kG9Limit;
+                figures += (c == 0 ? "" : "; ") + juce::String (names[c]) + " " + fmtG (largest[c], 3) + " dB (above 0.05 on " + juce::String (fired[c])
+                         + " of " + juce::String (applied[c]) + " draws it changes)";
+            }
+
+            row (all, "XR-g9n the four controls on the XR-g9 draws (the harness closed form perturbed, the plugin untouched): each exceeds 0.05 dB",
+                 figures);
+        }
+
+        //======================================================================
+        // XR-g9id
+        //======================================================================
+        {
+            Tally tally;
+            int compared = 0, active = 0;
+
+            for (const auto* outs : { &stereoOut, &monoOut })
+                for (const auto& o : *outs)
+                {
+                    compared += o.idCompared;
+                    active += o.numActive;
+                    tally.check (o.polled && o.parsedOk && o.idOk && o.idCompared == Processor::kNumBands, o.idNote.empty() ? juce::String ("not polled") : juce::String (o.idNote));
+                }
+
+            auto p = makeBands (2, 0, mixedSpec);
+            const Handles h = handlesOf (*p);
+            std::string note;
+
+            const auto bell = [] (float freq, float gain) { return rawBandSpec (makeSpec (kBell, freq, gain, 1.0f, 1, kStereo)); };
+            eq::RawBand disabled = bell (1500.0f, 6.0f);
+            disabled.enabled = 0.0f;
+            eq::RawBand bypassed = bell (2000.0f, 6.0f);
+            bypassed.bypass = 1.0f;
+
+            const int badNamed = g9IdCase (*p, h, { { 0, bell (1000.0f, 6.0f) }, { 1, disabled }, { 2, bypassed }, { 3, bell (3000.0f, 0.0f) } },
+                                           100.0f, { 1, 2, 3 }, { 0 }, note);
+            const int badScale = g9IdCase (*p, h, { { 0, bell (1000.0f, 6.0f) },
+                                                    { 1, rawBandSpec (makeSpec (kLowShelf, 200.0f, 6.0f, 1.0f, 1, kStereo)) },
+                                                    { 2, rawBandSpec (makeSpec (kLowCut, 100.0f, 0.0f, 1.0f, 3, kStereo)) } },
+                                           0.0f, { 0, 1 }, { 2 }, note);
+
+            tally.check (badNamed == 0, "disabled / bypassed / Bell at 0 dB: " + juce::String (note));
+            tally.check (badScale == 0, "gain scale 0 %: " + juce::String (note));
+
+            row (tally.bad == 0,
+                 "XR-g9id packet identity: after the first block, every band's packet sections (parsed back from the var, and the model's BandDesign) equal getBandRealisedDesign field by field, bit for bit; inactive and sleeping bands send active: false and realise no design (disabled, bypassed, Bell at exactly 0 dB, gain scale 0 %)",
+                 tally.detail() + "  " + juce::String (compared) + " bands compared over " + juce::String ((int) (stereoOut.size() + monoOut.size()))
+                     + " configurations (" + juce::String (active) + " active), plus the named cases");
+        }
+
+        //======================================================================
+        // XR-g9j
+        //======================================================================
+        {
+            double worst = 0.0;
+            bool ok = true, finite = true;
+
+            for (const auto* outs : { &stereoOut, &monoOut })
+                for (const auto& o : *outs)
+                {
+                    worst = juce::jmax (worst, o.jsonDb);
+                    ok = ok && o.jsonOk && o.parsedOk;
+                    finite = finite && o.finiteDesigns;
+                }
+
+            row (ok && finite && worst <= kG9JsonLimit,
+                 "XR-g9j every XR-g9 packet through juce::JSON::toString and juce::JSON::parse, composed again on the unit circle: <= 1e-7 dB from the unserialised composition (within 80 dB of the largest response maximum and at or above -120 dB re the impulse); every packet value finite",
+                 "worst " + fmtG (worst, 3) + " dB (bench 1.5e-8)" + (finite ? "" : "; A NON-FINITE PACKET VALUE") + (ok ? "" : "; a round trip did not parse"));
+
+            std::vector<G9Out> all (stereoOut);
+            all.insert (all.end(), monoOut.begin(), monoOut.end());
+            info ("XR-g9j by each response's own maximum (re the unit impulse; diagnostic, not gated): " + g9BucketText (all, true));
+        }
+
+        //======================================================================
+        // XR-dm: polling
+        //======================================================================
+        {
+            Tally tally;
+            auto p = make();
+            setLayout (*p, 2);
+            auto model = std::make_unique<DisplayModel> (*p);
+
+            const auto list = [] (const juce::Array<int>& a)
+            {
+                juce::String s;
+
+                for (const int v : a)
+                    s += (s.isEmpty() ? "" : ",") + juce::String (v);
+
+                return "[" + s + "]";
+            };
+
+            const auto header = [&model] (double rate, bool known)
+            {
+                const juce::var head = model->headerVar();
+                return (double) head.getProperty ("sampleRate", 0.0) == rate && (bool) head.getProperty ("rateKnown", ! known) == known
+                    && (bool) head.getProperty ("stereo", false);
+            };
+
+            const auto all24 = [] (const juce::Array<int>& a)
+            {
+                if (a.size() != Processor::kNumBands)
+                    return false;
+
+                for (int b = 0; b < Processor::kNumBands; ++b)
+                    if (a[b] != b)
+                        return false;
+
+                return true;
+            };
+
+            auto changed = model->poll();
+            tally.check (all24 (changed) && header (48000.0, false), "before any prepare: " + list (changed) + ", header not 48 kHz / rateKnown false");
+
+            p->prepareToPlay (44100.0, 512);
+            changed = model->poll();
+            tally.check (all24 (changed) && header (44100.0, true), "first prepare at 44.1 kHz: " + list (changed));
+
+            changed = model->poll();
+            tally.check (changed.isEmpty(), "no edit: " + list (changed));
+
+            setRaw (*p, bandId (7, "gain"), 5.0f);
+            changed = model->poll();
+            tally.check (changed.size() == 1 && changed[0] == 6, "one band (7) edited: " + list (changed));
+
+            changed = model->poll();
+            tally.check (changed.isEmpty(), "no edit after it: " + list (changed));
+
+            {
+                auto q = make();
+                setLayout (*q, 2);
+                loadState (*q, stateOf (*p));
+                const int edited[5] = { 1, 4, 9, 15, 22 };
+
+                for (const int b : edited)
+                    setRaw (*q, bandId (b + 1, "freq"), 400.0f + 100.0f * (float) b);
+
+                loadState (*p, stateOf (*q));
+                changed = model->poll();
+
+                bool exact = changed.size() == 5;
+
+                for (int i = 0; i < 5 && exact; ++i)
+                    exact = changed[i] == edited[i];
+
+                tally.check (exact, "a setStateInformation changing bands 2, 5, 10, 16, 23: " + list (changed));
+            }
+
+            p->prepareToPlay (96000.0, 512);
+            changed = model->poll();
+            tally.check (all24 (changed) && header (96000.0, true), "prepareToPlay at 96 kHz: " + list (changed));
+
+            changed = model->poll();
+            tally.check (changed.isEmpty(), "no edit at 96 kHz: " + list (changed));
+
+            p->releaseResources();
+
+            row (tally.bad == 0 && tally.total == 8,
+                 "XR-dm polling: before any prepare all 24 and rateKnown false at 48 kHz; the first prepare all 24; no edit -> empty; one band edited -> exactly that band; a setStateInformation (preset load) changing 5 bands -> those 5; prepareToPlay at a new rate -> all 24 and the header's rate",
+                 tally.detail());
+        }
+    }
+
+    //==========================================================================
+    // Analyzer rows (PLAN-2.6 P2, P3, P11; RESEARCH-2.6 Q2; tap_bench analyzer)
+    //==========================================================================
+    const double kAnRates[5] = { 44100.0, 48000.0, 88200.0, 96000.0, 192000.0 };
+
+    float maxPoint (const float* points)
+    {
+        float m = SpectrumAnalyzer::floorDb;
+
+        for (int i = 0; i < SpectrumAnalyzer::numPoints; ++i)
+            m = juce::jmax (m, points[i]);
+
+        return m;
+    }
+
+    struct AnRead
+    {
+        double pre = -1000.0, post = -1000.0;
+        std::uint64_t framesPre = 0, framesPost = 0;
+        std::array<float, SpectrumAnalyzer::numPoints> prePoints {}, postPoints {};
+        bool finite = true;
+    };
+
+    /** The instance (stereo) prepared at `rate`, analyzerMode 3, a
+        SpectrumAnalyzer registered; sampleAt (n) on both channels for
+        `seconds`, blocks of 512; analyzer.process (dt) whenever 33 ms of
+        audio have passed (dt = those samples / rate). The reading: the
+        largest display value of each tap after the last call. */
+    template <typename SampleFn>
+    AnRead anRun (Processor& p, double rate, double seconds, SampleFn&& sampleAt)
+    {
+        AnRead r;
+        p.analyzerMode.store (3);
+        p.prepareToPlay (rate, 512);
+        auto analyzer = std::make_unique<SpectrumAnalyzer> (p);
+
+        const int total = (int) std::llround (seconds * rate);
+        const int cadence = juce::jmax (1, (int) std::lround (0.033 * rate));
+        juce::AudioBuffer<float> block (2, 512);
+        juce::MidiBuffer midi;
+        int since = 0;
+
+        for (int position = 0; position < total; position += 512)
+        {
+            const int m = juce::jmin (512, total - position);
+            block.setSize (2, m, false, false, true);
+
+            for (int i = 0; i < m; ++i)
+            {
+                const float v = sampleAt (position + i);
+                block.setSample (0, i, v);
+                block.setSample (1, i, v);
+            }
+
+            p.processBlock (block, midi);
+            r.finite = r.finite && allFinite (block);
+            since += m;
+
+            if (since >= cadence)
+            {
+                analyzer->process ((double) since / rate);
+                since = 0;
+            }
+        }
+
+        r.pre = maxPoint (analyzer->getPre());
+        r.post = maxPoint (analyzer->getPost());
+        r.framesPre = analyzer->getFramesComputed (0);
+        r.framesPost = analyzer->getFramesComputed (1);
+        std::copy (analyzer->getPre(), analyzer->getPre() + SpectrumAnalyzer::numPoints, r.prePoints.begin());
+        std::copy (analyzer->getPost(), analyzer->getPost() + SpectrumAnalyzer::numPoints, r.postPoints.begin());
+
+        analyzer.reset();
+        p.releaseResources();
+        return r;
+    }
+
+    AnRead anSine (Processor& p, double rate, double hz, double amplitude, double phase, double seconds = 0.3)
+    {
+        return anRun (p, rate, seconds, [rate, hz, amplitude, phase] (int n)
+        {
+            return (float) (amplitude * std::sin (2.0 * eq::pi * hz * (double) n / rate + phase));
+        });
+    }
+
+    /** The display point whose span [f_p, f_{p+1}) holds hz. */
+    int anPointOf (double hz)
+    {
+        for (int p = 0; p < SpectrumAnalyzer::numPoints; ++p)
+            if (SpectrumAnalyzer::pointFrequency (p) <= hz && hz < SpectrumAnalyzer::pointFrequency (p + 1))
+                return p;
+
+        return 0;
+    }
+
+    /** P3 steps 2 and 4 re-stated (harness code; the plugin's analyzer is not
+        used): the newest n samples x the periodic Hann window, zero-padded to
+        pad x n, a double FFT (fftRadix2), 20 log10 (|X| 2 / sum (w)) floor
+        -200; 256 points over 10 Hz - 30 kHz, f_p = 10 x 3000^(p / 256): the
+        largest bin in [f_p, f_{p+1}), else the dB interpolation of the two
+        bins around sqrt (f_p f_{p+1}); a span from fs / 2 on reads the floor.
+        Returns the largest display value. */
+    double anRestatedReading (const std::vector<float>& x, double rate, int n, int pad)
+    {
+        if ((int) x.size() < n)
+            return -1000.0;
+
+        const size_t size = (size_t) (n * pad);
+        std::vector<std::complex<double>> buffer (size);
+        const size_t offset = x.size() - (size_t) n;
+        double windowSum = 0.0;
+
+        for (int i = 0; i < n; ++i)
+        {
+            const double w = 0.5 - 0.5 * std::cos (2.0 * eq::pi * (double) i / (double) n);
+            windowSum += w;
+            buffer[(size_t) i] = (double) x[offset + (size_t) i] * w;
+        }
+
+        fftRadix2 (buffer, false);
+
+        const int bins = (int) size / 2 + 1;
+        const double binHz = rate / (double) size;
+        std::vector<double> db ((size_t) bins);
+
+        for (int k = 0; k < bins; ++k)
+            db[(size_t) k] = juce::jmax (-200.0, 20.0 * std::log10 (juce::jmax (std::abs (buffer[(size_t) k]) * 2.0 / windowSum, 1.0e-300)));
+
+        double best = -200.0;
+
+        for (int p = 0; p < 256; ++p)
+        {
+            const double f0 = 10.0 * std::pow (3000.0, (double) p / 256.0);
+            const double f1 = 10.0 * std::pow (3000.0, (double) (p + 1) / 256.0);
+            double value = -200.0;
+
+            if (f0 < 0.5 * rate)
+            {
+                const int k0 = (int) std::ceil (f0 / binHz);
+                const int k1 = juce::jmin ((int) std::ceil (f1 / binHz) - 1, bins - 1);
+
+                if (k0 <= k1)
+                {
+                    value = db[(size_t) k0];
+
+                    for (int k = k0 + 1; k <= k1; ++k)
+                        value = juce::jmax (value, db[(size_t) k]);
+                }
+                else
+                {
+                    const double c = std::sqrt (f0 * f1) / binHz;
+                    const int k = (int) std::floor (c);
+
+                    if (k + 1 < bins)
+                        value = (1.0 - (c - (double) k)) * db[(size_t) k] + (c - (double) k) * db[(size_t) k + 1];
+                    else
+                        value = db[(size_t) bins - 1];
+                }
+            }
+
+            best = juce::jmax (best, value);
+        }
+
+        return best;
+    }
+
+    /** Drains everything the tap holds (a consumer of its own, no analyzer). */
+    std::vector<float> drainAll (eq::SpectrumTap& tap)
+    {
+        std::vector<float> out ((size_t) eq::SpectrumTap::capacity);
+        std::uint32_t gen = 0, drops = 0;
+        const int count = tap.drain (out.data(), eq::SpectrumTap::capacity, gen, drops);
+        out.resize ((size_t) juce::jmax (0, count));
+        return out;
+    }
+
+    /** The held level (dB) of the analyzer's bins within +-3 bins of `cyclesPerSample` (any rate label). */
+    double anHeldAt (const SpectrumAnalyzer& analyzer, int tap, double cyclesPerSample)
+    {
+        const auto& held = analyzer.getHeldBins (tap);
+        const int n = analyzer.getFftSize();
+
+        if (held.empty() || n <= 0)
+            return -1000.0;
+
+        const int k = (int) std::lround (cyclesPerSample * (double) (n * SpectrumAnalyzer::zeroPadFactor));
+        double m = -1000.0;
+
+        for (int i = juce::jmax (0, k - 3); i <= juce::jmin ((int) held.size() - 1, k + 3); ++i)
+            m = juce::jmax (m, (double) held[(size_t) i]);
+
+        return m;
+    }
+
+    void analyzerRowsXr()
+    {
+        section ("XR-an / XR-gate / XR-ovf / XR-gen. the analyzer taps and the message-side analyzer (Phase 2.6: UI-03 engine half; PLAN-2.6 P2, P3, P11)");
+
+        const double amplitude = std::pow (10.0, -12.0 / 20.0);
+
+        //======================================================================
+        // XR-an, XR-answ
+        //======================================================================
+        {
+            struct Job { int rate = 0; double hz = 1000.0; double phase = 0.0; bool sweep = false; };
+            std::vector<Job> jobs;
+
+            for (int r = 0; r < 5; ++r)
+                for (int ph = 0; ph < 8; ++ph)
+                    jobs.push_back ({ r, 1000.0, (double) ph * eq::pi / 4.0, false });
+
+            for (int r = 0; r < 5; ++r)
+                for (int t = 0; t < 50; ++t)
+                    jobs.push_back ({ r, std::exp (std::log (20.0) + (std::log (20000.0) - std::log (20.0)) * (double) t / 49.0), 0.0, true });
+
+            std::vector<AnRead> reads (jobs.size());
+            auto pool = makePool (2, (int) jobs.size());
+
+            poolFor ((int) jobs.size(), pool, [&jobs, &reads, amplitude] (int j, Processor& p, const Handles& h)
+            {
+                resetAllRaw (p, h);
+                const Job& job = jobs[(size_t) j];
+                reads[(size_t) j] = anSine (p, kAnRates[job.rate], job.hz, amplitude, job.phase);
+            });
+
+            Tally an, sweep;
+            double lowAn[5], highAn[5], lowSweep = 1000.0, highSweep = -1000.0;
+            juce::String sweepWhere;
+
+            for (int r = 0; r < 5; ++r)
+            {
+                lowAn[r] = 1000.0;
+                highAn[r] = -1000.0;
+            }
+
+            for (size_t j = 0; j < jobs.size(); ++j)
+            {
+                const AnRead& q = reads[j];
+                const Job& job = jobs[j];
+                const bool framed = q.framesPre > 0 && q.framesPost > 0 && q.finite;
+                const juce::String where = fmtG (kAnRates[job.rate] / 1000.0, 4) + " kHz " + fmtG (job.hz, 5) + " Hz";
+
+                if (! job.sweep)
+                {
+                    lowAn[job.rate] = juce::jmin (lowAn[job.rate], q.pre, q.post);
+                    highAn[job.rate] = juce::jmax (highAn[job.rate], q.pre, q.post);
+                    an.check (framed && std::abs (q.pre + 12.0) <= 0.5 && std::abs (q.post + 12.0) <= 0.5,
+                              where + ": pre " + fmtG (q.pre, 5) + ", post " + fmtG (q.post, 5) + " dB" + (framed ? "" : " (no frame)"));
+                }
+                else
+                {
+                    if (! (juce::jmin (q.pre, q.post) >= lowSweep))
+                        sweepWhere = where;
+
+                    lowSweep = juce::jmin (lowSweep, q.pre, q.post);
+                    highSweep = juce::jmax (highSweep, q.pre, q.post);
+                    sweep.check (framed && std::abs (q.pre + 12.0) <= 0.25 && std::abs (q.post + 12.0) <= 0.25,
+                                 where + ": pre " + fmtG (q.pre, 5) + ", post " + fmtG (q.post, 5) + " dB");
+                }
+            }
+
+            juce::String figures;
+
+            for (int r = 0; r < 5; ++r)
+                figures += (r == 0 ? "" : ", ") + fmtG (kAnRates[r] / 1000.0, 4) + " kHz " + fmtG (lowAn[r], 5) + " .. " + fmtG (highAn[r], 5);
+
+            row (an.bad == 0 && an.total == 40,
+                 "XR-an -12 dBFS 1 kHz sine on both channels, 44.1 / 48 / 88.2 / 96 / 192 kHz, 8 phases, pre and post (no band), drained once per 33 ms of audio: the largest display value -12 +- 0.5 dB",
+                 an.detail() + "  worst over phases and taps: " + figures + " dB (bench -12.08 / -12.04 / -12.04 at 44.1 / 96 / 192)");
+
+            row (sweep.bad == 0 && sweep.total == 250,
+                 "XR-answ 50 log tones 20 Hz - 20 kHz at -12 dBFS, the five rates, pre and post: within +-0.25 dB of -12",
+                 sweep.detail() + "  " + fmtG (lowSweep, 5) + " ... " + fmtG (highSweep, 5) + " dB (lowest at " + sweepWhere + "; bench -12.11 ... -11.99)");
+        }
+
+        //======================================================================
+        // XR-ann: zero-pad 1x, re-stated in the harness, at 96 kHz
+        //======================================================================
+        {
+            const double rate = 96000.0;
+            const int n = SpectrumAnalyzer::fftSizeForRate (rate);
+            double worst1 = 1000.0, worst4 = 1000.0;
+            bool drained = true;
+
+            auto p = makeBands (2, 0, mixedSpec);
+            const Handles h = handlesOf (*p);
+
+            for (int ph = 0; ph < 8; ++ph)
+            {
+                resetAllRaw (*p, h);
+                p->setAnalyzerConsumer (true);
+                p->analyzerMode.store (3);
+
+                const int length = 3 * n;
+                juce::AudioBuffer<float> input (2, length);
+
+                for (int i = 0; i < length; ++i)
+                {
+                    const auto v = (float) (amplitude * std::sin (2.0 * eq::pi * 1000.0 * (double) i / rate + (double) ph * eq::pi / 4.0));
+                    input.setSample (0, i, v);
+                    input.setSample (1, i, v);
+                }
+
+                renderAt (*p, input, rate, 512, {}, noHook);
+                const auto x = drainAll (p->getPostTap());
+                drained = drained && (int) x.size() == length;
+
+                worst1 = juce::jmin (worst1, anRestatedReading (x, rate, n, 1));
+                worst4 = juce::jmin (worst4, anRestatedReading (x, rate, n, 4));
+                p->setAnalyzerConsumer (false);
+                p->releaseResources();
+            }
+
+            row (drained && worst1 < -12.5,
+                 "XR-ann the XR-an stimulus at 96 kHz through P3 step 2 re-stated in the harness with zero-pad 1x (the plugin's analyzer untouched): the reading falls below -12.5 dB (control fires)",
+                 "1x " + fmtG (worst1, 5) + " dB (bench -12.63); the same restatement at 4x " + fmtG (worst4, 5) + " dB (bench -12.04)"
+                     + (drained ? "" : "; THE POST TAP DID NOT HOLD THE RENDER"));
+        }
+
+        //======================================================================
+        // XR-anpp, XR-anrel
+        //======================================================================
+        {
+            auto p = makeBands (2, 0, mixedSpec);
+            const Handles h = handlesOf (*p);
+            const double rate = 48000.0;
+
+            resetAllRaw (*p, h);
+            storeRaw (h.band[0], rawBandSpec (makeSpec (kBell, 1000.0f, 12.0f, 1.0f, 1, kStereo)));
+            const AnRead q = anSine (*p, rate, 1000.0, std::pow (10.0, -24.0 / 20.0), 0.3);
+            const int point = anPointOf (1000.0);
+            const double diff = (double) q.postPoints[(size_t) point] - (double) q.prePoints[(size_t) point];
+
+            row (q.framesPre > 0 && q.framesPost > 0 && std::abs (diff - 12.0) <= 0.5,
+                 "XR-anpp +12 dB Bell 1 kHz Q 1, a -24 dBFS 1 kHz sine, 48 kHz: post - pre at the display point holding 1 kHz is +12 +- 0.5 dB",
+                 "post " + fmtG (q.postPoints[(size_t) point], 5) + ", pre " + fmtG (q.prePoints[(size_t) point], 5) + " dB: " + fmtG (diff, 5)
+                     + " dB (point " + juce::String (point) + ", " + fmtG (SpectrumAnalyzer::pointFrequency (point), 5) + " - "
+                     + fmtG (SpectrumAnalyzer::pointFrequency (point + 1), 5) + " Hz)");
+
+            // XR-anrel: 0.5 s of the sine, drained every 2048 samples; the
+            // host stops right after a drain: 61 calls of process (0.033)
+            // with no new data; then the sine continues (phase-continuous)
+            // and the next process call follows 2048 samples later.
+            resetAllRaw (*p, h);
+            p->analyzerMode.store (3);
+            p->prepareToPlay (rate, 512);
+            auto analyzer = std::make_unique<SpectrumAnalyzer> (*p);
+
+            juce::AudioBuffer<float> block (2, 512);
+            juce::MidiBuffer midi;
+            int clock = 0;
+
+            const auto play = [&] (int samples)
+            {
+                for (int done = 0; done < samples; done += 512)
+                {
+                    for (int i = 0; i < 512; ++i)
+                    {
+                        const auto v = (float) (amplitude * std::sin (2.0 * eq::pi * 1000.0 * (double) (clock + i) / rate));
+                        block.setSample (0, i, v);
+                        block.setSample (1, i, v);
+                    }
+
+                    p->processBlock (block, midi);
+                    clock += 512;
+                }
+            };
+
+            for (int k = 0; k < 12; ++k)
+            {
+                play (2048);
+                analyzer->process (2048.0 / rate);
+            }
+
+            const double start = juce::jmax ((double) maxPoint (analyzer->getPre()), (double) maxPoint (analyzer->getPost()));
+            const std::uint64_t framesBefore = analyzer->getFramesComputed (1);
+            double worstFall = 0.0;
+
+            for (int k = 1; k <= 61; ++k)
+            {
+                analyzer->process (0.033);
+
+                for (int tap = 0; tap < 2; ++tap)
+                {
+                    const double reading = (double) maxPoint (tap == 0 ? analyzer->getPre() : analyzer->getPost());
+                    worstFall = juce::jmax (worstFall, std::abs (reading - (start - 20.0 * 0.033 * (double) k)));
+                }
+            }
+
+            const double fallen = (double) maxPoint (analyzer->getPost());
+            const bool noFrame = analyzer->getFramesComputed (1) == framesBefore;
+
+            play (2048);
+            analyzer->process (2048.0 / rate);
+            const double back = juce::jmin ((double) maxPoint (analyzer->getPre()), (double) maxPoint (analyzer->getPost()));
+
+            analyzer.reset();
+            p->releaseResources();
+
+            row (std::abs (start + 12.0) <= 0.5 && noFrame && worstFall <= 1.0 && std::abs (back - start) <= 1.0,
+                 "XR-anrel the host stops calling processBlock: process (0.033) keeps falling at 20 dB/s (within +-1 dB over 2 s, both taps); instant attack on re-entry (the next frame reads the held value again, +-1 dB)",
+                 "held " + fmtG (start, 5) + " dB; after 61 calls (2.01 s) " + fmtG (fallen, 5) + " dB (expected " + fmtG (start - 20.0 * 0.033 * 61.0, 5)
+                     + "), worst deviation " + fmtG (worstFall, 3) + " dB; re-entry " + fmtG (back, 5) + " dB" + (noFrame ? "" : "; A FRAME WAS COMPUTED WITH NO DATA"));
+        }
+
+        //======================================================================
+        // XR-gate
+        //======================================================================
+        {
+            Tally tally;
+            const double rate = 48000.0;
+            const auto noise = makeNoiseAt (2, 512, 0x6A7E0002, kNoise12);
+
+            const auto blockDelta = [&noise] (Processor& p, bool viaBypassed, int& pre, int& post)
+            {
+                juce::AudioBuffer<float> block (noise);
+                juce::MidiBuffer midi;
+                const std::uint32_t a = p.getPreTap().getWriteIndex(), b = p.getPostTap().getWriteIndex();
+
+                if (viaBypassed)
+                    p.processBlockBypassed (block, midi);
+                else
+                    p.processBlock (block, midi);
+
+                pre = (int) (p.getPreTap().getWriteIndex() - a);
+                post = (int) (p.getPostTap().getWriteIndex() - b);
+            };
+
+            struct Case { const char* name; bool consumer; int mode; int path; int wantPre; int wantPost; };   // path 0 processed, 1 bypass parameter, 2 processBlockBypassed, 3 untouched (no band)
+            const Case cases[] = {
+                { "no consumer, mode 3", false, 3, 0, 0, 0 },     { "no consumer, mode 2 (default)", false, 2, 0, 0, 0 },
+                { "consumer, mode 0 (Off)", true, 0, 0, 0, 0 },   { "consumer, mode 1 (Pre)", true, 1, 0, 512, 0 },
+                { "consumer, mode 2 (Post)", true, 2, 0, 0, 512 }, { "consumer, mode 3 (both)", true, 3, 0, 512, 512 },
+                { "consumer, mode 3, bypass parameter", true, 3, 1, 512, 512 }, { "consumer, mode 3, processBlockBypassed", true, 3, 2, 512, 512 },
+                { "consumer, mode 3, no band (untouched)", true, 3, 3, 512, 512 }
+            };
+
+            auto p = makeBands (2, 0, mixedSpec);
+            const Handles h = handlesOf (*p);
+            juce::String figures;
+
+            for (const auto& c : cases)
+            {
+                resetAllRaw (*p, h);
+
+                if (c.path != 3)
+                    storeRaw (h.band[0], rawBandSpec (makeSpec (kBell, 1000.0f, 6.0f, 1.0f, 1, kStereo)));
+
+                if (c.path == 1)
+                    h.bypass->store (1.0f);
+
+                p->setAnalyzerConsumer (c.consumer);
+                p->analyzerMode.store (c.mode);
+                p->prepareToPlay (rate, 512);
+
+                int pre = -1, post = -1, pre2 = -1, post2 = -1;
+                blockDelta (*p, c.path == 2, pre, post);
+                blockDelta (*p, c.path == 2, pre2, post2);       // a second block (after a bypass fade has ended too)
+
+                tally.check (pre == c.wantPre && post == c.wantPost && pre2 == c.wantPre && post2 == c.wantPost,
+                             juce::String (c.name) + ": pre / post moved " + juce::String (pre) + " / " + juce::String (post) + ", then "
+                                 + juce::String (pre2) + " / " + juce::String (post2));
+                p->releaseResources();
+            }
+
+            // Unprepared: a fresh instance, consumer and mode 3, never prepared.
+            {
+                auto fresh = makeBands (2, 0, mixedSpec);
+                fresh->setAnalyzerConsumer (true);
+                fresh->analyzerMode.store (3);
+                int pre = -1, post = -1;
+                blockDelta (*fresh, false, pre, post);
+                tally.check (pre == 0 && post == 0, "unprepared: pre / post moved " + juce::String (pre) + " / " + juce::String (post));
+            }
+
+            // R9: a restored analyzerMode (the UI child of a saved state) is the gate.
+            {
+                resetAllRaw (*p, h);
+                auto xml = xmlOf (stateOf (*p));
+                bool restored = false;
+
+                if (xml != nullptr)
+                    if (auto* ui = xml->getChildByName ("UI"))
+                    {
+                        ui->setAttribute ("analyzerMode", 1);
+                        loadState (*p, blobOf (*xml));
+                        restored = p->analyzerMode.load() == 1;
+                    }
+
+                p->setAnalyzerConsumer (true);
+                p->prepareToPlay (rate, 512);
+                int pre = -1, post = -1;
+                blockDelta (*p, false, pre, post);
+                tally.check (restored && pre == 512 && post == 0,
+                             "analyzerMode 1 restored from a state: " + juce::String (restored ? "restored" : "NOT RESTORED") + ", pre / post moved "
+                                 + juce::String (pre) + " / " + juce::String (post));
+                p->releaseResources();
+            }
+
+            row (tally.bad == 0 && tally.total == 11,
+                 "XR-gate the tap writes: mode 0, or no consumer -> neither tap's write index moves; mode 1 / 2 move only their tap; mode 3 both, on the processed, bypassed (both routes) and untouched paths; unprepared -> nothing; a restored analyzerMode gates the same way (R9)",
+                 tally.detail());
+        }
+
+        //======================================================================
+        // XR-ovf (PLAN-2.6 execute, Taylor's call 2026-11-15: the row reads
+        // P2, the ring as built; the processor offers each block's last
+        // min (n, capacity) samples only)
+        //======================================================================
+        {
+            Tally tally;
+            const double rate = 48000.0;
+            const int total = (int) (2.0 * rate);
+            const int fftN = SpectrumAnalyzer::fftSizeForRate (rate);
+            juce::String figures;
+
+            // Noise, L and R different, so the mono sum is a real sum.
+            const auto noise = makeNoiseAt (2, total, 0x0FF10002, kNoise12);
+            std::vector<float> mono ((size_t) total);
+
+            for (int i = 0; i < total; ++i)
+                mono[(size_t) i] = 0.5f * (noise.getSample (0, i) + noise.getSample (1, i));
+
+            for (const int blockSize : { 32, 4096, 65536 })
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+                p->setAnalyzerConsumer (true);
+                p->analyzerMode.store (3);
+                p->prepareToPlay (rate, juce::jmin (blockSize, 4096));
+
+                // The harness's model of P2 plus the push rule: each block offers its last
+                // min (n, C) samples, the ring keeps the oldest run that fits since the last drain.
+                std::vector<float> expected;
+                std::uint64_t offered = 0;
+                int blocks = 0, returned = 0;
+                double longest = 0.0;
+                juce::AudioBuffer<float> block (2, blockSize);
+                juce::MidiBuffer midi;
+                const std::uint32_t dropsBefore = p->getPostTap().getDropCount();
+
+                for (int position = 0; position < total; position += blockSize)
+                {
+                    const int n = juce::jmin (blockSize, total - position);
+                    block.setSize (2, n, false, false, true);
+
+                    for (int channel = 0; channel < 2; ++channel)
+                        block.copyFrom (channel, 0, noise, channel, position, n);
+
+                    const int from = juce::jmax (0, n - eq::SpectrumTap::capacity);
+                    offered += (std::uint64_t) (n - from);
+
+                    for (int i = from; i < n && (int) expected.size() < eq::SpectrumTap::capacity; ++i)
+                        expected.push_back (mono[(size_t) (position + i)]);
+
+                    ++blocks;
+                    const auto t0 = std::chrono::steady_clock::now();
+                    p->processBlock (block, midi);
+                    const auto t1 = std::chrono::steady_clock::now();
+                    ++returned;
+                    longest = juce::jmax (longest, std::chrono::duration<double, std::milli> (t1 - t0).count());
+                }
+
+                const int keptPre = p->getPreTap().getNumAvailable(), keptPost = p->getPostTap().getNumAvailable();
+                const std::uint32_t dropsPre = p->getPreTap().getDropCount(), dropsPost = p->getPostTap().getDropCount() - dropsBefore;
+                const bool dropsExact = (std::uint64_t) dropsPre == offered - (std::uint64_t) keptPre && (std::uint64_t) dropsPost == offered - (std::uint64_t) keptPost;
+
+                const auto held = drainAll (p->getPostTap());
+                bool content = held.size() == expected.size() && ! held.empty();
+
+                for (size_t i = 0; i < held.size() && content; ++i)
+                    content = sameBits (held[i], expected[i]);
+
+                // A single 65 536 block into an empty ring: exactly its last 32 768, the input tail's mono sum.
+                bool tail = true;
+
+                if (blockSize == 65536)
+                {
+                    tail = held.size() == (size_t) eq::SpectrumTap::capacity;
+
+                    for (size_t i = 0; i < held.size() && tail; ++i)
+                        tail = sameBits (held[i], mono[(size_t) (65536 - eq::SpectrumTap::capacity) + i]);
+                }
+
+                tally.check (returned == blocks && dropsExact && content && tail && dropsPre > 0,
+                             "block " + juce::String (blockSize) + ": drops " + juce::String ((juce::int64) dropsPre) + " / " + juce::String ((juce::int64) dropsPost)
+                                 + ", offered " + juce::String ((juce::int64) offered) + ", kept " + juce::String (keptPre) + " / " + juce::String (keptPost)
+                                 + (content ? "" : ", the ring is not the oldest fitting run") + (tail ? "" : ", not the 65 536 block's last 32 768"));
+
+                figures += (figures.isEmpty() ? "" : "; ") + juce::String ("block ") + juce::String (blockSize) + ": offered " + juce::String ((juce::int64) offered)
+                         + ", kept " + juce::String (keptPre) + ", drops " + juce::String ((juce::int64) dropsPre) + " (exact), ring = oldest fitting run"
+                         + (blockSize == 65536 ? " = the block's last 32 768" : "") + ", longest call " + fmtG (longest, 3) + " ms";
+                p->releaseResources();
+            }
+
+            // The reading: an analyzer registered through the fill, called
+            // once before it and not during it (a stalled timer); then up to
+            // three process calls, each after fftN fresh samples of the sine.
+            for (const int blockSize : { 32, 4096, 65536 })
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+                p->analyzerMode.store (3);
+                p->prepareToPlay (rate, juce::jmin (blockSize, 4096));
+                auto analyzer = std::make_unique<SpectrumAnalyzer> (*p);
+                analyzer->process (0.033);
+
+                juce::AudioBuffer<float> block (2, blockSize);
+                juce::MidiBuffer midi;
+                int position = 0;
+
+                const auto play = [&] (int samples, int size)
+                {
+                    for (int done = 0; done < samples;)
+                    {
+                        const int n = juce::jmin (size, samples - done);
+                        block.setSize (2, n, false, false, true);
+
+                        for (int i = 0; i < n; ++i)
+                        {
+                            const auto v = (float) (amplitude * std::sin (2.0 * eq::pi * 1000.0 * (double) (position + i) / rate));
+                            block.setSample (0, i, v);
+                            block.setSample (1, i, v);
+                        }
+
+                        p->processBlock (block, midi);
+                        position += n;
+                        done += n;
+                    }
+                };
+
+                play (total, blockSize);
+
+                int readAt = 0;
+                double reading = -1000.0;
+
+                for (int call = 1; call <= 3 && readAt == 0; ++call)
+                {
+                    play (fftN, juce::jmin (blockSize, fftN));
+                    analyzer->process ((double) fftN / rate);
+                    const double r = juce::jmax ((double) maxPoint (analyzer->getPre()), (double) maxPoint (analyzer->getPost()));
+
+                    if (analyzer->getFramesComputed (0) > 0 && analyzer->getFramesComputed (1) > 0)
+                    {
+                        readAt = call;
+                        reading = r;
+                    }
+                }
+
+                tally.check (readAt > 0 && std::abs (reading + 12.0) <= 0.5,
+                             "block " + juce::String (blockSize) + ": " + (readAt > 0 ? "process #" + juce::String (readAt) + " reads " + fmtG (reading, 5) + " dB"
+                                                                                    : juce::String ("no frame in 3 process calls")));
+
+                figures += "; block " + juce::String (blockSize) + ": the reading at process #" + juce::String (readAt) + ", " + fmtG (reading, 5) + " dB";
+                analyzer.reset();
+                p->releaseResources();
+            }
+
+            row (tally.bad == 0 && tally.total == 6,
+                 "XR-ovf (P2; Taylor's call 2026-11-15) no drain for 2 s at blocks 32 / 4096 / 65 536 (stereo, 48 kHz; the 65 536 block through processBlock on a 4096 prepare): every block returns; the drop count is exact (offered - kept); the ring holds the oldest fitting run since the last drain, and for the single 65 536 block into an empty ring its last 32 768 (bit-exact vs the input's mono sum); after the stale run is discarded the analyzer reads -12 +- 0.5 dB within 3 process calls (N fresh samples before each)",
+                 tally.detail() + "  " + figures);
+        }
+
+        //======================================================================
+        // XR-gen
+        //======================================================================
+        {
+            Tally tally;
+            const double oldCycles = 1000.0 / 48000.0;      // the old stream's tone, in cycles per sample
+            juce::String figures;
+
+            // (i) one thread: 48 kHz 1 kHz, drained; more 48 kHz left in the
+            // ring; prepareToPlay at 96 kHz; 96 kHz 5 kHz, drained.
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+                p->analyzerMode.store (3);
+                p->prepareToPlay (48000.0, 512);
+                auto analyzer = std::make_unique<SpectrumAnalyzer> (*p);
+
+                juce::AudioBuffer<float> block (2, 512);
+                juce::MidiBuffer midi;
+                int oldFramesWithTone = 0, newFrames = 0, newFramesWithOld = 0;
+                double worstNewOld = -1000.0;
+
+                const auto play = [&] (double rate, double hz, int samples, bool drain, bool afterReset)
+                {
+                    int since = 0;
+
+                    for (int position = 0; position < samples; position += 512)
+                    {
+                        for (int i = 0; i < 512; ++i)
+                        {
+                            const auto v = (float) (amplitude * std::sin (2.0 * eq::pi * hz * (double) (position + i) / rate));
+                            block.setSample (0, i, v);
+                            block.setSample (1, i, v);
+                        }
+
+                        p->processBlock (block, midi);
+                        since += 512;
+
+                        if (drain && since >= (int) std::lround (0.033 * rate))
+                        {
+                            const std::uint64_t before = analyzer->getFramesComputed (0) + analyzer->getFramesComputed (1);
+                            analyzer->process (10.0);
+                            since = 0;
+
+                            if (analyzer->getFramesComputed (0) + analyzer->getFramesComputed (1) == before)
+                                continue;
+
+                            const double level = juce::jmax (anHeldAt (*analyzer, 0, oldCycles), anHeldAt (*analyzer, 1, oldCycles));
+
+                            if (! afterReset)
+                            {
+                                oldFramesWithTone += level > -100.0 ? 1 : 0;
+                            }
+                            else
+                            {
+                                ++newFrames;
+                                worstNewOld = juce::jmax (worstNewOld, level);
+                                newFramesWithOld += level > -100.0 ? 1 : 0;
+                            }
+                        }
+                    }
+                };
+
+                play (48000.0, 1000.0, 14848, true, false);
+                const int preparesBefore = analyzer->getPrepareCount();
+                play (48000.0, 1000.0, 4608, false, false);         // left in the ring
+                p->prepareToPlay (96000.0, 512);
+                play (96000.0, 5000.0, 28672, true, true);
+
+                const double reading = juce::jmax ((double) maxPoint (analyzer->getPre()), (double) maxPoint (analyzer->getPost()));
+                const bool resized = analyzer->getFftSize() == 8192 && analyzer->getPreparedRate() == 96000.0
+                                     && analyzer->getPrepareCount() == preparesBefore + 1;
+
+                tally.check (oldFramesWithTone > 0 && newFrames > 0 && newFramesWithOld == 0 && resized && std::abs (reading + 12.0) <= 0.5,
+                             "one thread: " + juce::String (newFramesWithOld) + " of " + juce::String (newFrames) + " frames after the prepare hold the old tone");
+
+                figures += "one thread: old-rate frames holding the 1 kHz tone " + juce::String (oldFramesWithTone) + " (the check sees it); after the prepare "
+                         + juce::String (newFrames) + " frames, the old tone's bins at most " + fmtG (worstNewOld, 4) + " dB; re-prepared at N = "
+                         + juce::String (analyzer->getFftSize()) + ", " + fmtG (analyzer->getPreparedRate(), 6) + " Hz (" + juce::String (analyzer->getPrepareCount())
+                         + " prepares); 5 kHz reads " + fmtG (reading, 5) + " dB";
+
+                analyzer.reset();
+                p->releaseResources();
+            }
+
+            // (ii) the analyzer drained by a second thread throughout; the
+            // prepare lands between two of its drains.
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+                p->analyzerMode.store (3);
+                p->prepareToPlay (48000.0, 512);
+                auto analyzer = std::make_unique<SpectrumAnalyzer> (*p);
+                const std::uint32_t genOld = p->getPreTap().getGeneration();
+
+                std::atomic<bool> stop { false };
+                int framesOld = 0, framesOldWithTone = 0, framesNew = 0, framesNewWithOld = 0, calls = 0;
+                double worstNew = -1000.0;
+
+                std::thread reader ([&] ()
+                {
+                    std::uint64_t seen = 0;
+
+                    while (! stop.load (std::memory_order_acquire))
+                    {
+                        analyzer->process (10.0);
+                        ++calls;
+                        const std::uint64_t frames = analyzer->getFramesComputed (0);
+
+                        if (frames == seen)
+                            continue;
+
+                        seen = frames;
+                        const double level = anHeldAt (*analyzer, 0, oldCycles);
+
+                        if (analyzer->getGenerationSeen (0) == genOld)
+                        {
+                            ++framesOld;
+                            framesOldWithTone += level > -100.0 ? 1 : 0;
+                        }
+                        else
+                        {
+                            ++framesNew;
+                            worstNew = juce::jmax (worstNew, level);
+                            framesNewWithOld += level > -100.0 ? 1 : 0;
+                        }
+                    }
+                });
+
+                juce::AudioBuffer<float> block (2, 512);
+                juce::MidiBuffer midi;
+
+                const auto play = [&] (double rate, double hz, int samples)
+                {
+                    for (int position = 0; position < samples; position += 512)
+                    {
+                        for (int i = 0; i < 512; ++i)
+                        {
+                            const auto v = (float) (amplitude * std::sin (2.0 * eq::pi * hz * (double) (position + i) / rate));
+                            block.setSample (0, i, v);
+                            block.setSample (1, i, v);
+                        }
+
+                        p->processBlock (block, midi);
+                        std::this_thread::sleep_for (std::chrono::microseconds (500));
+                    }
+                };
+
+                play (48000.0, 1000.0, 48128);
+                p->prepareToPlay (96000.0, 512);
+                play (96000.0, 5000.0, 96256);
+
+                for (int wait = 0; wait < 2000 && (p->getPreTap().getNumAvailable() > 0 || p->getPostTap().getNumAvailable() > 0); ++wait)
+                    std::this_thread::sleep_for (std::chrono::milliseconds (1));
+
+                std::this_thread::sleep_for (std::chrono::milliseconds (20));
+                stop.store (true, std::memory_order_release);
+                reader.join();
+
+                tally.check (framesOld > 0 && framesOldWithTone > 0 && framesNew > 0 && framesNewWithOld == 0
+                                 && analyzer->getFftSize() == 8192 && analyzer->getPreparedRate() == 96000.0,
+                             "second thread: " + juce::String (framesNewWithOld) + " of " + juce::String (framesNew) + " frames after the prepare hold the old tone");
+
+                figures += "; second thread (" + juce::String (calls) + " process calls): old-generation frames " + juce::String (framesOld) + " ("
+                         + juce::String (framesOldWithTone) + " with the 1 kHz tone), new-generation frames " + juce::String (framesNew)
+                         + ", the old tone's bins at most " + fmtG (worstNew, 4) + " dB; N = " + juce::String (analyzer->getFftSize());
+
+                analyzer.reset();
+                p->releaseResources();
+            }
+
+            row (tally.bad == 0 && tally.total == 2,
+                 "XR-gen prepareToPlay at a new rate between two drains (one thread; and drained concurrently by a second thread): no sample of the old rate reaches a transform (no frame after the generation moved holds the old 1 kHz tone above -100 dB); the analyzer re-prepares at the new size",
+                 tally.detail() + "  " + figures);
+        }
+    }
+
+    //==========================================================================
+    // Listen (PLAN-2.6 P4 - P6, P10, P12, P13; RESEARCH-2.6 Q3; tap_bench
+    // listen, listen3)
+    //==========================================================================
+    struct LrCase
+    {
+        const char* name;
+        int type;
+        float freq, gain, q;
+        int slope;
+    };
+
+    // tap_bench listen2 / listen3 (the designer harness's XL-on set): the 20 listened bands.
+    constexpr int kLrCaseCount = 20;
+    const LrCase kLrCases[kLrCaseCount] =
+    {
+        { "Bell 1 kHz +12 Q 2",      kBell,      1000.0f,  12.0f,  2.0f, 0 },
+        { "Bell 50 Hz -18 Q 4",      kBell,        50.0f, -18.0f,  4.0f, 0 },
+        { "Bell 5 kHz +6 Q 40",      kBell,      5000.0f,   6.0f, 40.0f, 0 },
+        { "Bell 10 Hz +12 Q 40",     kBell,        10.0f,  12.0f, 40.0f, 0 },
+        { "Low Shelf 200 Hz +12",    kLowShelf,   200.0f,  12.0f,  1.0f, 2 },
+        { "High Shelf 8 kHz -12",    kHighShelf, 8000.0f, -12.0f,  1.0f, 1 },
+        { "Low Cut 100 Hz 48 dB",    kLowCut,     100.0f,   0.0f,  1.0f, 4 },
+        { "High Cut 2 kHz 96 dB",    kHighCut,   2000.0f,   0.0f,  1.0f, 7 },
+        { "Notch 50 Hz Q 10",        kNotch,       50.0f,   0.0f, 10.0f, 0 },
+        { "Band Pass 1 kHz Q 10",    kBandPass,  1000.0f,   0.0f, 10.0f, 0 },
+        { "Band Pass 8 kHz Q 40",    kBandPass,  8000.0f,   0.0f, 40.0f, 0 },
+        { "Band Pass 200 Hz Q 0.3",  kBandPass,   200.0f,   0.0f,  0.3f, 0 },
+        { "Tilt 1 kHz +12",          kTilt,      1000.0f,  12.0f,  1.0f, 1 },
+        { "Bell 2 kHz +12 Q 10",     kBell,      2000.0f,  12.0f, 10.0f, 0 },
+        { "Band Pass 300 Hz Q 40",   kBandPass,   300.0f,   0.0f, 40.0f, 0 },
+        { "Band Pass 150 Hz Q 20",   kBandPass,   150.0f,   0.0f, 20.0f, 0 },
+        { "Bell 400 Hz +12 Q 40",    kBell,       400.0f,  12.0f, 40.0f, 0 },
+        { "Band Pass 3 kHz Q 40",    kBandPass,  3000.0f,   0.0f, 40.0f, 0 },
+        { "Low Shelf 20 Hz +12",     kLowShelf,    20.0f,  12.0f,  1.0f, 1 },
+        { "High Cut 120 Hz 12 dB",   kHighCut,    120.0f,   0.0f,  1.0f, 1 }
+    };
+
+    const double kLrTones[2] = { 50.0, 1000.0 };
+    constexpr int kLrPhases = 4;
+
+    eq::RawBand lrRaw (const LrCase& c, int placement = kStereo)
+    {
+        return rawBandSpec (makeSpec (c.type, c.freq, c.gain, c.q, c.slope, placement));
+    }
+
+    /** D11 re-stated (harness code; not eq::listenInputFor): Bell / Notch /
+        Band Pass -> Band Pass (f, Q); Low Shelf / Low Cut -> High Cut,
+        slope index 1, Q 1; High Shelf / High Cut -> Low Cut, slope index 1,
+        Q 1; Tilt -> Band Pass, Q 0.7. Gain 0, active, the band's (effective)
+        placement. */
+    eq::BandInput lrMap (const eq::BandInput& band)
+    {
+        eq::BandInput out {};
+        out.placement = band.placement;
+        out.active = true;
+        out.settings.freqHz = band.settings.freqHz;
+        out.settings.gainDbEff = 0.0;
+        out.settings.type = eq::Type::bandPass;
+        out.settings.q = band.settings.q;
+        out.settings.slopeIndex = 0;
+
+        switch (band.settings.type)
+        {
+            case eq::Type::lowShelf:
+            case eq::Type::lowCut:
+                out.settings.type = eq::Type::highCut;
+                out.settings.q = 1.0;
+                out.settings.slopeIndex = 1;
+                break;
+
+            case eq::Type::highShelf:
+            case eq::Type::highCut:
+                out.settings.type = eq::Type::lowCut;
+                out.settings.q = 1.0;
+                out.settings.slopeIndex = 1;
+                break;
+
+            case eq::Type::tilt:
+                out.settings.q = 0.7;
+                break;
+
+            case eq::Type::bell:
+            case eq::Type::notch:
+            case eq::Type::bandPass:
+                break;
+        }
+
+        return out;
+    }
+
+    /** tap_bench listen / listen3 timeline, at the rate. */
+    struct LrTimes
+    {
+        int total = 0, tOn = 0, tOff = 0, pre = 0, postOn = 0, postOff = 0, ramp = 1, fade = 1;
+    };
+
+    LrTimes lrTimes (double rate)
+    {
+        LrTimes t;
+        t.total = (int) (1.5 * rate);
+        t.tOn = (int) (0.5 * rate) + 7;
+        t.tOff = (int) (1.0 * rate) + 11;
+        t.pre = (int) (0.050 * rate);
+        t.ramp = juce::jmax (1, (int) std::lround (0.030 * rate));
+        t.fade = refFadeLength (rate);
+        t.postOn = (int) (0.070 * rate) + t.ramp;
+        t.postOff = (int) (0.070 * rate);
+        return t;
+    }
+
+    /** The tone at -6 dBFS on both channels (tap_bench: 0.5 sin (2 pi f n / fs + phase pi / 4)). */
+    juce::AudioBuffer<float> lrTone (double rate, double hz, int phase, int length)
+    {
+        juce::AudioBuffer<float> b (2, length);
+
+        for (int i = 0; i < length; ++i)
+        {
+            const auto v = (float) (0.5 * std::sin (2.0 * eq::pi * hz * (double) i / rate + (double) phase * eq::pi / 4.0));
+            b.setSample (0, i, v);
+            b.setSample (1, i, v);
+        }
+
+        return b;
+    }
+
+    /** The listenBand value read at the host block starting at `at`, and its mapped input. */
+    struct LrWish
+    {
+        int at = 0;
+        int index = -1;
+        eq::BandInput mapped {};
+    };
+
+    struct LrOptions
+    {
+        int ramp = -1;              // R; -1: max (1, round (0.030 fs))
+        int fade = -1;              // N; -1: round (0.020 fs)
+        int weightLead = 0;         // the weight starts this many samples before R (a control)
+        double ag = 1.0, og = 1.0;  // the gains, re-stated as constants
+    };
+
+    /** PLAN-2.6 P12: listen per P5 / P6 re-stated per sample, both lanes.
+        The wish read at each block start (`wishes`), taken at the next tick
+        (the clock is the sample index from 0, the grid re-stated); engage:
+        the voice from rest, its input x the ramp weight for R samples, then
+        e + w (l - e) over N; change: B from rest with its ramp, A
+        meanwhile, then a + w (b - a); release: a + w (e - a) over N; a
+        request during a move waits for its end and starts the next move on
+        the next sample. e = ag x the EQ path; the output is og x the result.
+        A seeded index starts listening at sample 0, its ramp complete.
+        Voices are static (RefChain), so a continuous (f / Q) change is not
+        re-stated: *unsupported is set when one is met. */
+    std::array<std::vector<double>, 2> listenRefRender (double rate, bool stereo,
+                                                        const std::vector<double>& dryL, const std::vector<double>& dryR,
+                                                        const std::vector<double>& eqL, const std::vector<double>& eqR,
+                                                        int seedIndex, const eq::BandInput& seedInput,
+                                                        const std::vector<LrWish>& wishes, const LrOptions& options,
+                                                        bool* unsupported = nullptr)
+    {
+        const size_t length = dryL.size();
+        const size_t grid = (size_t) harnessGrid (rate);
+        const int rampLength = options.ramp >= 0 ? options.ramp : juce::jmax (1, (int) std::lround (0.030 * rate));
+        const int fadeLength = options.fade > 0 ? options.fade : refFadeLength (rate);
+        const int weightStart = rampLength - options.weightLead;
+        const auto designer = designerFor (rate);
+
+        struct Voice
+        {
+            std::unique_ptr<RefChain> chain = std::make_unique<RefChain>();
+            eq::BandInput input {};
+            int rampPos = 0;
+            bool live = false;
+        };
+
+        enum class Move { none, engage, change, release };
+
+        std::array<Voice, 2> voice;
+        int active = 0, target = -1, movePos = 0, moveLength = 0;
+        Move move = Move::none;
+        int wishIndex = -1, desiredIndex = -1;
+        eq::BandInput wishInput {}, desiredInput {};
+        size_t nextWish = 0;
+        bool notRestated = false;
+
+        const auto configure = [&voice, &designer] (int v, const eq::BandInput& in)
+        {
+            Voice& vc = voice[(size_t) v];
+            *vc.chain = RefChain();
+            prepareRefChain (*vc.chain, *designer, in);
+            vc.input = in;
+            vc.rampPos = 0;
+            vc.live = true;
+        };
+
+        const auto retire = [&voice] (int v)
+        {
+            Voice& vc = voice[(size_t) v];
+            *vc.chain = RefChain();
+            vc.rampPos = 0;
+            vc.live = false;
+        };
+
+        const auto startMove = [&move, &movePos, &moveLength, rampLength, fadeLength] (Move kind)
+        {
+            move = kind;
+            movePos = 0;
+            moveLength = (kind == Move::release) ? fadeLength : rampLength + fadeLength;
+        };
+
+        const auto settle = [&] ()
+        {
+            if (desiredIndex < 0)
+            {
+                if (target >= 0)
+                {
+                    target = -1;
+                    startMove (Move::release);
+                }
+
+                return;
+            }
+
+            if (target < 0)
+            {
+                configure (active, desiredInput);
+                target = desiredIndex;
+                startMove (Move::engage);
+                return;
+            }
+
+            if (desiredIndex != target)
+            {
+                configure (1 - active, desiredInput);
+                target = desiredIndex;
+                startMove (Move::change);
+                return;
+            }
+
+            const eq::BandChange change = eq::classifyBandChange (voice[(size_t) active].input, desiredInput);
+
+            if (change == eq::BandChange::structural)
+            {
+                configure (1 - active, desiredInput);
+                startMove (Move::change);
+            }
+            else if (change == eq::BandChange::continuous)
+            {
+                notRestated = true;
+            }
+        };
+
+        // One sample of voice v through the solo router (P5), its input x the ramp weight.
+        const auto voiceOut = [&voice, rampLength, stereo] (int v, double dl, double dr, double& yl, double& yr)
+        {
+            Voice& vc = voice[(size_t) v];
+            const bool ramping = vc.rampPos < rampLength;
+            const double gain = ramping ? refFadeWeight (vc.rampPos, rampLength) : 1.0;
+
+            if (ramping)
+                ++vc.rampPos;
+
+            const auto in = [ramping, gain] (double x) { return ramping ? x * gain : x; };
+            RefChain& f = *vc.chain;
+
+            if (! stereo)
+            {
+                yl = f.tick (0, in (dl));
+                yr = 0.0;
+                return;
+            }
+
+            switch (vc.input.placement)
+            {
+                case eq::Placement::left:
+                    yl = f.tick (0, in (dl));
+                    yr = 0.0;
+                    return;
+
+                case eq::Placement::right:
+                    yl = 0.0;
+                    yr = f.tick (1, in (dr));
+                    return;
+
+                case eq::Placement::mid:
+                    yl = f.tick (0, in (0.5 * (dl + dr)));
+                    yr = yl;
+                    return;
+
+                case eq::Placement::side:
+                    yl = f.tick (0, in (0.5 * (dl - dr)));
+                    yr = -yl;
+                    return;
+
+                case eq::Placement::stereo:
+                    break;
+            }
+
+            yl = f.tick (0, in (dl));
+            yr = f.tick (1, in (dr));
+        };
+
+        if (seedIndex >= 0)
+        {
+            configure (active, seedInput);
+            voice[(size_t) active].rampPos = rampLength;
+            target = seedIndex;
+            wishIndex = desiredIndex = seedIndex;
+            wishInput = desiredInput = seedInput;
+        }
+
+        std::array<std::vector<double>, 2> out { std::vector<double> (length, 0.0), std::vector<double> (length, 0.0) };
+
+        for (size_t n = 0; n < length; ++n)
+        {
+            for (; nextWish < wishes.size() && (size_t) wishes[nextWish].at <= n; ++nextWish)
+            {
+                wishIndex = wishes[nextWish].index;
+                wishInput = wishes[nextWish].mapped;
+            }
+
+            if (n % grid == 0)
+            {
+                desiredIndex = wishIndex;
+                desiredInput = wishInput;
+
+                if (move == Move::none)
+                {
+                    settle();
+                }
+                else if ((move == Move::engage || move == Move::change) && desiredIndex >= 0 && desiredIndex == target
+                         && eq::classifyBandChange (voice[(size_t) (move == Move::change ? 1 - active : active)].input, desiredInput)
+                                == eq::BandChange::continuous)
+                {
+                    notRestated = true;
+                }
+            }
+
+            const double dl = dryL[n], dr = stereo ? dryR[n] : 0.0;
+            const double el = options.ag * eqL[n], er = stereo ? options.ag * eqR[n] : 0.0;
+            double yl = el, yr = er;
+
+            switch (move)
+            {
+                case Move::none:
+                    if (target >= 0)
+                        voiceOut (active, dl, dr, yl, yr);
+
+                    break;
+
+                case Move::engage:
+                {
+                    double ll = 0.0, lr = 0.0;
+                    voiceOut (active, dl, dr, ll, lr);
+
+                    if (movePos >= weightStart)
+                    {
+                        const double w = refFadeWeight (movePos - weightStart, fadeLength);
+                        yl = el + w * (ll - el);
+                        yr = er + w * (lr - er);
+                    }
+
+                    break;
+                }
+
+                case Move::change:
+                {
+                    double al = 0.0, ar = 0.0, bl = 0.0, br = 0.0;
+                    voiceOut (active, dl, dr, al, ar);
+                    voiceOut (1 - active, dl, dr, bl, br);
+                    yl = al;
+                    yr = ar;
+
+                    if (movePos >= weightStart)
+                    {
+                        const double w = refFadeWeight (movePos - weightStart, fadeLength);
+                        yl = al + w * (bl - al);
+                        yr = ar + w * (br - ar);
+                    }
+
+                    break;
+                }
+
+                case Move::release:
+                {
+                    double al = 0.0, ar = 0.0;
+                    voiceOut (active, dl, dr, al, ar);
+                    const double w = refFadeWeight (movePos, fadeLength);
+                    yl = al + w * (el - al);
+                    yr = ar + w * (er - ar);
+                    break;
+                }
+            }
+
+            out[0][n] = options.og * yl;
+            out[1][n] = options.og * yr;
+
+            if (move != Move::none && ++movePos >= moveLength)
+            {
+                if (move == Move::change)
+                {
+                    retire (active);
+                    active = 1 - active;
+                }
+                else if (move == Move::release)
+                {
+                    retire (0);
+                    retire (1);
+                }
+
+                move = Move::none;
+                movePos = 0;
+
+                const bool differs = desiredIndex != target
+                                     || (target >= 0 && eq::classifyBandChange (voice[(size_t) active].input, desiredInput) != eq::BandChange::identical);
+
+                if (differs)
+                    settle();
+            }
+        }
+
+        if (unsupported != nullptr)
+            *unsupported = notRestated;
+
+        return out;
+    }
+
+    /** P12 hard control: R = 0 (no input ramp, the weight from the move's
+        first sample) and N = fadeLength (1: the hard switch; 20 ms: the fade
+        from rest of the bench). */
+    std::array<std::vector<double>, 2> listenHardRender (double rate, bool stereo,
+                                                         const std::vector<double>& dryL, const std::vector<double>& dryR,
+                                                         const std::vector<double>& eqL, const std::vector<double>& eqR,
+                                                         int seedIndex, const eq::BandInput& seedInput,
+                                                         const std::vector<LrWish>& wishes, int fadeLength)
+    {
+        LrOptions options;
+        options.ramp = 0;
+        options.fade = fadeLength;
+        return listenRefRender (rate, stereo, dryL, dryR, eqL, eqR, seedIndex, seedInput, wishes, options);
+    }
+
+    std::array<std::vector<double>, 2> lanesOf (const juce::AudioBuffer<float>& b)
+    {
+        return { widened (b, 0), b.getNumChannels() > 1 ? widened (b, 1) : widened (b, 0) };
+    }
+
+    double kappaStereo (const juce::AudioBuffer<float>& y, double rate, int from, int to)
+    {
+        double k = 0.0;
+
+        for (int channel = 0; channel < y.getNumChannels(); ++channel)
+            k = juce::jmax (k, localKappa (widened (y, channel), rate, (size_t) from, (size_t) to));
+
+        return k;
+    }
+
+    /** kappa / the larger held kappa; -1 when no render has a frame above -80 dB. */
+    double kappaRatio (double k, double heldA, double heldB)
+    {
+        const double held = juce::jmax (heldA, heldB);
+
+        if (! (held > 0.0) && ! (k > 0.0))
+            return -1.0;
+
+        return held > 0.0 ? k / held : std::numeric_limits<double>::infinity();
+    }
+
+    //==========================================================================
+    // XR-lon, XR-lonh, XR-lchg, XR-lref
+    //==========================================================================
+    struct LonReading
+    {
+        double a[2][2] = { { 0.0, 0.0 }, { 0.0, 0.0 } };        // [block 32, 512][on, off]
+        double k[2][2] = { { -1.0, -1.0 }, { -1.0, -1.0 } };
+        double hard = 0.0, hardOff = 0.0, fromRest = 0.0;
+        double refErr[2] = { 0.0, 0.0 };
+        double heldD2On = 0.0, heldKOn = 0.0;                   // the held listen render over the on window (XR-lchg)
+        double stopDb = 0.0;
+        double toneDbEq = 0.0, toneDbListen = 0.0;              // the held renders' level at the tone (0.3 - 0.5 s, left lane)
+        bool finite = true, restated = true;
+    };
+
+    /** PLAN-2.6 execute, Taylor's call 2026-11-15 (kappa void into
+        silence): the 1 kHz kappa of a listen step is scored only when the
+        destination's held level at the tone is within 40 dB of the
+        source's; outside, the reading is kappa-void (listed by name), (a)
+        still binds it. */
+    constexpr double kKappaVoidDb = 40.0;
+
+    /** Level (dB) of the tone in lane 0 over [0.3 s, 0.5 s): whole periods of both tones. */
+    double toneLevelDb (const juce::AudioBuffer<float>& y, double hz, double rate)
+    {
+        const int start = (int) (0.3 * rate), length = (int) (0.2 * rate);
+        const double power = binPower (y, 0, start, length, hz, rate);
+        return 10.0 * std::log10 (juce::jmax (power, 1.0e-300));
+    }
+
+    LonReading lonJob (Processor& p, const Handles& h, double rate, int c, int t, int phase)
+    {
+        LonReading q;
+        const LrTimes tm = lrTimes (rate);
+        const auto x = lrTone (rate, kLrTones[t], phase, tm.total);
+
+        resetAllRaw (p, h);
+        const eq::RawBand raw = lrRaw (kLrCases[c]);
+        storeRaw (h.band[0], raw);
+        const eq::BandInput mapped = lrMap (rawInput (raw, 100.0f, true));
+
+        const auto eqOut = renderAt (p, x, rate, 512, {}, noHook);
+        p.listenBand.store (0);
+        const auto liOut = renderAt (p, x, rate, 512, {}, noHook);
+        p.listenBand.store (-1);
+
+        const int sizes[2] = { 32, 512 };
+        std::array<juce::AudioBuffer<float>, 2> y;
+
+        for (int b = 0; b < 2; ++b)
+        {
+            y[(size_t) b] = renderAt (p, x, rate, sizes[b], { tm.tOn, tm.tOff }, [&p, &tm] (BlockInfo& current)
+            {
+                if (current.position == tm.tOn)
+                    p.listenBand.store (0);
+
+                if (current.position == tm.tOff)
+                    p.listenBand.store (-1);
+            });
+
+            p.listenBand.store (-1);
+        }
+
+        p.releaseResources();
+
+        const auto dry = lanesOf (x);
+        const auto eqLanes = lanesOf (eqOut);
+        const std::vector<LrWish> wishes { { tm.tOn, 0, mapped }, { tm.tOff, -1, {} } };
+        bool unsupported = false;
+        const auto ref = listenRefRender (rate, true, dry[0], dry[1], eqLanes[0], eqLanes[1], -1, {}, wishes, LrOptions(), &unsupported);
+        q.restated = ! unsupported;
+
+        const int win[2][2] = { { tm.tOn - tm.pre, tm.tOn + tm.postOn }, { tm.tOff - tm.pre, tm.tOff + tm.postOff } };
+        const bool at1k = kLrTones[t] > 500.0;
+
+        for (int ev = 0; ev < 2; ++ev)
+        {
+            const auto from = (size_t) win[ev][0], to = (size_t) win[ev][1];
+            const double held = juce::jmax (maxD2Stereo (eqOut, from, to), maxD2Stereo (liOut, from, to));
+
+            for (int b = 0; b < 2; ++b)
+            {
+                q.a[b][ev] = ratioOf (maxD2Stereo (y[(size_t) b], from, to), held);
+
+                if (at1k)
+                    q.k[b][ev] = kappaRatio (kappaStereo (y[(size_t) b], rate, win[ev][0], win[ev][1]),
+                                             kappaStereo (eqOut, rate, win[ev][0], win[ev][1]), kappaStereo (liOut, rate, win[ev][0], win[ev][1]));
+            }
+        }
+
+        for (int b = 0; b < 2; ++b)
+        {
+            q.refErr[b] = errorReDb (y[(size_t) b], ref, 0, tm.total);
+            q.finite = q.finite && allFinite (y[(size_t) b]);
+        }
+
+        {
+            const auto from = (size_t) win[0][0], to = (size_t) win[0][1];
+            const double heldOn = juce::jmax (maxD2Stereo (eqOut, from, to), maxD2Stereo (liOut, from, to));
+            const auto hard = listenHardRender (rate, true, dry[0], dry[1], eqLanes[0], eqLanes[1], -1, {}, wishes, 1);
+            const auto rest = listenHardRender (rate, true, dry[0], dry[1], eqLanes[0], eqLanes[1], -1, {}, wishes, tm.fade);
+            q.hard = ratioOf (maxD2Stereo (hard, from, to), heldOn);
+            q.fromRest = ratioOf (maxD2Stereo (rest, from, to), heldOn);
+
+            const auto offFrom = (size_t) win[1][0], offTo = (size_t) win[1][1];
+            q.hardOff = ratioOf (maxD2Stereo (hard, offFrom, offTo),
+                                 juce::jmax (maxD2Stereo (eqOut, offFrom, offTo), maxD2Stereo (liOut, offFrom, offTo)));
+
+            q.heldD2On = maxD2Stereo (liOut, from, to);
+            q.heldKOn = kappaStereo (liOut, rate, win[0][0], win[0][1]);
+        }
+
+        q.finite = q.finite && allFinite (eqOut) && allFinite (liOut);
+        q.toneDbEq = toneLevelDb (eqOut, kLrTones[t], rate);
+        q.toneDbListen = toneLevelDb (liOut, kLrTones[t], rate);
+
+        eq::BandDesign design {};
+        designerFor (rate)->design (mapped.settings, design);
+        q.stopDb = eq::bandMagDb (design, 2.0 * eq::pi * kLrTones[t] / rate);
+        return q;
+    }
+
+    struct LchgReading
+    {
+        double a[2] = { 0.0, 0.0 }, k[2] = { -1.0, -1.0 }, refErr[2] = { 0.0, 0.0 };
+        bool finite = true, restated = true;
+    };
+
+    LchgReading lchgJob (Processor& p, const Handles& h, double rate, int c0, int c1, int t, int phase, const LonReading& held0,
+                         const LonReading& held1)
+    {
+        LchgReading q;
+        const LrTimes tm = lrTimes (rate);
+        const auto x = lrTone (rate, kLrTones[t], phase, tm.total);
+
+        resetAllRaw (p, h);
+        const eq::RawBand raw0 = lrRaw (kLrCases[c0]), raw1 = lrRaw (kLrCases[c1]);
+        storeRaw (h.band[0], raw0);
+        storeRaw (h.band[1], raw1);
+        const eq::BandInput m0 = lrMap (rawInput (raw0, 100.0f, true)), m1 = lrMap (rawInput (raw1, 100.0f, true));
+
+        const int sizes[2] = { 32, 512 };
+        const auto dry = lanesOf (x);
+        const std::vector<LrWish> wishes { { tm.tOn, 1, m1 } };
+        bool unsupported = false;
+        const auto ref = listenRefRender (rate, true, dry[0], dry[1], dry[0], dry[1], 0, m0, wishes, LrOptions(), &unsupported);
+        q.restated = ! unsupported;
+
+        const auto from = (size_t) (tm.tOn - tm.pre), to = (size_t) (tm.tOn + tm.postOn);
+
+        for (int b = 0; b < 2; ++b)
+        {
+            p.listenBand.store (0);
+
+            const auto y = renderAt (p, x, rate, sizes[b], { tm.tOn }, [&p, &tm] (BlockInfo& current)
+            {
+                if (current.position == tm.tOn)
+                    p.listenBand.store (1);
+            });
+
+            p.listenBand.store (-1);
+
+            q.a[b] = ratioOf (maxD2Stereo (y, from, to), juce::jmax (held0.heldD2On, held1.heldD2On));
+
+            if (kLrTones[t] > 500.0)
+                q.k[b] = kappaRatio (kappaStereo (y, rate, (int) from, (int) to), held0.heldKOn, held1.heldKOn);
+
+            q.refErr[b] = errorReDb (y, ref, 0, tm.total);
+            q.finite = q.finite && allFinite (y);
+        }
+
+        p.releaseResources();
+        return q;
+    }
+
+    void listenStepRowsXr()
+    {
+        section ("XR-lon / XR-lchg / XR-lref. listen on / off and band changes through processBlock (Phase 2.6: FUNC-08 engine half, G3; C2; PLAN-2.6 P6, P12)");
+
+        const double rates[2] = { 48000.0, 96000.0 };
+        const int onTasks = 2 * kLrCaseCount * 2 * kLrPhases;
+        std::vector<LonReading> on ((size_t) onTasks);
+
+        {
+            auto pool = makePool (2, onTasks);
+            poolFor (onTasks, pool, [&on, &rates] (int task, Processor& p, const Handles& h)
+            {
+                const int phase = task % kLrPhases;
+                const int t = (task / kLrPhases) % 2;
+                const int c = (task / (2 * kLrPhases)) % kLrCaseCount;
+                const int r = task / (kLrCaseCount * 2 * kLrPhases);
+                on[(size_t) task] = lonJob (p, h, rates[r], c, t, phase);
+            });
+        }
+
+        const auto onAt = [&on] (int r, int c, int t, int phase) -> const LonReading&
+        {
+            return on[(size_t) (((r * kLrCaseCount + c) * 2 + t) * kLrPhases + phase)];
+        };
+
+        double refWorst = -std::numeric_limits<double>::infinity();
+        juce::String refWhere;
+        int refRenders = 0, refBad = 0, notRestated = 0;
+
+        const auto tallyRef = [&] (double err, bool restated, const juce::String& where)
+        {
+            ++refRenders;
+
+            if (! (err <= refWorst))
+            {
+                refWorst = err;
+                refWhere = where;
+            }
+
+            if (! (err <= -120.0) || ! restated)
+                ++refBad;
+
+            if (! restated)
+                ++notRestated;
+        };
+
+        //======================================================================
+        // XR-lon
+        //======================================================================
+        {
+            int aAbove = 0, kAbove = 0, kUnscored = 0, kVoid = 0, readings = 0, nonFinite = 0;
+            double aWorst[2][2] = {}, kWorst[2][2] = {};
+            juce::String aWhere[2][2], kWhere[2][2], voidText;
+
+            for (int r = 0; r < 2; ++r)
+                for (int c = 0; c < kLrCaseCount; ++c)
+                    for (int t = 0; t < 2; ++t)
+                    {
+                        for (int ph = 0; ph < kLrPhases; ++ph)
+                        {
+                            const LonReading& q = onAt (r, c, t, ph);
+                            nonFinite += q.finite ? 0 : 1;
+
+                            for (int b = 0; b < 2; ++b)
+                                tallyRef (q.refErr[b], q.restated, juce::String ("XR-lon ") + kLrCases[c].name + ", " + fmtG (kLrTones[t], 4) + " Hz, "
+                                                                       + fmtG (rates[r] / 1000.0, 3) + " kHz, block " + (b == 0 ? "32" : "512"));
+                        }
+
+                        for (int b = 0; b < 2; ++b)
+                            for (int ev = 0; ev < 2; ++ev)
+                            {
+                                double a = 0.0, k = -1.0;
+
+                                for (int ph = 0; ph < kLrPhases; ++ph)
+                                {
+                                    const LonReading& q = onAt (r, c, t, ph);
+                                    a = juce::jmax (a, q.a[b][ev]);
+                                    k = juce::jmax (k, q.k[b][ev]);
+                                }
+
+                                ++readings;
+                                aAbove += (a <= 2.0) ? 0 : 1;
+
+                                if (! (a <= aWorst[r][ev]))
+                                {
+                                    aWorst[r][ev] = a;
+                                    aWhere[r][ev] = juce::String (kLrCases[c].name) + ", " + fmtG (kLrTones[t], 4) + " Hz, block " + (b == 0 ? "32" : "512");
+                                }
+
+                                if (t == 1)
+                                {
+                                    const LonReading& q0 = onAt (r, c, t, 0);
+                                    const double gap = std::abs (q0.toneDbListen - q0.toneDbEq);
+
+                                    if (! (gap <= kKappaVoidDb))
+                                    {
+                                        ++kVoid;
+
+                                        if (b == 0 && ev == 0)
+                                            voidText += (voidText.isEmpty() ? "" : "; ") + juce::String (kLrCases[c].name) + " " + fmtG (rates[r] / 1000.0, 3)
+                                                      + " kHz (" + fmtG (gap, 3) + " dB, kappa " + fmtG (k, 4) + "x)";
+                                    }
+                                    else if (k < 0.0)
+                                    {
+                                        ++kUnscored;
+                                    }
+                                    else
+                                    {
+                                        kAbove += (k <= 2.5) ? 0 : 1;
+
+                                        if (! (k <= kWorst[r][ev]))
+                                        {
+                                            kWorst[r][ev] = k;
+                                            kWhere[r][ev] = juce::String (kLrCases[c].name) + ", block " + (b == 0 ? "32" : "512");
+                                        }
+                                    }
+                                }
+                            }
+                    }
+
+            row (aAbove == 0 && kAbove == 0 && nonFinite == 0 && readings == 2 * kLrCaseCount * 2 * 2 * 2,
+                 "XR-lon listen on / off through processBlock: the 20 XL-on bands, 50 Hz / 1 kHz at -6 dBFS, 4 phases, blocks 32 / 512, 48 / 96 kHz, listenBand written at block starts off the grid (0.5 s + 7, 1.0 s + 11): (a) <= 2.0x the louder held render; 1 kHz kappa <= 2.5x where the listen-held and EQ-held levels at the tone are within 40 dB (else kappa-void)",
+                 juce::String (aAbove) + " of " + juce::String (readings) + " readings above 2.0x; " + juce::String (kAbove) + " of "
+                     + juce::String (readings / 2 - kUnscored - kVoid) + " scored 1 kHz kappa readings above 2.5x (" + juce::String (kVoid)
+                     + " kappa-void: listen-held and EQ-held more than 40 dB apart at the tone (Taylor's call 2026-11-15); " + juce::String (kUnscored)
+                     + " with no frame above -80 dB); " + juce::String (nonFinite) + " non-finite");
+
+            info ("XR-lon kappa-void (destination held level at 1 kHz more than 40 dB from the source's; (a) still binds; per band and rate, gap and the unscored kappa): "
+                  + (voidText.isEmpty() ? juce::String ("none") : voidText));
+
+            for (int r = 0; r < 2; ++r)
+                info ("XR-lon " + fmtG (rates[r] / 1000.0, 3) + " kHz: on (a) " + fmtG (aWorst[r][0], 4) + "x (" + aWhere[r][0] + "; bench 1.21x), off (a) "
+                      + fmtG (aWorst[r][1], 4) + "x (" + aWhere[r][1] + "; bench 1.12x); 1 kHz kappa on " + fmtG (kWorst[r][0], 4) + "x (" + kWhere[r][0]
+                      + "; bench 2.36x), off " + fmtG (kWorst[r][1], 4) + "x (" + kWhere[r][1] + "; bench 2.25x)" + (r == 0 ? "" : " (no bench at 96 kHz)"));
+        }
+
+        //======================================================================
+        // XR-lonh (block 512)
+        //======================================================================
+        {
+            int counted = 0, below = 0, voids = 0;
+            double lowest[2] = { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity() };
+            double restWorst = 0.0, offLowest = std::numeric_limits<double>::infinity();
+            juce::String lowestWhere[2], restWhere, voidText;
+
+            for (int r = 0; r < 2; ++r)
+                for (int c = 0; c < kLrCaseCount; ++c)
+                    for (int t = 0; t < 2; ++t)
+                    {
+                        double hard = 0.0, rest = 0.0;
+
+                        // A reading is the largest over the four phases, as for (a) (XL-onh).
+                        for (int ph = 0; ph < kLrPhases; ++ph)
+                        {
+                            const LonReading& q = onAt (r, c, t, ph);
+                            hard = juce::jmax (hard, q.hard);
+                            rest = juce::jmax (rest, q.fromRest);
+                            offLowest = juce::jmin (offLowest, q.hardOff);
+                        }
+
+                        const juce::String where = juce::String (kLrCases[c].name) + " @ " + fmtG (kLrTones[t], 4) + " Hz, " + fmtG (rates[r] / 1000.0, 3) + " kHz";
+
+                        if (! (rest <= restWorst))
+                        {
+                            restWorst = rest;
+                            restWhere = where;
+                        }
+
+                        const double stopDb = onAt (r, c, t, 0).stopDb;
+
+                        if (! (stopDb <= -20.0))
+                        {
+                            ++voids;
+
+                            if (r == 0)
+                                voidText += (voidText.isEmpty() ? "" : "; ") + juce::String (kLrCases[c].name) + " @ " + fmtG (kLrTones[t], 4) + " Hz ("
+                                          + fmtG (stopDb, 3) + " dB, " + fmtG (hard, 3) + "x)";
+
+                            continue;
+                        }
+
+                        ++counted;
+                        below += (std::isfinite (hard) && hard >= 10.0) ? 0 : 1;
+
+                        if (! (hard >= lowest[t]))
+                        {
+                            lowest[t] = hard;
+                            lowestWhere[t] = where;
+                        }
+                    }
+
+            row (below == 0 && counted > 0 && counted + voids == 2 * kLrCaseCount * 2,
+                 "XR-lonh the XR-lon engage with the input ramp and fade replaced by listenHardRender (R = 0, N = 1) on the gain-neutral EQ output and the dry input: (a) >= 10x the held renders on every reading whose tone lies in the listen filter's stop band (<= -20 dB at the tone; block 512)",
+                 juce::String (counted - below) + " of " + juce::String (counted) + " counted readings >= 10x (a reading: the largest of the four phases); lowest 50 Hz "
+                     + fmtG (lowest[0], 4) + "x (" + lowestWhere[0] + "), 1 kHz " + fmtG (lowest[1], 4) + "x (" + lowestWhere[1]
+                     + "); R = 0 / N = 20 ms (the fade from rest) worst " + fmtG (restWorst, 5) + "x (" + restWhere + "; bench 29 672x)");
+
+            info ("XR-lonh VOID (tone in the listen pass band, printed at 48 kHz, not counted; " + juce::String (voids) + " readings over both rates): " + voidText);
+            info ("XR-lonh hard switch back to the EQ path (not gated: the EQ path is warm): lowest " + fmtG (offLowest, 4) + "x");
+        }
+
+        //======================================================================
+        // XR-lchg: 64 sampled ordered pairs at 48 kHz, blocks 32 / 512
+        //======================================================================
+        {
+            std::vector<std::pair<int, int>> pairs;
+            std::array<bool, kLrCaseCount * kLrCaseCount> taken {};
+            Xorshift pick;
+            pick.state = 0x4C4348474C434847ull;
+
+            while (pairs.size() < 64)
+            {
+                const int a = juce::jmin (kLrCaseCount - 1, (int) (pick.uniform() * kLrCaseCount));
+                const int b = juce::jmin (kLrCaseCount - 1, (int) (pick.uniform() * kLrCaseCount));
+
+                if (a == b || taken[(size_t) (a * kLrCaseCount + b)])
+                    continue;
+
+                taken[(size_t) (a * kLrCaseCount + b)] = true;
+                pairs.emplace_back (a, b);
+            }
+
+            const int tasks = (int) pairs.size() * 2 * kLrPhases;
+            std::vector<LchgReading> chg ((size_t) tasks);
+
+            {
+                auto pool = makePool (2, tasks);
+                poolFor (tasks, pool, [&chg, &pairs, &onAt] (int task, Processor& p, const Handles& h)
+                {
+                    const int phase = task % kLrPhases;
+                    const int t = (task / kLrPhases) % 2;
+                    const auto& pr = pairs[(size_t) (task / (2 * kLrPhases))];
+                    chg[(size_t) task] = lchgJob (p, h, 48000.0, pr.first, pr.second, t, phase, onAt (0, pr.first, t, phase), onAt (0, pr.second, t, phase));
+                });
+            }
+
+            int aAbove = 0, kAbove = 0, kUnscored = 0, kVoid = 0, readings = 0, over2 = 0, phaseReadings = 0, nonFinite = 0;
+            double aWorst[2] = {}, kWorst = 0.0;
+            juce::String aWhere[2], kWhere, voidText;
+
+            for (size_t s = 0; s < pairs.size(); ++s)
+                for (int t = 0; t < 2; ++t)
+                {
+                    const juce::String where = juce::String (kLrCases[pairs[s].first].name) + " -> " + kLrCases[pairs[s].second].name;
+
+                    for (int b = 0; b < 2; ++b)
+                    {
+                        double a = 0.0, k = -1.0;
+
+                        for (int ph = 0; ph < kLrPhases; ++ph)
+                        {
+                            const LchgReading& q = chg[(s * 2 + (size_t) t) * (size_t) kLrPhases + (size_t) ph];
+                            a = juce::jmax (a, q.a[b]);
+                            k = juce::jmax (k, q.k[b]);
+                            ++phaseReadings;
+                            over2 += q.a[b] > 2.0 ? 1 : 0;
+                            nonFinite += (q.finite || b == 1) ? 0 : 1;
+
+                            tallyRef (q.refErr[b], q.restated, "XR-lchg " + where + ", " + fmtG (kLrTones[t], 4) + " Hz, block " + (b == 0 ? "32" : "512"));
+                        }
+
+                        ++readings;
+                        aAbove += (a <= 2.0) ? 0 : 1;
+
+                        if (! (a <= aWorst[t]))
+                        {
+                            aWorst[t] = a;
+                            aWhere[t] = where + ", block " + (b == 0 ? "32" : "512");
+                        }
+
+                        if (t == 1)
+                        {
+                            const double gap = std::abs (onAt (0, pairs[s].second, 1, 0).toneDbListen - onAt (0, pairs[s].first, 1, 0).toneDbListen);
+
+                            if (! (gap <= kKappaVoidDb))
+                            {
+                                ++kVoid;
+
+                                if (b == 0)
+                                    voidText += (voidText.isEmpty() ? "" : "; ") + where + " (" + fmtG (gap, 3) + " dB, kappa " + fmtG (k, 4) + "x)";
+                            }
+                            else if (k < 0.0)
+                            {
+                                ++kUnscored;
+                            }
+                            else
+                            {
+                                kAbove += (k <= 2.5) ? 0 : 1;
+
+                                if (! (k <= kWorst))
+                                {
+                                    kWorst = k;
+                                    kWhere = where;
+                                }
+                            }
+                        }
+                    }
+                }
+
+            row (aAbove == 0 && kAbove == 0 && nonFinite == 0 && readings == (int) pairs.size() * 2 * 2,
+                 "XR-lchg listen band changes through processBlock: 64 sampled ordered pairs of the 20 bands, 48 kHz, 50 Hz / 1 kHz, 4 phases, blocks 32 / 512: (a) <= 2.0x the louder held listen render, (b) 1 kHz kappa <= 2.5x where the B-held and A-held levels at 1 kHz are within 40 dB (else kappa-void)",
+                 juce::String (aAbove) + " of " + juce::String (readings) + " above 2.0x; (a) worst 50 Hz " + fmtG (aWorst[0], 4) + "x (" + aWhere[0] + "), 1 kHz "
+                     + fmtG (aWorst[1], 4) + "x (" + aWhere[1] + "; bench 1.35x); (b) " + juce::String (kAbove) + " above 2.5x, worst " + fmtG (kWorst, 4)
+                     + "x (" + kWhere + "; bench 2.41x; " + juce::String (kUnscored) + " with no frame, " + juce::String (kVoid)
+                     + " kappa-void: B-held and A-held more than 40 dB apart at 1 kHz); single phases over 2.0x: " + juce::String (over2)
+                     + " / " + juce::String (phaseReadings) + " (bench 0 / 3040)");
+
+            info ("XR-lchg kappa-void (Taylor's call 2026-11-15; (a) still binds; pair, gap, unscored kappa): " + (voidText.isEmpty() ? juce::String ("none") : voidText));
+        }
+
+        row (refBad == 0 && refRenders == 2 * kLrCaseCount * 2 * kLrPhases * 2 + 64 * 2 * kLrPhases * 2,
+             "XR-lref every XR-lon / XR-lchg render against listenRefRender (P12: the mapping, solo router, voices, ramp, fade, latch and gains re-stated) fed the plugin's dry input and its EQ path: <= -120 dB re the output peak",
+             juce::String (refRenders - refBad) + "/" + juce::String (refRenders) + " renders; worst " + fmtG (refWorst, 4) + " dB (" + refWhere + ")"
+                 + (notRestated == 0 ? "" : "; " + juce::String (notRestated) + " renders met a continuous change the reference does not re-state"));
+    }
+
+    //==========================================================================
+    // XR-lroute, XR-lseed, XR-lseedn, XR-lag, XR-loff, XR-lbyp
+    //==========================================================================
+    /** The band 1 input the listen rows' one band (P17) maps from. */
+    eq::RawBand lrBell (int placement)
+    {
+        return rawBandSpec (makeSpec (kBell, 1000.0f, 6.0f, 2.0f, 1, placement));
+    }
+
+    void listenPathRowsXr()
+    {
+        section ("XR-lroute / XR-lseed / XR-lag / XR-loff / XR-lbyp. listen routing, seeding, C3, return to idle, bypass (Phase 2.6: D11; C3; PLAN-2.6 P5, P10, P13)");
+
+        const double rate = 48000.0;
+        const int fadeN = refFadeLength (rate);
+
+        //======================================================================
+        // XR-lroute
+        //======================================================================
+        {
+            Tally tally;
+            double worst = -std::numeric_limits<double>::infinity();
+
+            for (const int channels : { 2, 1 })
+                for (int placement = 0; placement < 5; ++placement)
+                {
+                    auto p = makeBands (channels, 0, mixedSpec);
+                    const Handles h = handlesOf (*p);
+                    resetAllRaw (*p, h);
+                    const eq::RawBand raw = lrBell (placement);
+                    storeRaw (h.band[0], raw);
+                    p->listenBand.store (0);
+
+                    const auto input = makeNoiseAt (channels, 24000, 0x1A0E0000 + channels * 8 + placement, kNoise12);
+                    const auto y = renderAt (*p, input, rate, 512, {}, noHook);
+                    p->releaseResources();
+
+                    const auto dry = lanesOf (input);
+                    const auto ref = listenRefRender (rate, channels == 2, dry[0], dry[1], dry[0], dry[1], 0, lrMap (rawInput (raw, 100.0f, channels == 2)), {},
+                                                      LrOptions());
+                    const double err = errorReDb (y, ref, 0, y.getNumSamples());
+                    worst = juce::jmax (worst, err);
+                    tally.check (err <= -140.0 && allFinite (y),
+                                 juce::String (channels == 2 ? "stereo " : "mono ") + kPlacementNames[placement] + ": " + fmtG (err, 4) + " dB");
+                }
+
+            // PLAN-2.6 R2: Left / Right listen engaged mid-session on a band that is not running (disabled, so
+            // the EQ path is the dry input exactly), block 2048: the other lane must be converted and written.
+            for (const int placement : { kLeft, kRight })
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+                eq::RawBand raw = lrBell (placement);
+                raw.enabled = 0.0f;
+                storeRaw (h.band[0], raw);
+
+                const auto input = makeNoiseAt (2, 8 * 2048, 0x1A0E0100 + placement, kNoise12);
+                const auto y = renderAt (*p, input, rate, 2048, {}, [&p] (BlockInfo& current)
+                {
+                    if (current.position == 4 * 2048)
+                        p->listenBand.store (0);
+                });
+                p->releaseResources();
+
+                const auto dry = lanesOf (input);
+                const auto ref = listenRefRender (rate, true, dry[0], dry[1], dry[0], dry[1], -1, {},
+                                                  { { 4 * 2048, 0, lrMap (rawInput (raw, 100.0f, true)) } }, LrOptions());
+                const double err = errorReDb (y, ref, 0, y.getNumSamples());
+                worst = juce::jmax (worst, err);
+                tally.check (err <= -140.0 && allFinite (y), juce::String ("R2, ") + kPlacementNames[placement] + " engaged at block 2048 on a disabled band: "
+                                                                 + fmtG (err, 4) + " dB");
+            }
+
+            row (tally.bad == 0 && tally.total == 12,
+                 "XR-lroute solo routing through the plugin: one Bell (1 kHz, Q 2) on each placement, stereo and mono layouts, listen settled from the first block: within float rounding (<= -140 dB re peak) of listenRefRender; and (R2) a Left / Right listen engaged mid-session at block 2048",
+                 tally.detail() + "  worst " + fmtG (worst, 4) + " dB");
+        }
+
+        //======================================================================
+        // XR-lseed, XR-lseedn
+        //======================================================================
+        {
+            Tally seed, control;
+            double worst = -std::numeric_limits<double>::infinity(), closest = std::numeric_limits<double>::infinity();
+            const eq::RawBand raw = lrBell (kStereo);
+            const eq::BandInput mapped = lrMap (rawInput (raw, 100.0f, true));
+
+            // (i) listen on at session open.
+            for (const int blockSize : { 64, 512 })
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+                storeRaw (h.band[0], raw);
+                p->listenBand.store (0);
+
+                const auto input = makeNoiseAt (2, 24000, 0x5EEDA000 + blockSize, kNoise12);
+                const auto y = renderAt (*p, input, rate, blockSize, {}, noHook);
+                p->releaseResources();
+
+                const auto dry = lanesOf (input);
+                const auto seeded = listenRefRender (rate, true, dry[0], dry[1], dry[0], dry[1], 0, mapped, {}, LrOptions());
+                const auto engaged = listenRefRender (rate, true, dry[0], dry[1], dry[0], dry[1], -1, {}, { { 0, 0, mapped } }, LrOptions());
+
+                const double err = errorReDb (y, seeded, 0, y.getNumSamples());
+                const double errEngaged = errorReDb (y, engaged, 0, y.getNumSamples());
+                worst = juce::jmax (worst, err);
+                closest = juce::jmin (closest, errEngaged);
+                seed.check (err <= -140.0, "session open, block " + juce::String (blockSize) + ": " + fmtG (err, 4) + " dB");
+                control.check (errEngaged > -140.0, "session open, block " + juce::String (blockSize) + ": the unseeded engage reads " + fmtG (errEngaged, 4) + " dB");
+            }
+
+            // (ii) changed while fully bypassed, un-bypassed by both routes;
+            // (iii) changed with an un-bypass latched during the fade to bypass (the step-7 restart).
+            constexpr int blockSize = 512, e = 8 * blockSize, length = 40 * blockSize;
+            const int resume = 20 * blockSize, latched = e + 240;
+            const auto input = makeNoiseAt (2, length, 0x5EEDB002, kNoise12);
+            const auto dry = lanesOf (input);
+
+            for (const bool latch : { false, true })
+                for (const bool viaEntry : { false, true })
+                {
+                    auto p = makeBands (2, 0, mixedSpec);
+                    const Handles h = handlesOf (*p);
+                    resetAllRaw (*p, h);
+                    storeRaw (h.band[0], raw);
+
+                    const int un = latch ? latched : resume;
+                    const int listenAt = latch ? latched : resume - 6 * blockSize;     // with the latched un-bypass (iii), or while bypassed (ii)
+                    const int restart = latch ? e + fadeN : resume;      // the first processed sample of the fade back
+
+                    // Every event sample starts a block.
+                    const auto y = renderAt (*p, input, rate, blockSize, { e, listenAt, un }, [&p, &h, viaEntry, un, listenAt] (BlockInfo& current)
+                    {
+                        if (current.position == e && ! viaEntry)
+                            h.bypass->store (1.0f);
+
+                        if (current.position == listenAt)
+                            p->listenBand.store (0);
+
+                        if (current.position == un && ! viaEntry)
+                            h.bypass->store (0.0f);
+
+                        if (viaEntry)
+                            current.viaBypassed = current.position >= e && current.position < un;
+                    });
+                    p->releaseResources();
+
+                    // The reference from `restart`: dry + w (k) (L - dry), L the listen started settled there.
+                    const int span = length - restart;
+                    std::vector<double> sl (dry[0].begin() + restart, dry[0].end()), sr (dry[1].begin() + restart, dry[1].end());
+                    const auto settled = listenRefRender (rate, true, sl, sr, sl, sr, 0, mapped, {}, LrOptions());
+                    const auto engaged = listenRefRender (rate, true, sl, sr, sl, sr, -1, {}, { { 0, 0, mapped } }, LrOptions());
+
+                    const auto mixOf = [&] (const std::array<std::vector<double>, 2>& l)
+                    {
+                        std::array<std::vector<double>, 2> r { std::vector<double> ((size_t) length, 0.0), std::vector<double> ((size_t) length, 0.0) };
+
+                        for (int channel = 0; channel < 2; ++channel)
+                            for (int k = 0; k < span; ++k)
+                            {
+                                const double d = dry[(size_t) channel][(size_t) (restart + k)];
+                                const double v = l[(size_t) channel][(size_t) k];
+                                r[(size_t) channel][(size_t) (restart + k)] = k < fadeN ? d + refFadeWeight (k, fadeN) * (v - d) : v;
+                            }
+
+                        return r;
+                    };
+
+                    const double err = errorReDb (y, mixOf (settled), restart, length);
+                    const double errEngaged = errorReDb (y, mixOf (engaged), restart, length);
+
+                    const bool bypassedSpan = latch || sameFrom (y, e + fadeN, input, e + fadeN, resume - e - fadeN);
+                    worst = juce::jmax (worst, err);
+                    closest = juce::jmin (closest, errEngaged);
+
+                    const juce::String where = juce::String (latch ? "latched un-bypass (step 7)" : "changed while bypassed") + ", "
+                                             + (viaEntry ? "processBlockBypassed" : "bypass parameter");
+                    seed.check (err <= -140.0 && bypassedSpan && allFinite (y), where + ": " + fmtG (err, 4) + " dB" + (bypassedSpan ? "" : ", the bypassed span is not the input"));
+                    control.check (errEngaged > -140.0, where + ": the unseeded engage reads " + fmtG (errEngaged, 4) + " dB");
+                }
+
+            row (seed.bad == 0 && seed.total == 6,
+                 "XR-lseed listen on at session open (blocks 64 / 512); listen changed while bypassed, then un-bypassed, and with an un-bypass latched in the fade to bypass, both routes: from the first processed sample the output is the bypass fade back to a listen started settled (one band), <= -140 dB re peak; no ramp",
+                 seed.detail() + "  worst " + fmtG (worst, 4) + " dB; N = " + juce::String (fadeN));
+
+            row (control.bad == 0 && control.total == 6,
+                 "XR-lseedn the same renders against an unseeded engage (the 30 ms ramp and the fade from the first sample) differ (control fires)",
+                 control.detail() + "  closest " + fmtG (closest, 4) + " dB");
+        }
+
+        //======================================================================
+        // XR-lag (C3)
+        //======================================================================
+        {
+            const auto input = makeNoiseAt (2, 48000, 0x1A6A0002, kNoise12);
+            const eq::RawBand shelf = rawBandSpec (makeSpec (kLowShelf, 200.0f, 12.0f, 1.0f, 1, kStereo));
+
+            const auto renderWithGains = [&input, &shelf, rate] (bool listen, bool autoOn, float outputDb)
+            {
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+                storeRaw (h.band[0], shelf);
+                h.autoGain->store (autoOn ? 1.0f : 0.0f);
+                h.outputGain->store (outputDb);
+                p->listenBand.store (listen ? 0 : -1);
+                auto y = renderAt (*p, input, rate, 512, {}, noHook);
+                p->releaseResources();
+                return y;
+            };
+
+            const auto off = renderWithGains (true, false, 0.0f);
+            const auto on = renderWithGains (true, true, 0.0f);
+            const auto plus6 = renderWithGains (true, true, 6.0f);
+            const auto eqOff = renderWithGains (false, false, 0.0f);
+            const auto eqOn = renderWithGains (false, true, 0.0f);
+
+            const double autoDb = rmsRatioDb (off, on, 0, off.getNumSamples());
+            const double gainDb = rmsRatioDb (off, plus6, 0, off.getNumSamples());
+            const double eqAutoDb = rmsRatioDb (eqOff, eqOn, 0, eqOff.getNumSamples());
+
+            row (std::abs (autoDb) <= 1.0e-6 && std::abs (gainDb - 6.0) <= 1.0e-4 && eqAutoDb < -5.0,
+                 "XR-lag C3 through the plugin: auto gain on with a +12 dB Low Shelf, listen on that band: the listen level equals the auto-gain-off listen level within 1e-6 dB (float output); output gain +6 dB moves it +6 +- 1e-4 dB",
+                 "listen, auto on vs off " + fmtG (autoDb, 4) + " dB" + (sameAudio (off, on) ? " (memcmp-equal)" : "") + "; output +6 dB: " + fmtG (gainDb, 8)
+                     + " dB; the EQ path with listen off, auto on vs off: " + fmtG (eqAutoDb, 6) + " dB (the estimate acts there)");
+        }
+
+        //======================================================================
+        // XR-loff
+        //======================================================================
+        {
+            Tally tally;
+            juce::String figures;
+            constexpr int blockSize = 512, tListen = 16 * blockSize, tOff = 48 * blockSize;
+            const int grid = harnessGrid (rate);
+            const int releaseEnd = ((tOff + grid - 1) / grid) * grid + fadeN;
+            const int firstBlockAfter = ((releaseEnd + blockSize - 1) / blockSize) * blockSize;
+
+            for (const bool tail : { false, true })
+            {
+                if (tail && ! keepsDenormals())
+                {
+                    tally.check (false, "the denormal variant: this thread flushes denormals");
+                    continue;
+                }
+
+                const int length = tail ? releaseEnd + 2 * 2048 : 64 * blockSize;
+                auto input = makeNoiseAt (2, length, 0x10FF0000 + (tail ? 1 : 0), kNoise12);
+                const int tailFrom = releaseEnd - 200;
+
+                if (tail)
+                {
+                    juce::Random random (0x10FF7A11);
+
+                    for (int channel = 0; channel < 2; ++channel)
+                    {
+                        float* data = input.getWritePointer (channel);
+
+                        for (int i = tailFrom; i < length; ++i)
+                        {
+                            auto bits = (std::uint32_t) (7137 + random.nextInt (713600 - 7137 + 1));
+
+                            if (random.nextBool())
+                                bits |= 0x80000000u;
+
+                            std::memcpy (data + i, &bits, sizeof (bits));
+                        }
+                    }
+                }
+
+                auto p = makeBands (2, 0, mixedSpec);
+                const Handles h = handlesOf (*p);
+                resetAllRaw (*p, h);
+
+                const auto y = renderAt (*p, input, rate, blockSize, {}, [&p] (BlockInfo& current)
+                {
+                    if (current.position == tListen)
+                        p->listenBand.store (0);
+
+                    if (current.position == tOff)
+                        p->listenBand.store (-1);
+                });
+
+                const auto state = p->getListenState();
+                p->releaseResources();
+
+                const int from = tail ? firstBlockAfter : releaseEnd;
+                const bool equal = sameFrom (y, from, input, from, length - from);
+                const bool acted = ! sameFrom (y, tOff, input, tOff, releaseEnd - tOff);
+                const bool flushed = ! tail || ! sameFrom (y, releaseEnd, input, releaseEnd, firstBlockAfter - releaseEnd);
+                const bool idle = state.target < 0 && state.move == eq::ListenMove::none;
+
+                tally.check (equal && acted && flushed && idle,
+                             juce::String (tail ? "with the denormal tail" : "noise") + ": memcmp-equal from " + juce::String (from) + ": " + (equal ? "yes" : "NO")
+                                 + (acted ? "" : "; the release did not act") + (flushed ? "" : "; the block holding the release end kept its denormals (it was not converted?)")
+                                 + (idle ? "" : "; listen is not idle at the end"));
+
+                figures += (figures.isEmpty() ? "" : "; ") + juce::String (tail ? "denormal tail: equal from the first block start after the release end, " : "noise: equal from the release end, ")
+                         + juce::String (from) + " (release end " + juce::String (releaseEnd) + ")";
+            }
+
+            row (tally.bad == 0 && tally.total == 2,
+                 "XR-loff listen on -> off with no band, output 0 dB, auto off, blocks 512: white noise memcmp-equal to the input from the end of the release fade; with the denormal tail (from 200 samples before that end), from the first block that starts after it",
+                 tally.detail() + "  " + figures);
+        }
+
+        //======================================================================
+        // XR-lbyp
+        //======================================================================
+        {
+            Tally tally;
+            double worstA = 0.0, worstMix = -std::numeric_limits<double>::infinity();
+            juce::String worstAWhere;
+            constexpr int length = 48000, tL = 12003;
+            const int grid = harnessGrid (rate);
+            const int tick = ((tL + grid - 1) / grid) * grid;
+            const int ramp = juce::jmax (1, (int) std::lround (0.030 * rate));
+            const int pre = (int) (0.050 * rate), post = (int) (0.070 * rate);
+
+            struct Move { const char* name; int seedBand; int request; int bypassAt; };
+            const Move moves[] = {
+                { "listening, settled",           0,  0, 24007 },
+                { "engage, in the input ramp",   -1,  0, tick + ramp / 2 },
+                { "engage, in the fade",         -1,  0, tick + ramp + fadeN / 2 },
+                { "change, in the input ramp",    0,  1, tick + ramp / 2 },
+                { "change, in the fade",          0,  1, tick + ramp + fadeN / 2 },
+                { "release",                      0, -1, tick + fadeN / 2 }
+            };
+
+            for (int t = 0; t < 2; ++t)
+            {
+                const auto input = lrTone (rate, kLrTones[t], 0, length);
+                const auto dry = lanesOf (input);
+
+                for (const auto& mv : moves)
+                {
+                    const auto renderMove = [&] (bool bypass, bool viaEntry)
+                    {
+                        auto p = makeBands (2, 0, mixedSpec);
+                        const Handles h = handlesOf (*p);
+                        resetAllRaw (*p, h);
+                        storeRaw (h.band[0], rawBandSpec (makeSpec (kBell, 1000.0f, 12.0f, 2.0f, 0, kStereo)));
+                        storeRaw (h.band[1], rawBandSpec (makeSpec (kBandPass, 1000.0f, 0.0f, 10.0f, 0, kStereo)));
+                        p->listenBand.store (mv.seedBand);
+
+                        auto y = renderAt (*p, input, rate, 512, { tL, mv.bypassAt }, [&p, &h, &mv, bypass, viaEntry] (BlockInfo& current)
+                        {
+                            if (current.position == tL && mv.request != mv.seedBand)
+                                p->listenBand.store (mv.request);
+
+                            if (bypass && current.position == mv.bypassAt && ! viaEntry)
+                                h.bypass->store (1.0f);
+
+                            if (bypass && viaEntry)
+                                current.viaBypassed = current.position >= mv.bypassAt;
+                        });
+
+                        p->releaseResources();
+                        return y;
+                    };
+
+                    const auto held = renderMove (false, false);
+                    const auto heldLanes = lanesOf (held);
+
+                    for (const bool viaEntry : { false, true })
+                    {
+                        const auto y = renderMove (true, viaEntry);
+                        const int e = mv.bypassAt;
+
+                        std::array<std::vector<double>, 2> ref;
+
+                        for (int channel = 0; channel < 2; ++channel)
+                        {
+                            auto& r = ref[(size_t) channel];
+                            r.assign ((size_t) length, 0.0);
+
+                            for (int i = 0; i < length; ++i)
+                            {
+                                const double hv = heldLanes[(size_t) channel][(size_t) i], d = dry[(size_t) channel][(size_t) i];
+                                r[(size_t) i] = i < e ? hv : (i < e + fadeN ? hv + refFadeWeight (i - e, fadeN) * (d - hv) : d);
+                            }
+                        }
+
+                        const double mixErr = errorReDb (y, ref, e - pre, e + fadeN + 1);
+                        const double heldD2 = juce::jmax (maxD2Stereo (held, (size_t) (e - pre), (size_t) (e + post)),
+                                                          maxD2Stereo (input, (size_t) (e - pre), (size_t) (e + post)));
+                        const double a = ratioOf (maxD2Stereo (y, (size_t) (e - pre), (size_t) (e + post)), heldD2);
+                        const bool bypassed = sameFrom (y, e + fadeN, input, e + fadeN, length - e - fadeN);
+                        const juce::String where = juce::String (mv.name) + ", " + fmtG (kLrTones[t], 4) + " Hz, " + (viaEntry ? "processBlockBypassed" : "bypass parameter");
+
+                        if (! (a <= worstA))
+                        {
+                            worstA = a;
+                            worstAWhere = where;
+                        }
+
+                        worstMix = juce::jmax (worstMix, mixErr);
+                        tally.check (allFinite (y) && a <= 2.0 && mixErr <= -120.0 && bypassed,
+                                     where + ": (a) " + fmtG (a, 4) + "x, mix " + fmtG (mixErr, 4) + " dB" + (bypassed ? "" : ", not the input after the fade"));
+                    }
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 24,
+                 "XR-lbyp bypass toggled while listening and during each move kind (engage and change in the ramp and in the fade, release), both routes, 50 Hz / 1 kHz: finite; (a) <= 2.0x the held render and the dry input; the bypass fade mixes the listen output with the dry input (<= -120 dB vs the re-stated mix); the input after it",
+                 tally.detail() + "  worst (a) " + fmtG (worstA, 4) + "x (" + worstAWhere + "), worst mix " + fmtG (worstMix, 4) + " dB");
+        }
+    }
+
+    //==========================================================================
+    // XR-blk6. Block identity with listen (PLAN-2.6 R1)
+    //==========================================================================
+    void listenBlockRowsXr()
+    {
+        section ("XR-blk6. block identity with listen events off the grid and the analyzer on (Phase 2.6: PLAN-2.6 P10, R1)");
+
+        constexpr int numEvents = 160, spacing = 2048;
+        constexpr int length = spacing * numEvents;
+        const double rates[3] = { 44100.0, 96000.0, 192000.0 };
+        const int sizes[6] = { 1, 32, 64, 512, 2048, length };      // the last: offline, one block per event span
+        const auto input = makeNoiseAt (2, length, 0x6B160002, kNoise12);
+        const auto events = makeGainEvents();
+
+        // listenBand events: at each event span with p 0.2, at 2048 k + d,
+        // d in 1 ... 2047 and never a multiple of 16 (off the grid at every
+        // rate): -1 with p 0.5, else one of the four bands.
+        std::vector<std::pair<int, int>> listenEvents;
+        {
+            Xorshift draw;
+            draw.state = 0x424C4B364C495354ull;
+
+            for (int k = 0; k < numEvents; ++k)
+            {
+                if (draw.uniform() >= 0.2)
+                    continue;
+
+                int d = 1 + juce::jmin (2046, (int) (draw.uniform() * 2047.0));
+
+                if (d % 16 == 0)
+                    ++d;
+
+                const int band = draw.uniform() < 0.5 ? -1 : juce::jmin (3, (int) (draw.uniform() * 4.0));
+                listenEvents.emplace_back (k * spacing + d, band);
+            }
+        }
+
+        std::vector<int> cuts;
+
+        for (int k = 1; k < numEvents; ++k)
+            cuts.push_back (k * spacing);
+
+        for (const auto& le : listenEvents)
+            cuts.push_back (le.first);
+
+        struct Job { int rate = 0; int size = 0; bool listen = true; };
+        std::vector<Job> jobs;
+
+        for (int r = 0; r < 3; ++r)
+        {
+            for (int s = 0; s < 6; ++s)
+                jobs.push_back ({ r, s, true });
+
+            jobs.push_back ({ r, 3, false });
+        }
+
+        std::vector<juce::AudioBuffer<float>> outputs (jobs.size());
+        std::vector<std::uint32_t> drops (jobs.size());
+        auto pool = makePool (2, (int) jobs.size());
+
+        poolFor ((int) jobs.size(), pool, [&] (int j, Processor& p, const Handles& h)
+        {
+            const Job& job = jobs[(size_t) j];
+            resetAllRaw (p, h);
+            p.setAnalyzerConsumer (true);
+            p.analyzerMode.store (3);
+            storeGainEvent (h, events[0]);
+
+            size_t nextListen = 0;
+
+            outputs[(size_t) j] = renderAt (p, input, rates[job.rate], sizes[job.size], cuts, [&] (BlockInfo& current)
+            {
+                if (current.position % spacing == 0)
+                {
+                    const auto index = (size_t) (current.position / spacing);
+
+                    if (index < events.size())
+                        storeGainEvent (h, events[index]);
+                }
+
+                while (nextListen < listenEvents.size() && listenEvents[nextListen].first <= current.position)
+                {
+                    if (job.listen && listenEvents[nextListen].first == current.position)
+                        p.listenBand.store (listenEvents[nextListen].second);
+
+                    ++nextListen;
+                }
+            }, sizes[job.size]);
+
+            drops[(size_t) j] = p.getPostTap().getDropCount();
+            p.releaseResources();
+            p.setAnalyzerConsumer (false);
+            p.listenBand.store (-1);
+        });
+
+        Tally tally;
+        int listening = 0;
+
+        for (const auto& le : listenEvents)
+            listening += le.second >= 0 ? 1 : 0;
+
+        for (int r = 0; r < 3; ++r)
+        {
+            const size_t base = (size_t) r * 7;
+            const juce::String where = fmtG (rates[r] / 1000.0, 4) + " kHz";
+
+            tally.check (allFinite (outputs[base]) && ! sameAudio (outputs[base], input), where + ": not finite, or nothing acts");
+
+            for (size_t s = 1; s < 6; ++s)
+                tally.check (sameAudio (outputs[base + s], outputs[base]),
+                             where + ": " + (s == 5 ? juce::String ("offline") : "block " + juce::String (sizes[s])) + " differs from block 1, first at sample "
+                                 + juce::String (firstDifference (outputs[base + s], outputs[base])));
+
+            tally.check (! sameAudio (outputs[base + 6], outputs[base + 3]), where + ": the render without listen events is the same (they do not bite)");
+            tally.check (drops[base] > 0, where + ": the rings never overflowed (the analyzer taps were not on)");
+        }
+
+        row (tally.bad == 0 && tally.total == 24,
+             "XR-blk6 XR-blk5's four bands and 160 events (f / Q of the listened band edited at every event, ramps in flight) plus listenBand events off the tick grid (p 0.2 per span), the analyzer on (consumer, mode 3): blocks 1, 32, 64, 512, 2048 and offline (one block per event span) bit-identical at 44.1 / 96 / 192 kHz; differs without the listen events",
+             tally.detail() + "  " + juce::String ((int) listenEvents.size()) + " listenBand events (" + juce::String (listening) + " to a band)");
+    }
+
+    //==========================================================================
+    // XR-lid, XR-lidn. Listen-off identity against the 0.5.0 processor (P13)
+    //==========================================================================
+    /** session-NN.f32 of the 0.5.0 dump (channel-planar raw floats) into `out`. */
+    bool loadLidFile (int index, int channels, int samples, juce::AudioBuffer<float>& out)
+    {
+        const auto file = lidDumpDir.getChildFile (juce::String::formatted ("session-%02d.f32", index));
+        juce::MemoryBlock data;
+
+        if (! file.existsAsFile() || ! file.loadFileAsData (data)
+            || data.getSize() != (size_t) channels * (size_t) samples * sizeof (float))
+            return false;
+
+        out.setSize (channels, samples);
+
+        for (int channel = 0; channel < channels; ++channel)
+            std::memcpy (out.getWritePointer (channel), static_cast<const char*> (data.getData()) + (size_t) channel * (size_t) samples * sizeof (float),
+                         (size_t) samples * sizeof (float));
+
+        return true;
+    }
+
+    void lidRowsXr()
+    {
+        section ("XR-lid. listen-off identity against the 0.5.0 processor (Phase 2.6: PLAN-2.6 P13, R7)");
+
+        if (lidDumpDir == juce::File())
+        {
+            row (false, "XR-lid the 16 sessions memcmp-equal to the 0.5.0 dump", "no dump given: --lid-dir <dir> or OPEQ_LID_DIR (PLAN-2.6 T1: --dump-sessions on a 0.5.0 build)");
+            row (false, "XR-lidn one listenBand write differs from the 0.5.0 dump", "no dump given");
+            return;
+        }
+
+        if (! keepsDenormals())
+        {
+            row (false, "XR-lid the 16 sessions memcmp-equal to the 0.5.0 dump", "this thread flushes denormals; the session input needs them");
+            row (false, "XR-lidn one listenBand write differs from the 0.5.0 dump", "this thread flushes denormals");
+            return;
+        }
+
+        Tally plain, analyzed;
+        std::uint64_t drainedTotal = 0, framesTotal = 0;
+        int sessionsDrained = 0;
+
+        for (const auto& session : lidSessions())
+        {
+            const auto samples = (int) std::llround (kLidSeconds * session.rate);
+            juce::AudioBuffer<float> golden;
+            const bool loaded = loadLidFile (session.index, session.channels, samples, golden);
+            const juce::String where = juce::String::formatted ("session-%02d", session.index);
+
+            if (! loaded)
+            {
+                plain.check (false, where + ": the 0.5.0 file is missing or has the wrong size");
+                analyzed.check (false, where + ": the 0.5.0 file is missing or has the wrong size");
+                continue;
+            }
+
+            const auto out = renderLidSession (session.index);
+            plain.check (sameAudio (out, golden), where + " differs from 0.5.0 at sample " + juce::String (firstDifference (out, golden)));
+
+            // Again with the analyzer consumer registered, mode 3, drained by a second thread.
+            std::unique_ptr<SpectrumAnalyzer> analyzer;
+            std::thread reader;
+            std::atomic<bool> stop { false };
+            int done = 0;
+            std::uint64_t drained = 0, frames = 0;
+
+            const auto finish = [&] ()
+            {
+                if (reader.joinable())
+                {
+                    stop.store (true, std::memory_order_release);
+                    reader.join();
+                }
+
+                if (analyzer != nullptr)
+                {
+                    drained = analyzer->getSamplesDrained (0) + analyzer->getSamplesDrained (1);
+                    frames = analyzer->getFramesComputed (0) + analyzer->getFramesComputed (1);
+                    analyzer.reset();       // unregisters, before the processor goes
+                }
+            };
+
+            const auto outAnalyzed = renderLidSession (session.index,
+                [&] (Processor& p)
+                {
+                    p.analyzerMode.store (3);
+                    analyzer = std::make_unique<SpectrumAnalyzer> (p);
+                    reader = std::thread ([&stop, &analyzer] ()
+                    {
+                        while (! stop.load (std::memory_order_acquire))
+                        {
+                            analyzer->process (0.033);
+                            std::this_thread::yield();
+                        }
+                    });
+                },
+                [&] (Processor&, const juce::AudioBuffer<float>& block, int)
+                {
+                    done += block.getNumSamples();
+
+                    if (done >= samples)
+                        finish();
+                });
+
+            finish();
+            drainedTotal += drained;
+            framesTotal += frames;
+            sessionsDrained += drained > 0 ? 1 : 0;
+
+            analyzed.check (sameAudio (outAnalyzed, golden) && drained > 0,
+                            where + (drained > 0 ? "" : ": the reader drained nothing") + " differs from 0.5.0 at sample "
+                                + juce::String (firstDifference (outAnalyzed, golden)));
+        }
+
+        row (plain.bad == 0 && plain.total == kLidSessionCount && analyzed.bad == 0 && analyzed.total == kLidSessionCount,
+             "XR-lid listen-off identity (P13): the 16 sessions of T1 (random band automation, gains, bypass by both routes, mono / stereo, 44.1 / 96 kHz, blocks 1 - 4096, noise + denormal tail) rendered by this processor are memcmp-equal to the 0.5.0 dump; and again with the analyzer consumer registered, mode 3, drained by a second thread",
+             "plain " + plain.detail() + "; analyzer on " + analyzed.detail() + "  (" + juce::String (sessionsDrained) + " sessions drained, "
+                 + juce::String ((juce::int64) drainedTotal) + " samples, " + juce::String ((juce::int64) framesTotal) + " frames; dump "
+                 + lidDumpDir.getFullPathName() + ")");
+
+        // XR-lidn: session 2 with listenBand = 0 for block 1 only.
+        {
+            const auto session = lidSessions()[2];
+            const auto samples = (int) std::llround (kLidSeconds * session.rate);
+            juce::AudioBuffer<float> golden;
+            const bool loaded = loadLidFile (2, session.channels, samples, golden);
+            bool engaged = false;
+
+            const auto out = renderLidSession (2, [] (Processor&) {}, [&engaged] (Processor& p, const juce::AudioBuffer<float>&, int blockIndex)
+            {
+                if (blockIndex == 0)
+                    p.listenBand.store (0);
+
+                if (blockIndex == 1)
+                {
+                    p.listenBand.store (-1);
+                    engaged = p.getListenState().target >= 0 || p.getListenState().move != eq::ListenMove::none;
+                }
+            });
+
+            row (loaded && ! sameAudio (out, golden),
+                 "XR-lidn session 2 with one listenBand write (band 1 for one block) must differ from the 0.5.0 dump (control fires)",
+                 loaded ? "first difference at sample " + juce::String (firstDifference (out, golden)) + (engaged ? " (listen engaged)" : " (listen did not engage)")
+                        : juce::String ("the 0.5.0 file is missing"));
+        }
+    }
+
+    //==========================================================================
+    // VERIFICATION-2.5 Issue 2: XR-px17, XR-px11, XR-px4, XR-ag3
+    //==========================================================================
+    /** agRef with the grid top and the number of cells as arguments (agRef:
+        top = min (16 kHz, 0.45 fs), 512 cells). Unclamped dB when `clamp` is
+        false. */
+    double agEstimateDb (const std::vector<eq::BandInput>& inputs, bool stereo, double rate, const eq::Designer& designer, double top, int points,
+                         bool clamp)
+    {
+        const double low = 40.0;
+        std::vector<double> t2 ((size_t) points), laneL ((size_t) points, 1.0), laneR ((size_t) points, 1.0);
+
+        for (int i = 0; i < points; ++i)
+        {
+            const double u = ((double) i + 0.5) / (double) points;
+            const double f = std::exp (std::log (low) + (std::log (top) - std::log (low)) * u);
+            const double t = std::tan (eq::pi * f / rate);
+            t2[(size_t) i] = t * t;
+        }
+
+        int contributing = 0;
+
+        for (const auto& in : inputs)
+        {
+            if (! in.active || (eq::isGainType (in.settings.type) && in.settings.gainDbEff == 0.0) || (stereo && in.placement == eq::Placement::side))
+                continue;
+
+            const bool intoL = ! stereo || in.placement == eq::Placement::stereo || in.placement == eq::Placement::mid || in.placement == eq::Placement::left;
+            const bool intoR = ! stereo || in.placement == eq::Placement::stereo || in.placement == eq::Placement::mid || in.placement == eq::Placement::right;
+
+            eq::BandDesign design {};
+            designer.design (in.settings, design);
+            ++contributing;
+
+            for (int i = 0; i < points; ++i)
+            {
+                double power = 1.0;
+
+                for (int s = 0; s < design.numSections; ++s)
+                    power *= eq::sectionMag2 (t2[(size_t) i], design.params[(size_t) s]);
+
+                if (intoL)
+                    laneL[(size_t) i] *= power;
+
+                if (intoR)
+                    laneR[(size_t) i] *= power;
+            }
+        }
+
+        if (contributing == 0)
+            return 0.0;
+
+        double sum = 0.0;
+
+        for (int i = 0; i < points; ++i)
+            sum += 0.5 * (laneL[(size_t) i] + laneR[(size_t) i]);
+
+        const double db = -10.0 * std::log10 (sum / (double) points);
+        return clamp ? juce::jlimit (-18.0, 12.0, db) : db;
+    }
+
+    void owedRowsXr()
+    {
+        section ("XR-px17 / XR-px11 / XR-px4 / XR-ag3. the rows VERIFICATION-2.5 Issue 2 owes (Phase 2.6: PLAN-2.6 T9)");
+
+        const double rate = 48000.0;
+        const int fadeN = refFadeLength (rate);
+
+        //======================================================================
+        // XR-px17
+        //======================================================================
+        {
+            Tally main, control;
+            double worst = -std::numeric_limits<double>::infinity(), closest = std::numeric_limits<double>::infinity();
+            constexpr int e = 10240, eUn = e + 240, length = 24000;
+            const auto input = makeNoiseAt (2, length, 0x0B170002, kNoise12);
+            const double g = refOutputTarget (12.0);
+            const int grid = harnessGrid (rate);
+
+            for (const int blockSize : { 32, 512 })
+                for (const bool viaEntry : { false, true })
+                {
+                    auto p = makeBands (2, 0, mixedSpec);
+                    const Handles h = handlesOf (*p);
+                    resetAllRaw (*p, h);
+                    h.outputGain->store (12.0f);
+
+                    const auto y = renderAt (*p, input, rate, blockSize, { e, eUn }, [&h, viaEntry] (BlockInfo& current)
+                    {
+                        if (current.position == e && ! viaEntry)
+                            h.bypass->store (1.0f);
+
+                        if (current.position == eUn && ! viaEntry)
+                            h.bypass->store (0.0f);
+
+                        if (viaEntry)
+                            current.viaBypassed = current.position >= e && current.position < eUn;
+                    });
+                    p->releaseResources();
+
+                    // The re-stated output: x g, the fade to bypass over [e, e + N), the fade back
+                    // from e + N with the gain in effect from its first sample; the control: the
+                    // stage restarting at unity there (a four-pole ramp to g from the next tick).
+                    const auto reference = [&] (bool seeded)
+                    {
+                        std::array<std::vector<double>, 2> r;
+                        RefPole4 pole;
+                        pole.prepare (refPoleLength (kRefOutputSeconds, rate));
+                        pole.snap (1.0);
+
+                        std::vector<double> gain ((size_t) length, g);
+
+                        if (! seeded)
+                        {
+                            for (int i = e + fadeN; i < length; ++i)
+                            {
+                                if (i % grid == 0)
+                                    pole.retarget (g);
+
+                                gain[(size_t) i] = pole.next();
+                            }
+                        }
+
+                        for (int channel = 0; channel < 2; ++channel)
+                        {
+                            const float* x = input.getReadPointer (channel);
+                            auto& lane = r[(size_t) channel];
+                            lane.assign ((size_t) length, 0.0);
+
+                            for (int i = 0; i < length; ++i)
+                            {
+                                const double dry = (double) x[i];
+                                const double proc = dry * gain[(size_t) i];
+
+                                if (i < e)
+                                    lane[(size_t) i] = proc;
+                                else if (i < e + fadeN)
+                                    lane[(size_t) i] = proc + refFadeWeight (i - e, fadeN) * (dry - proc);
+                                else if (i < e + 2 * fadeN)
+                                    lane[(size_t) i] = dry + refFadeWeight (i - e - fadeN, fadeN) * (proc - dry);
+                                else
+                                    lane[(size_t) i] = proc;
+                            }
+                        }
+
+                        return r;
+                    };
+
+                    const double err = errorReDb (y, reference (true), e + fadeN, length);
+                    const double errUnseeded = errorReDb (y, reference (false), e + fadeN, length);
+                    const double errBefore = errorReDb (y, reference (true), 0, e + fadeN);
+                    worst = juce::jmax (worst, err, errBefore);
+                    closest = juce::jmin (closest, errUnseeded);
+
+                    const juce::String where = juce::String (viaEntry ? "processBlockBypassed" : "parameter") + ", block " + juce::String (blockSize);
+                    main.check (err <= -140.0 && errBefore <= -140.0 && allFinite (y),
+                                where + ": from e + N " + fmtG (err, 4) + " dB, before it " + fmtG (errBefore, 4) + " dB");
+                    control.check (errUnseeded > -140.0, where + ": the unseeded stage reads " + fmtG (errUnseeded, 4) + " dB");
+                }
+
+            row (main.bad == 0 && main.total == 4 && control.bad == 0 && control.total == 4,
+                 "XR-px17 VERIFICATION-2.5 PX17: no band, output gain +12 dB; bypass on, un-bypass latched 5 ms into the fade, by both routes, blocks 32 / 512: the gain is in effect from the first processed sample after the restart (no fade-in), <= -140 dB re peak against the constant-gain render; control: an unseeded stage (unity at the restart, ramping to +12 dB) differs",
+                 main.detail() + " worst " + fmtG (worst, 4) + " dB; control " + control.detail() + " closest " + fmtG (closest, 4) + " dB");
+        }
+
+        //======================================================================
+        // XR-px11
+        //======================================================================
+        {
+            Tally tally;
+            int movedCuts = 0;
+            constexpr int numEvents = 80, spacing = 2048;
+            constexpr int length = numEvents * spacing;
+            const double rates[2] = { 48000.0, 96000.0 };
+            const char* const names[6] = { "random 1 - 2048", "1", "7", "64", "512", "2048" };
+            const int fixedSizes[6] = { 0, 1, 7, 64, 512, 2048 };
+
+            for (const double fs : rates)
+            {
+                const int grid = harnessGrid (fs);
+                const auto input = makeNoiseAt (2, length, 0x0B110002 + (int) (fs / 1000.0), kNoise12);
+                std::vector<int> positions, ticks;
+                std::vector<float> gains;
+                Xorshift draw;
+                draw.state = 0x5058313150583131ull ^ (std::uint64_t) fs;
+
+                for (int k = 0; k < numEvents; ++k)
+                {
+                    int off = 1 + juce::jmin (spacing - 2, (int) (draw.uniform() * (double) (spacing - 1)));
+
+                    if (off % grid == 0)
+                        ++off;
+
+                    const int position = k * spacing + off;
+                    positions.push_back (position);
+                    ticks.push_back (((position + grid - 1) / grid) * grid);
+                    gains.push_back ((float) (-36.0 + 72.0 * draw.uniform()));
+                }
+
+                const auto random = randomBlockSequence (0x0B11B10C + (int) fs, 2048);
+                std::vector<juce::AudioBuffer<float>> outs;
+                std::vector<std::vector<int>> cutSets;
+
+                for (int r = 0; r < 7; ++r)
+                {
+                    // Render r cuts event k at c in [P_k, T_k], a different c per render: the
+                    // output target goes to its smoother at the next tick, T_k, wherever c lies.
+                    std::vector<int> cuts;
+
+                    for (int k = 0; k < numEvents; ++k)
+                    {
+                        const int span = ticks[(size_t) k] - positions[(size_t) k] + 1;
+                        const auto mix = (std::uint64_t) (k + 1) * 0x9E3779B97F4A7C15ull + (std::uint64_t) (r + 1) * 0xD1B54A32D192ED03ull;
+                        cuts.push_back (positions[(size_t) k] + (int) ((mix >> 33) % (std::uint64_t) span));
+                    }
+
+                    cutSets.push_back (cuts);
+
+                    auto p = makeBands (2, 0, mixedSpec);
+                    const Handles h = handlesOf (*p);
+                    resetAllRaw (*p, h);
+                    h.outputGain->store (-6.0f);
+
+                    size_t next = 0;
+                    const bool withEdits = r < 6;
+                    const int fixed = fixedSizes[juce::jmin (r, 5)];
+
+                    outs.push_back (renderSized (*p, input, fs, 2048,
+                        [&random, fixed] (int index, int) { return fixed > 0 ? fixed : random[(size_t) index % random.size()]; },
+                        cuts,
+                        [&] (BlockInfo& current)
+                        {
+                            while (next < cuts.size() && cuts[next] <= current.position)
+                            {
+                                if (withEdits && cuts[next] == current.position)
+                                    h.outputGain->store (gains[next]);
+
+                                ++next;
+                            }
+                        }));
+
+                    p->releaseResources();
+                }
+
+                for (int k = 0; k < numEvents; ++k)
+                {
+                    bool moved = false;
+
+                    for (size_t r = 1; r < 6; ++r)
+                        moved = moved || cutSets[r][(size_t) k] != cutSets[0][(size_t) k];
+
+                    movedCuts += moved ? 1 : 0;
+                }
+
+                for (size_t r = 1; r < 6; ++r)
+                    tally.check (sameAudio (outs[r], outs[0]), fmtG (fs / 1000.0, 3) + " kHz: block " + names[r] + " differs from the random sequence, first at "
+                                                                   + juce::String (firstDifference (outs[r], outs[0])));
+
+                tally.check (allFinite (outs[0]) && ! sameAudio (outs[0], outs[6]), fmtG (fs / 1000.0, 3) + " kHz: the edits do not bite");
+            }
+
+            row (tally.bad == 0 && tally.total == 12,
+                 "XR-px11 VERIFICATION-2.5 PX11: 80 output-gain edits off the tick boundary (random offsets), each seen at a block start that differs between renders but lies before the next tick; blocks 1 - 2048 random and fixed 1 / 7 / 64 / 512 / 2048, 48 and 96 kHz: bit-identical",
+                 tally.detail() + "  " + juce::String (movedCuts) + " of " + juce::String (2 * numEvents) + " edits seen at different samples across the renders");
+        }
+
+        //======================================================================
+        // XR-px4
+        //======================================================================
+        {
+            Tally tally, control;
+            juce::String figures;
+            const eq::RawBand bell = rawBandSpec (makeSpec (kBell, 1000.0f, 1.0f, 1.0f, 1, kLeft));
+
+            for (const double fs : { 48000.0, 96000.0 })
+            {
+                const int grid = harnessGrid (fs);
+                const int refresh = refRefreshTicks (fs) * grid;
+                const int length = (int) (0.6 * fs);
+                const auto input = makeNoiseAt (2, length, 0x0B040002 + (int) (fs / 1000.0), kNoise12);
+                const auto designer = designerFor (fs);
+                const double estimate = agEstimateDb ({ rawInput (bell, 100.0f, true) }, true, fs, *designer, juce::jmin (16000.0, 0.45 * fs), 512, true);
+                const double target = std::pow (10.0, estimate / 20.0);
+                const int toggleAt = 3 * 2048 + 5 * grid + 3;
+                const int bellAt = toggleAt + (int) (0.1 * fs) + 7;
+
+                for (const bool sameBlock : { true, false })
+                {
+                    const int seenAt = sameBlock ? toggleAt : bellAt;
+                    const int refreshTick = ((seenAt + refresh - 1) / refresh) * refresh;
+                    std::vector<juce::AudioBuffer<float>> outs;
+
+                    for (const int blockSize : { 32, 512, 2048 })
+                    {
+                        auto p = makeBands (2, 0, mixedSpec);
+                        const Handles h = handlesOf (*p);
+                        resetAllRaw (*p, h);
+
+                        outs.push_back (renderAt (*p, input, fs, blockSize, { toggleAt, bellAt }, [&h, &bell, toggleAt, bellAt, sameBlock] (BlockInfo& current)
+                        {
+                            if (current.position == toggleAt)
+                            {
+                                h.autoGain->store (1.0f);
+
+                                if (sameBlock)
+                                    storeRaw (h.band[0], bell);
+                            }
+
+                            if (current.position == bellAt && ! sameBlock)
+                                storeRaw (h.band[0], bell);
+                        }));
+
+                        p->releaseResources();
+                    }
+
+                    // The R lane re-stated: x_R g (n), g the auto-gain cascade retargeted on the
+                    // first refresh tick after the bell is seen (gainTrajectory); the control one refresh later.
+                    const auto trajectoryR = [&] (int estimateFrom)
+                    {
+                        GainScript script;
+                        script.add (0, 1.0, false, 1.0);
+                        script.add (toggleAt, 1.0, true, estimateFrom == toggleAt ? target : 1.0);
+
+                        if (estimateFrom != toggleAt)
+                            script.add (estimateFrom, 1.0, true, target);
+
+                        const auto gain = gainTrajectory (script, length, fs, false);
+                        std::vector<double> r ((size_t) length, 0.0);
+                        const float* x = input.getReadPointer (1);
+
+                        for (int i = 0; i < length && gain.size() == (size_t) length; ++i)
+                            r[(size_t) i] = (double) x[i] * gain[(size_t) i];
+
+                        return r;
+                    };
+
+                    const auto ref = trajectoryR (seenAt);
+                    const auto late = trajectoryR (refreshTick + 1);
+                    const float* x = input.getReadPointer (1);
+                    const juce::String where = fmtG (fs / 1000.0, 3) + " kHz, " + (sameBlock ? "bell with the toggle" : "toggle alone, bell 100 ms later");
+
+                    for (size_t b = 0; b < outs.size(); ++b)
+                    {
+                        const auto& y = outs[b];
+                        int onset = -1;
+
+                        for (int i = 0; i < length && onset < 0; ++i)
+                            if (! sameBits (y.getSample (1, i), x[i]))
+                                onset = i;
+
+                        int refOnset = -1;
+
+                        for (int i = 0; i < length && refOnset < 0; ++i)
+                            if (! sameBits ((float) ref[(size_t) i], x[i]))
+                                refOnset = i;
+
+                        const double err = laneErrorReDb (y, 1, ref, 0, length);
+                        const double errLate = laneErrorReDb (y, 1, late, 0, length);
+                        tally.check (onset >= refreshTick && onset == refOnset && err <= -140.0 && (b == 0 || sameAudio (y, outs[0])),
+                                     where + ", block " + juce::String (b == 0 ? 32 : (b == 1 ? 512 : 2048)) + ": onset " + juce::String (onset) + " (re-stated "
+                                         + juce::String (refOnset) + ", refresh tick " + juce::String (refreshTick) + "), " + fmtG (err, 4) + " dB"
+                                         + (b == 0 || sameAudio (y, outs[0]) ? "" : ", differs from block 32"));
+                        control.check (errLate > -140.0, where + ": one refresh late reads " + fmtG (errLate, 4) + " dB");
+
+                        if (b == 0)
+                            figures += (figures.isEmpty() ? "" : "; ") + where + ": refresh tick " + juce::String (refreshTick) + ", onset " + juce::String (onset)
+                                     + ", " + fmtG (err, 4) + " dB (one refresh late " + fmtG (errLate, 4) + " dB)";
+                    }
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 12 && control.bad == 0,
+                 "XR-px4 VERIFICATION-2.5 PX4: an auto-gain toggle in an otherwise idle block (no band, stage at unity) with a Left +1 dB bell set in the same block, and with the bell 100 ms later: the right lane follows the gain from the refresh tick (equal to the input before it; <= -140 dB re peak of the re-stated trajectory; its first changed sample is the re-stated one) at blocks 32 / 512 / 2048, bit-identical across them; one refresh late differs",
+                 tally.detail() + "  " + figures);
+        }
+
+        //======================================================================
+        // XR-ag3
+        //======================================================================
+        {
+            Tally tally, control;
+            juce::String figures;
+
+            struct Case { const char* name; int type; float freq, gain, q; int slope; bool g12; };
+            const Case cases[] = {
+                { "G12 Low Shelf 200 Hz +12 12 dB/oct", kLowShelf, 200.0f, 12.0f, 1.0f, 1, true },
+                { "Low Shelf 200 Hz +12 24 dB/oct",     kLowShelf, 200.0f, 12.0f, 1.0f, 3, false },
+                { "High Shelf 6 kHz +12",               kHighShelf, 6000.0f, 12.0f, 1.0f, 1, false },
+                { "High Shelf 8 kHz +12",               kHighShelf, 8000.0f, 12.0f, 1.0f, 1, false },
+                { "Bell 1 kHz +12 Q 2",                 kBell, 1000.0f, 12.0f, 2.0f, 0, false },
+                { "Low Cut 100 Hz 24 dB/oct",           kLowCut, 100.0f, 0.0f, 1.0f, 3, false },
+                { "High Cut 5 kHz 48 dB/oct",           kHighCut, 5000.0f, 0.0f, 1.0f, 5, false },
+                { "Tilt 1 kHz +12",                     kTilt, 1000.0f, 12.0f, 1.0f, 1, false }
+            };
+
+            double worst = 0.0;
+            juce::String worstWhere;
+
+            for (const double fs : { 22050.0, 32000.0 })
+            {
+                const auto designer = designerFor (fs);
+                const auto input = makeNoiseAt (2, (int) (0.5 * fs), (juce::int64) 0xA6300002 + (juce::int64) fs, kNoise12);
+                const double top45 = juce::jmin (16000.0, 0.45 * fs), top50 = juce::jmin (16000.0, 0.5 * fs);
+
+                for (const auto& c : cases)
+                {
+                    const eq::RawBand raw = rawBandSpec (makeSpec (c.type, c.freq, c.gain, c.q, c.slope, kStereo));
+                    const std::vector<eq::BandInput> bands { rawInput (raw, 100.0f, true) };
+
+                    const auto renderAuto = [&input, &raw, fs] (bool on)
+                    {
+                        auto p = makeBands (2, 0, mixedSpec);
+                        const Handles h = handlesOf (*p);
+                        resetAllRaw (*p, h);
+                        storeRaw (h.band[0], raw);
+                        h.autoGain->store (on ? 1.0f : 0.0f);
+                        auto y = renderAt (*p, input, fs, 512, {}, noHook);
+                        p->releaseResources();
+                        return y;
+                    };
+
+                    const auto on = renderAuto (true);
+                    const auto off = renderAuto (false);
+                    double num = 0.0, den = 0.0;
+
+                    for (int channel = 0; channel < 2; ++channel)
+                        for (int i = 0; i < on.getNumSamples(); ++i)
+                        {
+                            num += (double) on.getSample (channel, i) * (double) off.getSample (channel, i);
+                            den += (double) off.getSample (channel, i) * (double) off.getSample (channel, i);
+                        }
+
+                    const double appliedDb = 20.0 * std::log10 (num / den);
+                    const double truthDb = agEstimateDb (bands, true, fs, *designer, top45, 40000, true);
+                    const double top50Db = agEstimateDb (bands, true, fs, *designer, top50, 512, true);
+                    const double error = std::abs (appliedDb - truthDb);
+                    const juce::String where = juce::String (c.name) + ", " + fmtG (fs / 1000.0, 4) + " kHz";
+
+                    if (! (error <= worst))
+                    {
+                        worst = error;
+                        worstWhere = where;
+                    }
+
+                    tally.check (allFinite (on) && error <= 0.06, where + ": plugin " + fmtG (appliedDb, 6) + " dB, truth " + fmtG (truthDb, 6) + " dB");
+
+                    if (c.g12)
+                    {
+                        control.check (std::abs (top50Db - appliedDb) > 0.001, where + ": a 0.5 fs top reads " + fmtG (top50Db, 6) + " dB");
+                        figures += (figures.isEmpty() ? "" : "; ") + where + ": plugin " + fmtG (appliedDb, 6) + " dB, truth (0.45 fs top) " + fmtG (truthDb, 6)
+                                 + " dB, 0.5 fs top " + fmtG (top50Db, 6) + " dB";
+                    }
+                }
+            }
+
+            row (tally.bad == 0 && tally.total == 16 && control.bad == 0 && control.total == 2,
+                 "XR-ag3 VERIFICATION-2.5 AG3: G12 auto gain at 22.05 and 32 kHz (the 0.45 fs grid top active), the plugin's applied gain (auto on / off, least squares) against the 40 000-point pink truth with the 0.45 fs top: within 0.06 dB (8 bands incl. the G12 shelf); control: the 512-point estimate with a 0.5 fs top reads outside 0.001 dB of the plugin's",
+                 tally.detail() + " worst " + fmtG (worst, 3) + " dB (" + worstWhere + "); control " + control.detail() + "  " + figures);
+        }
+    }
+
+    //==========================================================================
+    // A5, A5n. G6 with the analyzer taps saturated and listen switching
+    //==========================================================================
+    struct ListenAllocResult
+    {
+        GainAllocResult gain;
+        std::int64_t listeningBlocks = 0, moveBlocks = 0;
+        int switches = 0;
+        std::uint32_t dropsPre = 0, dropsPost = 0;
+    };
+
+    /** As A4 (runGainAllocWindow): the window is processBlock or
+        processBlockBypassed alone, the first block after prepareToPlay
+        included; 20 s at 48 kHz of the P14 every-block draw (24 bands moving,
+        bypass toggled by both routes), auto_gain on, output_gain redrawn per
+        block; plus the analyzer consumer registered with mode 3 and no reader
+        (the rings fill in about 0.7 s, then every block overflows) and
+        listenBand switched every 100 ms (StressListenDraw mode 2). */
+    ListenAllocResult runListenAllocWindow (bool plant)
+    {
+        ListenAllocResult result;
+
+       #if defined (__APPLE__)
+        const double rate = 48000.0;
+        const double seconds = 20.0;
+
+        const StressSeed chosen = chooseStressSeed24 (rate, seconds, 1, 2);
+        auto p = makeBands (2, 0, mixedSpec);
+        const Handles h = handlesOf (*p);
+        p->setAnalyzerConsumer (true);
+        p->analyzerMode.store (3);
+
+        StressListenDraw listen;
+        listen.begin (2, chosen.seed);
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        allocArmed = true;
+        {
+            void* volatile probe = std::malloc (64);
+            std::free (probe);
+        }
+        allocArmed = false;
+        result.gain.fade.base.probeAllocs = allocCount;
+        result.gain.fade.base.probeFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        bool plantNext = plant;
+        int viaEntry = 0;
+
+        const StressOutcome outcome = stressLoopCore (*p, h, rate, seconds, chosen.seed, 1, true, 2, nullptr, &listen,
+                                                      [&p, &plantNext, &viaEntry, &result] (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages, bool viaBypassed)
+                                                      {
+                                                          allocArmed = true;
+
+                                                          if (viaBypassed)
+                                                              p->processBlockBypassed (buffer, midiMessages);
+                                                          else
+                                                              p->processBlock (buffer, midiMessages);
+
+                                                          if (plantNext)
+                                                          {
+                                                              void* volatile planted = std::malloc (64);
+                                                              std::free (planted);
+                                                          }
+
+                                                          allocArmed = false;
+                                                          plantNext = false;
+
+                                                          if (viaBypassed)
+                                                              ++viaEntry;
+
+                                                          const eq::ListenState state = p->getListenState();
+                                                          result.listeningBlocks += state.target >= 0 ? 1 : 0;
+                                                          result.moveBlocks += state.move != eq::ListenMove::none ? 1 : 0;
+                                                      });
+
+        malloc_logger = previous;
+        result.gain.evaluations = p->getAutoGainEvaluationCount();
+        result.gain.refreshes = p->getAutoGainRefreshCount();
+        result.dropsPre = p->getPreTap().getDropCount();
+        result.dropsPost = p->getPostTap().getDropCount();
+        result.switches = listen.listenChanges;
+        p->releaseResources();
+
+        result.gain.fade.base.available = true;
+        result.gain.fade.base.allocs = allocCount;
+        result.gain.fade.base.frees = freeCount;
+        result.gain.fade.base.blocks = (int) outcome.blocks;
+        result.gain.fade.base.audioOk = chosen.ok && outcome.nonFinite == 0 && outcome.actingBlocks > 0;
+        result.gain.fade.viaEntryBlocks = viaEntry;
+       #else
+        juce::ignoreUnused (plant);
+       #endif
+
+        return result;
+    }
+
+    void listenAllocationRowsXr()
+    {
+        section ("A5. allocation with the analyzer taps saturated and listen switching (Phase 2.6: G6 as amended, PERF-01)");
+
+        const ListenAllocResult clean = runListenAllocWindow (false);
+        const AllocResult& base = clean.gain.fade.base;
+
+        if (! base.available)
+        {
+            info ("A5 allocation gate SKIPPED: no malloc_logger on this platform");
+            info ("A5n allocation control SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const bool hookLive = base.probeAllocs >= 1 && base.probeFrees >= 1;
+        const bool refreshing = clean.gain.refreshes > 0 && clean.gain.evaluations > clean.gain.refreshes;
+        const bool saturated = clean.dropsPre > 0 && clean.dropsPost > 0;
+        const bool listening = clean.listeningBlocks > 0 && clean.moveBlocks > 0 && clean.switches >= 190;
+
+        row (hookLive && base.audioOk && clean.gain.fade.viaEntryBlocks > 0 && refreshing && saturated && listening && base.allocs == 0 && base.frees == 0,
+             "A5 G6: processBlock and processBlockBypassed, 20 s at 48 kHz, first block included: the A4 load (24 bands moving at every block, bypass toggled by both routes, auto gain refreshing, output gain per block) plus the analyzer consumer registered, mode 3, no reader (the rings saturate), listen switching every 100 ms: 0 allocations, 0 frees",
+             juce::String (base.allocs) + " allocations, " + juce::String (base.frees) + " frees in " + juce::String (base.blocks) + " windows ("
+                 + juce::String (clean.gain.fade.viaEntryBlocks) + " through processBlockBypassed; " + juce::String ((juce::int64) clean.gain.evaluations)
+                 + " band evaluations in " + juce::String ((juce::int64) clean.gain.refreshes) + " refreshes; drops pre / post "
+                 + juce::String ((juce::int64) clean.dropsPre) + " / " + juce::String ((juce::int64) clean.dropsPost) + "; " + juce::String (clean.switches)
+                 + " listenBand switches, " + juce::String ((juce::int64) clean.listeningBlocks) + " blocks listening, "
+                 + juce::String ((juce::int64) clean.moveBlocks) + " ending inside a move); hook " + (hookLive ? "live" : "DEAD")
+                 + " (probe: " + juce::String (base.probeAllocs) + " / " + juce::String (base.probeFrees) + ")"
+                 + (base.audioOk ? "" : "; the stress did not run as expected (stack guard, non-finite output, or no acting block)"));
+
+        const ListenAllocResult planted = runListenAllocWindow (true);
+
+        row (planted.gain.fade.base.allocs >= 1 && planted.gain.fade.base.frees >= 1,
+             "A5n a planted allocation inside the A5 window is counted (control fires)",
+             juce::String (planted.gain.fade.base.allocs) + " allocations, " + juce::String (planted.gain.fade.base.frees) + " frees");
+    }
+
+    //==========================================================================
+    // X-cpu5. CPU with the taps and listen (INFO; PLAN-2.6 P15)
+    //==========================================================================
+    void cpuInfoListen()
+    {
+        section ("X5. CPU with the analyzer taps and listen (INFO, not gated; G10 binds in Stage 4)");
+
+        constexpr int blockSize = 512;
+        const double rate = 48000.0;
+        const int numBlocks = (int) (20.0 * rate / (double) blockSize);
+        const double audioSeconds = (double) numBlocks * (double) blockSize / rate;
+        const auto noise = makeNoiseAt (2, blockSize, 0x0C9500002, kNoise12);
+        const int switchEvery = (int) std::lround (0.050 * rate);     // R + N: a change move in flight nearly all the time
+
+        struct Config { const char* name; int type; int slope; int type2; int slope2; };
+
+        const Config configs[] =
+        {
+            { "24 cuts x 96 dB/oct (Low Cut <> High Cut)",       kLowCut,    7, kHighCut,   7 },
+            { "24 shelves x 96 dB/oct (High <> Low)",            kHighShelf, 7, kLowShelf,  7 },
+            { "24 bells <> 12 dB/oct shelves",                   kBell,      0, kHighShelf, 1 },
+            { "24 shelves 96 <> 72 dB/oct",                      kHighShelf, 7, kHighShelf, 6 }
+        };
+
+        const char* const modeNames[4] = { "settled", "always fading", "one fade per second", "24 asleep" };
+
+        // voices 1: listen settled on band 1 from the first block; 2: listenBand
+        // alternating between bands 1 and 2 every 50 ms (two voices in a change).
+        const auto timeRun = [&] (const Config& c, int mode, int voices, bool& finite)
+        {
+            auto p = makeBands (2, 24, [&c, mode] (int index)
+            {
+                return makeSpec (c.type, 40.0f * std::pow (1.28f, (float) index), mode == 3 ? 0.0f : 6.0f, 1.0f, c.slope, kStereo);
+            });
+
+            const Handles h = handlesOf (*p);
+            h.autoGain->store (1.0f);
+            p->setAnalyzerConsumer (true);
+            p->analyzerMode.store (3);
+            p->listenBand.store (0);
+
+            juce::AudioBuffer<float> block (2, blockSize);
+            juce::MidiBuffer midi;
+            double seconds = 0.0;
+
+            p->prepareToPlay (rate, blockSize);
+
+            for (int k = 0; k < numBlocks; ++k)
+            {
+                const double t = (double) (k * blockSize) / rate;
+                bool second = false;
+
+                if (mode == 1)
+                    second = (((long) (t / 0.0215)) & 1) != 0;
+
+                if (mode == 2)
+                    second = (((long) t) & 1) != 0;
+
+                for (size_t b = 0; b < h.band.size(); ++b)
+                {
+                    const BandHandles& hb = h.band[b];
+                    hb.type->store ((float) (second ? c.type2 : c.type));
+                    hb.slope->store ((float) (second ? c.slope2 : c.slope));
+                }
+
+                if (voices == 2)
+                    p->listenBand.store (((k * blockSize) / switchEvery) % 2);
+
+                for (int channel = 0; channel < 2; ++channel)
+                    block.copyFrom (channel, 0, noise, channel, 0, blockSize);
+
+                const auto t0 = std::chrono::steady_clock::now();
+                p->processBlock (block, midi);
+                const auto t1 = std::chrono::steady_clock::now();
+
+                seconds += std::chrono::duration<double> (t1 - t0).count();
+            }
+
+            p->releaseResources();
+            finite = finite && allFinite (block);
+            return 100.0 * seconds / audioSeconds;
+        };
+
+        for (size_t ci = 0; ci < 4; ++ci)
+        {
+            const Config& c = configs[ci];
+            bool finite = true;
+            juce::String line = juce::String ("X-cpu5 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, taps on (mode 3), ") + c.name + ":";
+
+            for (int mode = 0; mode < 4; ++mode)
+            {
+                const double one = timeRun (c, mode, 1, finite);
+                const double two = timeRun (c, mode, 2, finite);
+                line += juce::String (" ") + modeNames[mode] + " listen 1 voice " + fmtG (one, 3) + " %, 2 voices " + fmtG (two, 3) + " % (X-cpu4 "
+                      + fmtG (xcpu4Percent[ci][mode], 3) + " %)" + (mode < 3 ? ";" : "");
+            }
+
+            info (line + " of one core" + (finite ? "" : "  OUTPUT NOT FINITE"));
+        }
+    }
 }
 
 //==============================================================================
 int main (int argc, char** argv)
 {
     bool dumpParams = false;
+    juce::File dumpSessionsDir;
     juce::File goldenDir (juce::String::fromUTF8 (GOLDEN_DIR));
 
     for (int a = 1; a < argc; ++a)
@@ -11294,14 +16384,30 @@ int main (int argc, char** argv)
         {
             longRunRequested = true;
         }
+        else if (arg == "--dump-sessions" && a + 1 < argc)
+        {
+            dumpSessionsDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+        }
+        else if (arg == "--lid-dir" && a + 1 < argc)
+        {
+            lidDumpDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+        }
         else
         {
-            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long]\n", argv[0]);
+            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>]\n", argv[0]);
             return 255;
         }
     }
 
+    if (lidDumpDir == juce::File())
+        if (const char* fromEnvironment = std::getenv ("OPEQ_LID_DIR"))
+            if (*fromEnvironment != 0)
+                lidDumpDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (fromEnvironment));
+
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+    if (dumpSessionsDir != juce::File())
+        return dumpLidSessions (dumpSessionsDir);   // PLAN-2.6 T1, P13
 
     if (dumpParams)
     {
@@ -11358,6 +16464,17 @@ int main (int argc, char** argv)
     meterRowsXr();
     gainAllocationRowsXr();
     cpuInfoGains();
+
+    // Stage 2, Phase 2.6 (PLAN-2.6 T9)
+    displayRowsXr();
+    analyzerRowsXr();
+    listenStepRowsXr();
+    listenPathRowsXr();
+    listenBlockRowsXr();
+    lidRowsXr();
+    owedRowsXr();
+    listenAllocationRowsXr();
+    cpuInfoListen();
 
     std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
     std::fflush (stdout);

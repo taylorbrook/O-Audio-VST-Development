@@ -269,4 +269,53 @@ inline double analogBandMagDb (const BandDesign& design, double w) noexcept
     return design.inverted ? -db : db;
 }
 
+//==============================================================================
+// Added in Phase 2.6 (PLAN-2.6 P1; G9 (a) on the damped circle)
+//==============================================================================
+
+/** H of one section at any complex z (z = -1 excluded): the same rational
+    forms as svfResponse and onePoleResponse, at s = (z - 1) / (z + 1), the
+    bilinear map those are the images of.
+
+      SVF       (mL + mB x + mH x^2) / (1 + k x + x^2),   x = s / g
+      one-pole  (cL + cH x) / (1 + x),                    x = s / G
+
+    Only the halves the section has. On the unit circle, z = e^(j w), s is
+    j tan (w/2) and this is sectionResponse (to rounding). */
+inline std::complex<double> sectionResponseAtZ (std::complex<double> z, const SectionParams& p) noexcept
+{
+    const std::complex<double> one (1.0, 0.0);
+    const std::complex<double> s = (z - one) / (z + one);
+    std::complex<double> h (1.0, 0.0);
+
+    if (p.hasSvf)
+    {
+        const std::complex<double> x = s / p.g;
+        h *= (p.mL + p.mB * x + p.mH * x * x) / (one + p.k * x + x * x);
+    }
+
+    if (p.hasOnePole)
+    {
+        const std::complex<double> x = s / p.G;
+        h *= (p.cL + p.cH * x) / (one + x);
+    }
+
+    return h;
+}
+
+/** H of a designed band at any complex z (z = -1 excluded): the product of
+    its sections in order (sectionResponseAtZ). With |z| > 1 inside the
+    region of convergence this is the z-transform of the band's impulse
+    response, which is what a damped measurement (weight a^n, z = e^(j w) / a)
+    reads. */
+inline std::complex<double> bandResponseAtZ (const BandDesign& design, std::complex<double> z) noexcept
+{
+    std::complex<double> h (1.0, 0.0);
+
+    for (int i = 0; i < design.numSections; ++i)
+        h *= sectionResponseAtZ (z, design.params[static_cast<std::size_t> (i)]);
+
+    return h;
+}
+
 } // namespace eq

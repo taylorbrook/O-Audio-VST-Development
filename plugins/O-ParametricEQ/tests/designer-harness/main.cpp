@@ -34,8 +34,8 @@
                                                            if the targeted row FAILS. Names:
                                                            rbj, f1, alloc, seed, rbj-b, binary-gate,
                                                            first-build, engine-alloc, ramp-alloc,
-                                                           fade-alloc, ag-alloc
-                                                           (the last four: exit 0 only if the
+                                                           fade-alloc, ag-alloc, tap-alloc
+                                                           (the last five: exit 0 only if the
                                                            planted allocation is counted)
       O-ParametricEQ-designer-harness --long               RM-g5 and XF-g5 run the contract's 600 s
                                                            per rate instead of 60 s
@@ -49,6 +49,30 @@
 
     Every Phase 2.1 row below runs Designer::designSeed (the closed form). The
     Phase 2.1b rows run Designer::design (polished) unless they say otherwise.
+
+      Phase 2.6 (PLAN-2.6 T5): taps, listen, display truth in double. LxEngine is the P10
+      per-block order (24 eq::SlotBand, eq::OutputStage + eq::AutoGain, eq::Listen after auto
+      gain); stimuli and scores restate tap_bench listen / listen3 / damped / g9diag.
+      listenRefRender and listenHardRender are harness code (static chains, formula weights)
+      XL-map     listenInputFor on every type x placement x slope against the P4 table; edits
+      XL-route   the solo router per placement, stereo and mono, against an independent Band
+      XL-on      listen on / off, 20 bands x 2 tones x 4 phases x 48 / 96 / 192 kHz: (a) <= 2.0x,
+                 1 kHz kappa <= 2.5x
+      XL-onh     listenHardRender (R 0, N 1) >= 10x where the tone is in the listen stop band
+      XL-chg     band changes, 380 ordered pairs at 48 kHz, 64 at 96 / 192: (a) <= 2.0x, (b) <= 2.5x
+      XL-sweep   the listened bell swept: <= 4.0x the 2.3 same-motion reference
+      XL-ref     Listen against listenRefRender over the XL-on / XL-chg renders, 1e-12 relative
+      XL-refn    the reference with the weight one sample early, and with R = 20 ms, differ > 1e-9
+      XL-latch   a request during each move kind: taken at its end, the latest wins
+      XL-seed    startSettled: weight 1 from sample 0; equal to an engaged listen after 2 s
+      XL-ag      C3: listen level with auto gain on == off
+      XO-split   nextGains against process, 2000 histories: bit-equal
+      XO-os18    GainSmoother against a restated cascade, bit-exact; 'last stage only' differs
+      XT-ring    SpectrumTap single-thread model check; XT-thr two threads 20 s; XT-gen reset
+      XG-exact   G9 engine row: damped impulse response vs bandResponseAtZ, <= 1e-4 dB
+      XG-ctl     its four controls exceed 0.05 dB
+      XT-alloc   no allocation with listen switching and two saturated taps (malloc_logger)
+      XL-cpu     INFO: listen cost per sample
 
       Phase 2.5 (PLAN-2.5 T4): output stage and auto gain in double. The subjects are
       eq::OutputStage (two eq::GainSmoother) and eq::AutoGain; stimuli and scores restate
@@ -218,6 +242,8 @@
 #include "dsp/SlotBand.h"
 #include "dsp/OutputStage.h"
 #include "dsp/AutoGain.h"
+#include "dsp/SpectrumTap.h"
+#include "dsp/Listen.h"
 
 #include <algorithm>
 #include <array>
@@ -15573,6 +15599,3320 @@ namespace
     }
 
     //==========================================================================
+    // Phase 2.6 (PLAN-2.6 T5): taps, listen, display truth, in double
+    //
+    // Subjects: eq::Listen and listenInputFor (Listen.h), eq::SpectrumTap
+    // (SpectrumTap.h), OutputStage::nextGains, GainSmoother, bandResponseAtZ
+    // (ResponseEval.h) and effectiveBandInput (BandParams.h). LxEngine is the
+    // PLAN-2.6 P10 per-block order on double lanes: 24 eq::SlotBand, the bypass
+    // fade, eq::OutputStage with eq::AutoGain, and eq::Listen after auto gain
+    // and before output gain (C3); the gain form is chosen per segment by
+    // Listen::isEngaged (wave-1 note 3), segments end where a listen move ends
+    // and are capped at the dry piece while listen is not idle.
+    //
+    // Stimuli and scores restate tap_bench listen / listen3 (the 20 listened
+    // bands, 50 Hz and 1 kHz at -6 dBFS, 4 phases, on at 0.5 s + 7 and off at
+    // 1.0 s + 11, both off the grid; (a) = largest second difference over
+    // -50 .. +70 ms (+ R on the engage) against the louder held render, (b) =
+    // 1 kHz local kappa against the larger held kappa), damped (2^17 samples,
+    // a^N = 1e-9) and g9diag (scored within 80 dB of each response's maximum).
+    // The bench ran at 48 kHz; 96 and 192 kHz are added here (PLAN-2.6 R5).
+    //
+    // listenRefRender and listenHardRender (P12) are harness code: static
+    // chains (Designer::design -> toRuntime, svfTick / onePoleTick, the 2.4
+    // XfRefChain), ramp and fade weights from the formula, the harness grid
+    // literal (rmRefGrid). They call no Listen, SlotBand, FadeTable, Band,
+    // Router or OutputStage.
+    //==========================================================================
+    constexpr int kLxBands = kEnMaxBands;
+    constexpr int kLxPiece = 64;                        // the processor's kDryPieceSize
+    constexpr int kLxCaseCount = 20;
+    constexpr int kLxPhases = 4;
+    constexpr int kLxBlock = 512;
+    constexpr int kLxNumRates = 3;
+    constexpr std::array<double, kLxNumRates> kLxRates { { 48000.0, 96000.0, 192000.0 } };
+
+    struct LxCase
+    {
+        const char* name;
+        eq::Type type;
+        double f, gain, q;
+        int slope;
+    };
+
+    // tap_bench listen2 / listen3: the 20 listened bands.
+    const LxCase kLxCases[kLxCaseCount] =
+    {
+        { "Bell 1 kHz +12 Q 2",      eq::Type::bell,      1000.0,  12.0,  2.0, 0 },
+        { "Bell 50 Hz -18 Q 4",      eq::Type::bell,        50.0, -18.0,  4.0, 0 },
+        { "Bell 5 kHz +6 Q 40",      eq::Type::bell,      5000.0,   6.0, 40.0, 0 },
+        { "Bell 10 Hz +12 Q 40",     eq::Type::bell,        10.0,  12.0, 40.0, 0 },
+        { "Low Shelf 200 Hz +12",    eq::Type::lowShelf,   200.0,  12.0,  1.0, 2 },
+        { "High Shelf 8 kHz -12",    eq::Type::highShelf, 8000.0, -12.0,  1.0, 1 },
+        { "Low Cut 100 Hz 48 dB",    eq::Type::lowCut,     100.0,   0.0,  1.0, 4 },
+        { "High Cut 2 kHz 96 dB",    eq::Type::highCut,   2000.0,   0.0,  1.0, 7 },
+        { "Notch 50 Hz Q 10",        eq::Type::notch,       50.0,   0.0, 10.0, 0 },
+        { "Band Pass 1 kHz Q 10",    eq::Type::bandPass,  1000.0,   0.0, 10.0, 0 },
+        { "Band Pass 8 kHz Q 40",    eq::Type::bandPass,  8000.0,   0.0, 40.0, 0 },
+        { "Band Pass 200 Hz Q 0.3",  eq::Type::bandPass,   200.0,   0.0,  0.3, 0 },
+        { "Tilt 1 kHz +12",          eq::Type::tilt,      1000.0,  12.0,  1.0, 1 },
+        { "Bell 2 kHz +12 Q 10",     eq::Type::bell,      2000.0,  12.0, 10.0, 0 },
+        { "Band Pass 300 Hz Q 40",   eq::Type::bandPass,   300.0,   0.0, 40.0, 0 },
+        { "Band Pass 150 Hz Q 20",   eq::Type::bandPass,   150.0,   0.0, 20.0, 0 },
+        { "Bell 400 Hz +12 Q 40",    eq::Type::bell,       400.0,  12.0, 40.0, 0 },
+        { "Band Pass 3 kHz Q 40",    eq::Type::bandPass,  3000.0,   0.0, 40.0, 0 },
+        { "Low Shelf 20 Hz +12",     eq::Type::lowShelf,    20.0,  12.0,  1.0, 1 },
+        { "High Cut 120 Hz 12 dB",   eq::Type::highCut,    120.0,   0.0,  1.0, 1 }
+    };
+
+    /** A band as the processor builds it (effectiveBandInput: raw -> canonical, effective placement). */
+    eq::BandInput lxInput (const LxCase& c, bool stereo, eq::Placement placement = eq::Placement::stereo)
+    {
+        return eq::effectiveBandInput (enRaw (c.type, c.f, c.gain, c.q, c.slope, placement), kEnScale100, stereo);
+    }
+
+    //==========================================================================
+    // LxEngine: the P10 per-block order on double lanes
+    //==========================================================================
+    struct LxEngine
+    {
+        double fs = 48000.0;
+        int grid = 16;
+        int rampTicks = 60;
+        int sleepTicks = 150;
+        int refreshTicks = 64;
+        bool stereo = true;
+        bool started = false;
+        bool wantBypass = false;
+        bool agWanted = false;
+        bool agOn = false;
+        int listenWanted = -1;              // listenBand (-1 or out of range: off)
+        double outputTarget = 1.0;          // the sanitised output target (linear)
+        std::uint64_t clock = 0;
+
+        eq::Designer designer;
+        eq::FadeTable table;
+        eq::BypassFade bypass;
+        std::array<eq::SlotBand, kLxBands> bands;
+        eq::OutputStage stage;
+        eq::AutoGain autoGain;
+        eq::Listen listen;
+        std::array<eq::BandInput, kLxBands> requested {};     // the "parameters": effective band inputs
+        std::array<eq::BandInput, kLxBands> sent {};
+        std::array<bool, kLxBands> sentValid {};
+
+        long long splitSegments = 0, fusedSegments = 0, restarts = 0, clears = 0, idleReturns = 0;
+
+        void prepare (double sampleRate, bool isStereo)
+        {
+            fs = sampleRate;
+            stereo = isStereo;
+            grid = eq::controlGridSize (sampleRate);
+            rampTicks = eq::rampLengthTicks (sampleRate);
+            sleepTicks = eq::sleepLengthTicks (sampleRate, grid);
+            refreshTicks = eq::autoGainRefreshTicks (sampleRate, grid);
+            designer.prepare (sampleRate);
+            table.prepare (sampleRate);
+            bypass = eq::BypassFade();
+
+            for (eq::SlotBand& band : bands)
+                band.prepare (grid, rampTicks);
+
+            stage.prepare (sampleRate);
+            autoGain.prepare (sampleRate);
+            listen.prepare (sampleRate, grid, rampTicks);
+
+            requested.fill (xfInactive());
+            sent = requested;
+            sentValid.fill (false);
+            clock = 0;
+            started = wantBypass = agWanted = agOn = false;
+            listenWanted = -1;
+            outputTarget = 1.0;
+            splitSegments = fusedSegments = restarts = clears = idleReturns = 0;
+        }
+
+        std::array<const eq::BandInput*, kLxBands> desiredList() const
+        {
+            std::array<const eq::BandInput*, kLxBands> d {};
+
+            for (int b = 0; b < kLxBands; ++b)
+                d[ix (b)] = &bands[ix (b)].getDesired();
+
+            return d;
+        }
+
+        /** The 2.5 stage predicate. */
+        bool stageIdle() const
+        {
+            if (! stage.isUnity() || agOn != agWanted)
+                return false;
+
+            if (! agOn)
+                return true;
+
+            const std::array<const eq::BandInput*, kLxBands> d = desiredList();
+            return ! autoGain.isDirty (d.data(), stereo);
+        }
+
+        void seedStage()
+        {
+            agOn = agWanted;
+            double autoTarget = 1.0;
+
+            if (agOn)
+            {
+                const std::array<const eq::BandInput*, kLxBands> d = desiredList();
+                autoTarget = autoGain.evaluateAll (d.data(), stereo, designer);
+            }
+
+            stage.snap (stage.getPendingOutput(), autoTarget);
+        }
+
+        int collect (std::array<int, kLxBands>& list) const
+        {
+            int count = 0;
+
+            for (int b = 0; b < kLxBands; ++b)
+                if (bands[ix (b)].isRunning())
+                    list[ix (count++)] = b;
+
+            return count;
+        }
+
+        /** Step 4's listen read: the wanted band's mapped input, or off. */
+        void listenRequest()
+        {
+            if (listenWanted >= 0 && listenWanted < kLxBands)
+                listen.setPending (listenWanted, eq::listenInputFor (requested[ix (listenWanted)]));
+            else
+                listen.setPending (-1, eq::BandInput());
+        }
+
+        /** One host block in place. l1 must be a valid lane on both layouts (unused on mono). */
+        void process (double* l0, double* l1, int n)
+        {
+            // 1. The clock.
+            const std::uint64_t blockStart = clock;
+
+            if (n > 0)
+                clock = blockStart + static_cast<std::uint64_t> (n);
+
+            // 2. Bypass.
+            bool restart = false;
+
+            if (! started)
+            {
+                bypass.start (wantBypass);
+                started = true;
+                restart = true;
+            }
+            else if (bypass.request (wantBypass))
+            {
+                restart = bypass.getState() == eq::BypassFade::State::toProcessed;
+            }
+
+            // 3. Fully bypassed.
+            if (bypass.isBypassed())
+            {
+                sentValid.fill (false);
+                return;
+            }
+
+            // 4. Parameters, the output target, the listen request; seeding on a restart.
+            stage.setOutputPending (outputTarget);
+
+            for (int b = 0; b < kLxBands; ++b)
+            {
+                const std::size_t ub = ix (b);
+                const eq::BandInput now = requested[ub];
+                const bool changed = ! sentValid[ub] || ! enSameFields (now, sent[ub]);
+
+                if (restart)
+                    bands[ub].startSettled (now, designer);
+                else if (changed)
+                    bands[ub].request (now, designer);
+
+                if (restart || changed)
+                {
+                    sent[ub] = now;
+                    sentValid[ub] = true;
+                }
+            }
+
+            listenRequest();
+
+            if (restart)
+            {
+                ++restarts;
+                seedStage();
+                listen.startSettled (listen.getPendingIndex(), listen.getPendingInput(), designer);
+            }
+
+            // 5. The list; the path idle predicate (stage, listen, pending listen request).
+            std::array<int, kLxBands> listed {};
+            int numListed = collect (listed);
+            const bool pathIdle = stageIdle() && listen.isIdle();
+
+            if (numListed == 0 && pathIdle)
+            {
+                bypass.jump (wantBypass);
+                ++idleReturns;
+                return;
+            }
+
+            // 6. Segments.
+            const int lanes = stereo ? 2 : 1;
+            double* const io[2] = { l0, l1 };
+            const int g = std::max (1, grid);
+            int phase = static_cast<int> (blockStart % static_cast<std::uint64_t> (g));
+            bool idle = false;
+
+            for (int pos = 0; pos < n && ! idle;)
+            {
+                if (phase == 0)
+                {
+                    for (int a = 0; a < numListed; ++a)
+                        bands[ix (listed[ix (a)])].controlTick (designer, sleepTicks);
+
+                    stage.applyOutputPending();
+
+                    const std::uint64_t tickIndex = (blockStart + static_cast<std::uint64_t> (pos)) / static_cast<std::uint64_t> (g);
+
+                    if (tickIndex % static_cast<std::uint64_t> (std::max (1, refreshTicks)) == 0)
+                    {
+                        agOn = agWanted;
+
+                        if (agOn)
+                        {
+                            const std::array<const eq::BandInput*, kLxBands> d = desiredList();
+                            stage.setAutoTarget (autoGain.estimate (d.data(), stereo, designer));
+                        }
+                        else
+                        {
+                            stage.setAutoTarget (1.0);
+                        }
+                    }
+
+                    listen.applyPending (designer);
+                    listen.controlTick (designer);
+                }
+
+                int m = std::min (n - pos, g - phase);
+                const bool bypassFading = bypass.isFading();
+
+                if (bypassFading)
+                    m = std::max (1, std::min ({ m, bypass.samplesLeft (table), kLxPiece }));
+
+                const bool listenIdle = listen.isIdle();
+                const bool engaged = listen.isEngaged();
+
+                if (! listenIdle)
+                {
+                    m = std::min (m, kLxPiece);
+                    const int left = listen.samplesLeftInMove();
+
+                    if (left > 0)
+                        m = std::min (m, left);
+                }
+
+                double dry[2][kLxPiece];
+
+                if (bypassFading || ! listenIdle)
+                    for (int lane = 0; lane < lanes; ++lane)
+                        std::memcpy (dry[lane], io[lane] + pos, sizeof (double) * ix (m));
+
+                for (int a = 0; a < numListed; ++a)
+                    bands[ix (listed[ix (a)])].process (l0 + pos, l1 + pos, m, stereo, table, designer);
+
+                if (engaged)
+                {
+                    ++splitSegments;
+                    double ag[kLxPiece], og[kLxPiece];
+                    stage.nextGains (ag, og, m);
+
+                    for (int lane = 0; lane < lanes; ++lane)
+                        for (int i = 0; i < m; ++i)
+                            io[lane][pos + i] *= ag[i];
+
+                    listen.process (dry[0], dry[1], l0 + pos, stereo ? l1 + pos : nullptr, m, stereo, table, designer);
+
+                    for (int lane = 0; lane < lanes; ++lane)
+                        for (int i = 0; i < m; ++i)
+                            io[lane][pos + i] *= og[i];
+                }
+                else
+                {
+                    ++fusedSegments;
+                    stage.process (l0 + pos, stereo ? l1 + pos : nullptr, m);
+                }
+
+                eq::BypassFade::End ended = eq::BypassFade::End::none;
+
+                if (bypassFading)
+                {
+                    for (int lane = 0; lane < lanes; ++lane)
+                        bypass.mix (io[lane] + pos, dry[lane], m, table);
+
+                    ended = bypass.advance (m, table);
+                }
+
+                pos += m;
+                phase += m;
+
+                if (phase >= g)
+                    phase = 0;
+
+                // 7. The fade to bypass ended.
+                if (ended == eq::BypassFade::End::toBypass)
+                {
+                    for (eq::SlotBand& band : bands)
+                        band.goIdle (designer);
+
+                    listen.goIdle();
+
+                    if (bypass.getState() == eq::BypassFade::State::toProcessed)
+                    {
+                        for (eq::SlotBand& band : bands)
+                        {
+                            const eq::BandInput latest = band.getDesired();
+                            band.startSettled (latest, designer);
+                        }
+
+                        seedStage();
+                        listen.startSettled (listen.getPendingIndex(), listen.getPendingInput(), designer);
+                        numListed = collect (listed);
+
+                        if (numListed == 0 && stage.isUnity() && listen.isIdle())
+                            bypass.jump (wantBypass);
+                    }
+                    else
+                    {
+                        idle = true;
+                    }
+                }
+            }
+
+            // 8. Non-finite check.
+            if (n > 0)
+            {
+                bool finite = true;
+
+                for (int lane = 0; lane < lanes; ++lane)
+                    if (! std::isfinite (io[lane][n - 1]))
+                        finite = false;
+
+                if (! finite)
+                {
+                    for (eq::SlotBand& band : bands)
+                        band.clearState (designer);
+
+                    listen.clearState (designer);
+                    ++clears;
+                }
+            }
+        }
+    };
+
+    /** A listenBand write at a host block start. */
+    struct LxEvent
+    {
+        std::size_t at = 0;
+        int listen = -1;
+    };
+
+    /** Host blocks of `block`, split so that a block starts at every event. */
+    void lxRun (LxEngine& e, double* l0, double* l1, std::size_t n, int block, const std::vector<LxEvent>& events)
+    {
+        std::size_t pos = 0, ev = 0;
+
+        while (pos < n)
+        {
+            for (; ev < events.size() && events[ev].at <= pos; ++ev)
+                e.listenWanted = events[ev].listen;
+
+            std::size_t end = std::min (n, pos + ix (block));
+
+            if (ev < events.size() && events[ev].at < end)
+                end = events[ev].at;
+
+            e.process (l0 + pos, l1 + pos, static_cast<int> (end - pos));
+            pos = end;
+        }
+    }
+
+    using LxChain = std::vector<std::pair<int, eq::BandInput>>;
+
+    /** Mono layout: the driver on x with the given bands, blocks of `block`, the listen events. */
+    std::vector<double> lxMonoRender (double fs, const LxChain& chain, const std::vector<double>& x, const std::vector<LxEvent>& events,
+                                      int block)
+    {
+        std::unique_ptr<LxEngine> e = std::make_unique<LxEngine>();
+        e->prepare (fs, false);
+
+        for (const auto& b : chain)
+            e->requested[ix (b.first)] = b.second;
+
+        std::vector<double> y = x, scratch (x.size(), 0.0);
+        lxRun (*e, y.data(), scratch.data(), y.size(), block, events);
+        return y;
+    }
+
+    std::vector<double> lxTone (double fs, double tone, int phase, std::size_t n)
+    {
+        std::vector<double> x (n);
+
+        for (std::size_t i = 0; i < n; ++i)
+            x[i] = 0.5 * std::sin (2.0 * kPi * tone * static_cast<double> (i) / fs + static_cast<double> (phase) * kPi / 4.0);
+
+        return x;
+    }
+
+    /** tap_bench maxD2 over [a, b): |y[i] - 2 y[i-1] + y[i-2]|, i from max (a, 2). */
+    double lxMaxD2 (const std::vector<double>& y, std::size_t a, std::size_t b)
+    {
+        double m = 0.0;
+        const std::size_t end = std::min (b, y.size());
+
+        for (std::size_t i = std::max<std::size_t> (a, 2); i < end; ++i)
+            m = std::max (m, std::fabs (y[i] - 2.0 * y[i - 1] + y[i - 2]));
+
+        return m;
+    }
+
+    /** tap_bench localKappa over [a, b): 5 ms frames, frames below -80 dB RMS skipped. */
+    double lxKappa (const std::vector<double>& y, std::size_t a, std::size_t b, double fs)
+    {
+        const std::size_t frame = ix (static_cast<int> (std::lround (0.005 * fs)));
+        const double floorRms = std::pow (10.0, -80.0 / 20.0);
+        const std::size_t end = std::min (b, y.size());
+        double k = 0.0;
+
+        for (std::size_t s = std::max<std::size_t> (a, 2); s + frame <= end; s += frame)
+        {
+            double e = 0.0, d = 0.0;
+
+            for (std::size_t i = s; i < s + frame; ++i)
+            {
+                e += y[i] * y[i];
+                d = std::max (d, std::fabs (y[i] - 2.0 * y[i - 1] + y[i - 2]));
+            }
+
+            const double rms = std::sqrt (e / static_cast<double> (frame));
+
+            if (rms < floorRms)
+                continue;
+
+            k = std::max (k, d / rms);
+        }
+
+        return k;
+    }
+
+    /** kappa ratio; both 0 (no frame above -80 dB in any of the three renders): -1, not scored. */
+    double lxKappaRatio (double k, double heldA, double heldB)
+    {
+        const double held = std::max (heldA, heldB);
+
+        if (! (held > 0.0) && ! (k > 0.0))
+            return -1.0;
+
+        return rmRatio (k, held);
+    }
+
+    //==========================================================================
+    // listenRefRender / listenHardRender (P12): mono, the specified moves
+    // re-stated per sample
+    //==========================================================================
+    /** The listenBand value read at the host block starting at `at`, and its mapped input. */
+    struct LxRefWish
+    {
+        std::size_t at = 0;
+        int index = -1;
+        eq::BandInput mapped {};
+    };
+
+    struct LxRefOptions
+    {
+        double rampSeconds = 0.030;     // R = round (rampSeconds fs)
+        bool noRamp = false;            // R = 0
+        int fadeLength = 0;             // N; 0: round (0.020 fs)
+        int weightLead = 0;             // the weight starts this many samples before R (a control)
+    };
+
+    /** 0.5 - 0.5 cos (pi (j + 1) / (L + 1)) for j in [0, L); 0 below, 1 from L on. */
+    double lxWeight (int j, int length)
+    {
+        if (j < 0)
+            return 0.0;
+
+        if (j >= length)
+            return 1.0;
+
+        const double numerator = kPi * static_cast<double> (j + 1);
+        const double angle = numerator / static_cast<double> (length + 1);
+        const double halfCos = 0.5 * std::cos (angle);
+        return 0.5 - halfCos;
+    }
+
+    struct LxRefVoice
+    {
+        XfRefChain chain;
+        eq::BandInput input {};
+        int rampPos = 0;
+        bool live = false;
+    };
+
+    /** Listen per PLAN-2.6 P5 / P6 on a mono layout, per sample: the wish read at each block start, taken
+        at the next grid tick; engage (voice from rest, input x ramp for R, then eq + w (l - eq) over N),
+        change (B from rest with its ramp, A meanwhile, then A + w (B - A)), release (l + w (eq - l) over
+        N), the latch (a request during a move taken at its end, the next move from the next sample).
+        `eqPath` is the EQ path (unused while listening). A seeded index >= 0 starts listening from
+        sample 0, voice from rest, no ramp, weight 1. Gains are unity (output 0 dB, auto off). */
+    std::vector<double> listenRefRender (double fs, const std::vector<double>& x, const std::vector<double>& eqPath,
+                                         int seedIndex, const eq::BandInput& seedInput, const std::vector<LxRefWish>& wishes,
+                                         const LxRefOptions& options)
+    {
+        eq::Designer designer;
+        designer.prepare (fs);
+
+        const std::size_t grid = ix (rmRefGrid (fs));
+        const int rampLength = options.noRamp ? 0 : std::max (1, static_cast<int> (std::lround (options.rampSeconds * fs)));
+        const int fadeLength = options.fadeLength > 0 ? options.fadeLength : std::max (1, static_cast<int> (std::lround (0.020 * fs)));
+        const int weightStart = rampLength - options.weightLead;
+
+        enum class Move { none, engage, change, release };
+
+        std::array<LxRefVoice, 2> voice {};
+        int active = 0, target = -1, movePos = 0, moveLength = 0;
+        Move move = Move::none;
+        int wishIndex = -1, desiredIndex = -1;
+        eq::BandInput wishInput {}, desiredInput {};
+        std::size_t nextWish = 0;
+
+        const auto configure = [&voice, &designer] (int v, const eq::BandInput& in)
+        {
+            xfRefChainSet (voice[ix (v)].chain, designer, in);
+            voice[ix (v)].input = in;
+            voice[ix (v)].rampPos = 0;
+            voice[ix (v)].live = true;
+        };
+
+        const auto retire = [&voice] (int v)
+        {
+            voice[ix (v)].chain = XfRefChain();
+            voice[ix (v)].rampPos = 0;
+            voice[ix (v)].live = false;
+        };
+
+        const auto voiceOut = [&voice, rampLength] (int v, double xn)
+        {
+            LxRefVoice& vc = voice[ix (v)];
+            double in = xn;
+
+            if (vc.rampPos < rampLength)
+                in = xn * lxWeight (vc.rampPos, rampLength);
+
+            if (vc.rampPos < rampLength)
+                ++vc.rampPos;
+
+            return xfRefTick (vc.chain, 0, in);
+        };
+
+        const auto startMove = [&move, &movePos, &moveLength, rampLength, fadeLength] (Move kind)
+        {
+            move = kind;
+            movePos = 0;
+            moveLength = (kind == Move::release) ? fadeLength : rampLength + fadeLength;
+        };
+
+        const auto settle = [&] ()
+        {
+            if (desiredIndex < 0)
+            {
+                if (target >= 0)
+                {
+                    target = -1;
+                    startMove (Move::release);
+                }
+
+                return;
+            }
+
+            if (target < 0)
+            {
+                configure (active, desiredInput);
+                target = desiredIndex;
+                startMove (Move::engage);
+                return;
+            }
+
+            if (desiredIndex != target || eq::classifyBandChange (voice[ix (active)].input, desiredInput) == eq::BandChange::structural)
+            {
+                configure (1 - active, desiredInput);
+                target = desiredIndex;
+                startMove (Move::change);
+            }
+        };
+
+        if (seedIndex >= 0)
+        {
+            configure (active, seedInput);
+            voice[ix (active)].rampPos = rampLength;
+            target = seedIndex;
+            wishIndex = desiredIndex = seedIndex;
+            wishInput = desiredInput = seedInput;
+        }
+
+        std::vector<double> y (x.size(), 0.0);
+
+        for (std::size_t n = 0; n < x.size(); ++n)
+        {
+            for (; nextWish < wishes.size() && wishes[nextWish].at <= n; ++nextWish)
+            {
+                wishIndex = wishes[nextWish].index;
+                wishInput = wishes[nextWish].mapped;
+            }
+
+            if (n % grid == 0)
+            {
+                desiredIndex = wishIndex;
+                desiredInput = wishInput;
+
+                if (move == Move::none)
+                    settle();
+            }
+
+            const double e = eqPath[n];
+            double out = e;
+
+            switch (move)
+            {
+                case Move::none:
+                    out = target >= 0 ? voiceOut (active, x[n]) : e;
+                    break;
+
+                case Move::engage:
+                {
+                    const double l = voiceOut (active, x[n]);
+                    out = movePos < weightStart ? e : e + lxWeight (movePos - weightStart, fadeLength) * (l - e);
+                    break;
+                }
+
+                case Move::change:
+                {
+                    const double a = voiceOut (active, x[n]);
+                    const double b = voiceOut (1 - active, x[n]);
+                    out = movePos < weightStart ? a : a + lxWeight (movePos - weightStart, fadeLength) * (b - a);
+                    break;
+                }
+
+                case Move::release:
+                {
+                    const double a = voiceOut (active, x[n]);
+                    out = a + lxWeight (movePos, fadeLength) * (e - a);
+                    break;
+                }
+            }
+
+            y[n] = out;
+
+            if (move != Move::none && ++movePos >= moveLength)
+            {
+                if (move == Move::change)
+                {
+                    retire (active);
+                    active = 1 - active;
+                }
+                else if (move == Move::release)
+                {
+                    retire (0);
+                    retire (1);
+                }
+
+                move = Move::none;
+                movePos = 0;
+
+                const bool differs = desiredIndex != target
+                                     || (target >= 0 && eq::classifyBandChange (voice[ix (active)].input, desiredInput) != eq::BandChange::identical);
+
+                if (differs)
+                    settle();
+            }
+        }
+
+        return y;
+    }
+
+    /** P12 hard control: listenRefRender with R = 0 (no input ramp, the weight from the move's first sample)
+        and N = `fadeLength` (1: the hard switch; round (0.020 fs): the fade from rest of the bench). */
+    std::vector<double> listenHardRender (double fs, const std::vector<double>& x, const std::vector<double>& eqPath,
+                                          int seedIndex, const eq::BandInput& seedInput, const std::vector<LxRefWish>& wishes,
+                                          int fadeLength)
+    {
+        LxRefOptions options;
+        options.noRamp = true;
+        options.fadeLength = fadeLength;
+        return listenRefRender (fs, x, eqPath, seedIndex, seedInput, wishes, options);
+    }
+
+    //==========================================================================
+    // XL-map: listenInputFor against the P4 table
+    //==========================================================================
+    void rowXlMap()
+    {
+        long long checked = 0, bad = 0, editsChecked = 0, editsBad = 0;
+        std::string firstBad;
+
+        for (int layout = 0; layout < 2; ++layout)
+        {
+            const bool stereo = layout == 0;
+
+            for (int t = 0; t < 8; ++t)
+                for (int p = 0; p < 5; ++p)
+                    for (int s = 0; s < 8; ++s)
+                    {
+                        const eq::Type type = static_cast<eq::Type> (t);
+                        const eq::RawBand raw = enRaw (type, 1234.5, 7.5, 3.7, s, static_cast<eq::Placement> (p));
+                        const eq::BandInput in = eq::effectiveBandInput (raw, kEnScale100, stereo);
+                        const eq::BandInput got = eq::listenInputFor (in);
+
+                        // PLAN-2.6 P4, restated.
+                        eq::BandInput want {};
+                        want.active = true;
+                        want.placement = stereo ? static_cast<eq::Placement> (p) : eq::Placement::stereo;
+                        want.settings.freqHz = static_cast<double> (raw.freq);
+                        want.settings.gainDbEff = 0.0;
+
+                        switch (type)
+                        {
+                            case eq::Type::bell:
+                            case eq::Type::notch:
+                            case eq::Type::bandPass:
+                                want.settings.type = eq::Type::bandPass;
+                                want.settings.q = static_cast<double> (raw.q);
+                                want.settings.slopeIndex = 0;
+                                break;
+
+                            case eq::Type::lowShelf:
+                            case eq::Type::lowCut:
+                                want.settings.type = eq::Type::highCut;
+                                want.settings.q = 1.0;
+                                want.settings.slopeIndex = 1;
+                                break;
+
+                            case eq::Type::highShelf:
+                            case eq::Type::highCut:
+                                want.settings.type = eq::Type::lowCut;
+                                want.settings.q = 1.0;
+                                want.settings.slopeIndex = 1;
+                                break;
+
+                            case eq::Type::tilt:
+                                want.settings.type = eq::Type::bandPass;
+                                want.settings.q = 0.7;
+                                want.settings.slopeIndex = 0;
+                                break;
+                        }
+
+                        ++checked;
+
+                        if (! enSameFields (got, want))
+                        {
+                            ++bad;
+
+                            if (firstBad.empty())
+                                firstBad = strf ("%s %s slope %d %s", kTypeNames[t], kEnPlacementNames[p], s, stereo ? "stereo" : "mono");
+                        }
+
+                        // Edits that must map to the identical listen input: gain, gain scale, slope, enable, bypass.
+                        const auto identical = [&got, stereo] (const eq::RawBand& r, float scale)
+                        {
+                            return eq::classifyBandChange (got, eq::listenInputFor (eq::effectiveBandInput (r, scale, stereo)))
+                                   == eq::BandChange::identical;
+                        };
+
+                        eq::RawBand gainEdit = raw;
+                        gainEdit.gain = -11.25f;
+                        eq::RawBand slopeEdit = raw;
+                        slopeEdit.slope = static_cast<float> ((s + 3) % 8);
+                        eq::RawBand disabled = raw;
+                        disabled.enabled = 0.0f;
+                        eq::RawBand bypassed = raw;
+                        bypassed.bypass = 1.0f;
+
+                        const bool results[5] = { identical (gainEdit, kEnScale100), identical (raw, 37.0f), identical (slopeEdit, kEnScale100),
+                                                  identical (disabled, kEnScale100), identical (bypassed, kEnScale100) };
+
+                        for (const bool ok : results)
+                        {
+                            ++editsChecked;
+
+                            if (! ok)
+                                ++editsBad;
+                        }
+                    }
+        }
+
+        // Classifications on the mapped inputs.
+        const auto mapped = [] (eq::Type type, double f, double gain, double q, int slope, eq::Placement p, bool stereo)
+        {
+            return eq::listenInputFor (eq::effectiveBandInput (enRaw (type, f, gain, q, slope, p), kEnScale100, stereo));
+        };
+
+        const eq::Placement st = eq::Placement::stereo;
+        const eq::BandInput bell = mapped (eq::Type::bell, 1000.0, 6.0, 3.0, 0, st, true);
+        const struct { const char* name; eq::BandChange got, want; } spots[] =
+        {
+            { "Bell -> Notch identical", eq::classifyBandChange (bell, mapped (eq::Type::notch, 1000.0, 0.0, 3.0, 0, st, true)), eq::BandChange::identical },
+            { "Bell -> Band Pass identical", eq::classifyBandChange (bell, mapped (eq::Type::bandPass, 1000.0, 0.0, 3.0, 0, st, true)),
+              eq::BandChange::identical },
+            { "Bell -> Low Shelf structural", eq::classifyBandChange (bell, mapped (eq::Type::lowShelf, 1000.0, 6.0, 3.0, 1, st, true)),
+              eq::BandChange::structural },
+            { "Bell f edit continuous", eq::classifyBandChange (bell, mapped (eq::Type::bell, 1200.0, 6.0, 3.0, 0, st, true)),
+              eq::BandChange::continuous },
+            { "Bell Q edit continuous", eq::classifyBandChange (bell, mapped (eq::Type::bell, 1000.0, 6.0, 5.0, 0, st, true)),
+              eq::BandChange::continuous },
+            { "Low Shelf Q edit identical", eq::classifyBandChange (mapped (eq::Type::lowShelf, 300.0, 6.0, 0.5, 2, st, true),
+                                                                    mapped (eq::Type::lowShelf, 300.0, 6.0, 3.0, 2, st, true)), eq::BandChange::identical },
+            { "Low Shelf -> Low Cut identical", eq::classifyBandChange (mapped (eq::Type::lowShelf, 300.0, 6.0, 1.0, 2, st, true),
+                                                                        mapped (eq::Type::lowCut, 300.0, 0.0, 0.5, 6, st, true)), eq::BandChange::identical },
+            { "Tilt -> Bell continuous (both Band Pass)", eq::classifyBandChange (mapped (eq::Type::tilt, 1000.0, 6.0, 1.0, 1, st, true),
+                                                                                                   bell), eq::BandChange::continuous },
+            { "placement edit on stereo structural", eq::classifyBandChange (bell, mapped (eq::Type::bell, 1000.0, 6.0, 3.0, 0, eq::Placement::mid, true)),
+              eq::BandChange::structural },
+            { "placement edit on mono identical", eq::classifyBandChange (mapped (eq::Type::bell, 1000.0, 6.0, 3.0, 0, st, false),
+                                                                          mapped (eq::Type::bell, 1000.0, 6.0, 3.0, 0, eq::Placement::side, false)),
+              eq::BandChange::identical }
+        };
+
+        int spotsBad = 0;
+        std::string spotText;
+
+        for (const auto& sp : spots)
+            if (sp.got != sp.want)
+            {
+                ++spotsBad;
+                spotText += strf (" [%s WRONG]", sp.name);
+            }
+
+        row (bad == 0 && editsBad == 0 && spotsBad == 0 && checked == 640,
+             "XL-map listenInputFor on every type x placement x slope, stereo and mono: the P4 table; gain / gain scale / slope / enable / "
+             "bypass edits map to identical inputs; Bell -> Notch identical; Bell -> Low Shelf structural",
+             strf ("%lld of %lld mappings differ from the table%s; %lld of %lld edits not identical; %d of %d classifications wrong%s",
+                   bad, checked, firstBad.empty() ? "" : (" (first: " + firstBad + ")").c_str(), editsBad, editsChecked, spotsBad,
+                   static_cast<int> (sizeof (spots) / sizeof (spots[0])), spotText.c_str()));
+    }
+
+    //==========================================================================
+    // XL-route: the solo router (P5) against an independent Band
+    //==========================================================================
+    void rowXlRoute()
+    {
+        static const int caseIndex[4] = { 0, 4, 5, 12 };
+        const double fs = 48000.0;
+        const std::size_t n = 12000;
+
+        Rng rng (0x584C524F555445ull);
+        std::vector<double> noiseL (n), noiseR (n);
+
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            noiseL[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        double worst = 0.0;
+        int configs = 0, silentBad = 0;
+        std::string worstWhere = "none";
+
+        for (int layout = 0; layout < 2; ++layout)
+        {
+            const bool stereo = layout == 0;
+
+            for (const int c : caseIndex)
+                for (int p = 0; p < 5; ++p)
+                {
+                    const eq::Placement placement = static_cast<eq::Placement> (p);
+                    const eq::BandInput band = lxInput (kLxCases[c], stereo, placement);
+
+                    std::unique_ptr<LxEngine> e = std::make_unique<LxEngine>();
+                    e->prepare (fs, stereo);
+                    e->requested[0] = band;
+                    e->listenWanted = 0;
+
+                    std::vector<double> yl = noiseL, yr = noiseR;
+                    lxRun (*e, yl.data(), yr.data(), n, kLxBlock, {});
+
+                    // The table, re-stated with an independent Band.
+                    eq::Designer designer;
+                    designer.prepare (fs);
+                    eq::Band f;
+                    f.setControlGrid (eq::controlGridSize (fs), eq::rampLengthTicks (fs));
+                    f.snapTo (eq::listenInputFor (band).settings, designer);
+                    f.reset();
+
+                    std::vector<double> rl (n, 0.0), rr (n, 0.0);
+
+                    if (! stereo)
+                    {
+                        rl = noiseL;
+                        f.processLane (0, rl.data(), static_cast<int> (n));
+                    }
+                    else
+                    {
+                        switch (placement)
+                        {
+                            case eq::Placement::stereo:
+                                rl = noiseL;
+                                rr = noiseR;
+                                f.processLane (0, rl.data(), static_cast<int> (n));
+                                f.processLane (1, rr.data(), static_cast<int> (n));
+                                break;
+
+                            case eq::Placement::left:
+                                rl = noiseL;
+                                f.processLane (0, rl.data(), static_cast<int> (n));
+                                break;
+
+                            case eq::Placement::right:
+                                rr = noiseR;
+                                f.processLane (1, rr.data(), static_cast<int> (n));
+                                break;
+
+                            case eq::Placement::mid:
+                                for (std::size_t i = 0; i < n; ++i)
+                                    rl[i] = 0.5 * (noiseL[i] + noiseR[i]);
+
+                                f.processLane (0, rl.data(), static_cast<int> (n));
+                                rr = rl;
+                                break;
+
+                            case eq::Placement::side:
+                                for (std::size_t i = 0; i < n; ++i)
+                                    rl[i] = 0.5 * (noiseL[i] - noiseR[i]);
+
+                                f.processLane (0, rl.data(), static_cast<int> (n));
+
+                                for (std::size_t i = 0; i < n; ++i)
+                                    rr[i] = -rl[i];
+
+                                break;
+                        }
+                    }
+
+                    double peak = 0.0, err = 0.0;
+
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        peak = std::max (peak, std::fabs (rl[i]));
+                        err = std::max (err, std::fabs (yl[i] - rl[i]));
+
+                        if (stereo)
+                        {
+                            peak = std::max (peak, std::fabs (rr[i]));
+                            err = std::max (err, std::fabs (yr[i] - rr[i]));
+                        }
+                    }
+
+                    const double rel = peak > 0.0 ? err / peak : kInf;
+                    ++configs;
+
+                    // A Left / Right solo leaves the other lane exactly silent.
+                    if (stereo && (placement == eq::Placement::left || placement == eq::Placement::right))
+                        for (std::size_t i = 0; i < n; ++i)
+                            if ((placement == eq::Placement::left ? yr[i] : yl[i]) != 0.0)
+                            {
+                                ++silentBad;
+                                break;
+                            }
+
+                    if (! (rel <= worst))
+                    {
+                        worst = rel;
+                        worstWhere = strf ("%s %s %s", kLxCases[c].name, kEnPlacementNames[p], stereo ? "stereo" : "mono");
+                    }
+                }
+        }
+
+        row (worst <= 1.0e-12 && silentBad == 0 && configs == 40,
+             "XL-route solo router (P5), listen settled: 4 bands x 5 placements, stereo and mono (mono: F (x) for every placement), "
+             "against the table rendered with an independent Band: <= 1e-12 of peak, sample by sample",
+             strf ("%d configurations; worst %.3g of peak (%s); Left / Right: the other lane exactly 0 (%d not)", configs, worst,
+                   worstWhere.c_str(), silentBad));
+    }
+
+    //==========================================================================
+    // XL-on, XL-onh, XL-chg (and the XL-ref / XL-refn tallies over their renders)
+    //==========================================================================
+    const double kLxTones[2] = { 50.0, 1000.0 };
+
+    struct LxTimes
+    {
+        std::size_t total = 0, tOn = 0, tOff = 0, pre = 0, postOn = 0, postOff = 0;
+        int ramp = 1, fade = 1;
+    };
+
+    /** tap_bench listen / listen3 timeline at fs. */
+    LxTimes lxTimes (double fs)
+    {
+        LxTimes t;
+        t.total = static_cast<std::size_t> (1.5 * fs);
+        t.tOn = static_cast<std::size_t> (0.5 * fs) + 7;
+        t.tOff = static_cast<std::size_t> (1.0 * fs) + 11;
+        t.pre = static_cast<std::size_t> (0.050 * fs);
+        t.ramp = std::max (1, static_cast<int> (std::lround (0.030 * fs)));
+        t.fade = std::max (1, static_cast<int> (std::lround (0.020 * fs)));
+        t.postOn = static_cast<std::size_t> (0.070 * fs) + ix (t.ramp);
+        t.postOff = static_cast<std::size_t> (0.070 * fs);
+        return t;
+    }
+
+    struct LxRefTally
+    {
+        int renders = 0, leadFired = 0, r20Fired = 0;
+        double worst = 0.0, leadLowest = kInf, r20Lowest = kInf;
+        std::string where = "none";
+    };
+
+    void lxTallyRef (LxRefTally& t, double err, double lead, double r20, const std::string& where)
+    {
+        ++t.renders;
+
+        if (! (err <= t.worst))
+        {
+            t.worst = err;
+            t.where = where;
+        }
+
+        t.leadLowest = std::min (t.leadLowest, lead);
+        t.r20Lowest = std::min (t.r20Lowest, r20);
+
+        if (lead > 1.0e-9)
+            ++t.leadFired;
+
+        if (r20 > 1.0e-9)
+            ++t.r20Fired;
+    }
+
+    struct LxOnReading
+    {
+        double a[2] = { 0.0, 0.0 }, k[2] = { -1.0, -1.0 }, hard[2] = { 0.0, 0.0 }, fromRest = 0.0;   // [on, off]
+        double heldD2 = 0.0, heldK = 0.0;           // the held listen render over the on window (XL-chg)
+        double levelEq[2] = { 0.0, 0.0 }, levelLi[2] = { 0.0, 0.0 };     // held RMS levels (dB) over each event's window
+        double refErr = 0.0, refnLead = 0.0, refn20 = 0.0;
+        double stopDb = 0.0;                        // the listen filter at the tone
+        bool finite = true;
+    };
+
+    /** RMS over [a, b) in dB (floor -400 dB). */
+    double lxRmsDb (const std::vector<double>& y, std::size_t a, std::size_t b)
+    {
+        double e = 0.0;
+        const std::size_t end = std::min (b, y.size());
+
+        for (std::size_t i = a; i < end; ++i)
+            e += y[i] * y[i];
+
+        const double rms = end > a ? std::sqrt (e / static_cast<double> (end - a)) : 0.0;
+        return 20.0 * std::log10 (std::max (rms, 1.0e-20));
+    }
+
+    /** PLAN-2.6 execute, Taylor's call 2026-11-15: the 1 kHz kappa of a listen move is scored only when the
+        destination's held level at the tone is within 40 dB of the source's (a fade into, or out of, near
+        silence reads the generic level-change kappa, not a click); (a) still binds those readings. */
+    bool lxKappaVoid (double sourceDb, double destinationDb)
+    {
+        return ! (std::fabs (destinationDb - sourceDb) <= 40.0);
+    }
+
+    LxOnReading lxOnMeasure (double fs, int c, double tone, int phase)
+    {
+        LxOnReading q;
+        const LxTimes tm = lxTimes (fs);
+        const std::vector<double> x = lxTone (fs, tone, phase, tm.total);
+        const eq::BandInput band = lxInput (kLxCases[c], false);
+        const eq::BandInput mapped = eq::listenInputFor (band);
+        const LxChain chain { { 0, band } };
+        const eq::BandInput none {};
+
+        const std::vector<double> eqY = lxMonoRender (fs, chain, x, {}, kLxBlock);
+        const std::vector<double> liY = lxMonoRender (fs, chain, x, { { 0, 0 } }, kLxBlock);
+        const std::vector<double> y = lxMonoRender (fs, chain, x, { { tm.tOn, 0 }, { tm.tOff, -1 } }, kLxBlock);
+
+        const std::vector<LxRefWish> wishes { { tm.tOn, 0, mapped }, { tm.tOff, -1, none } };
+        LxRefOptions lead;
+        lead.weightLead = 1;
+        LxRefOptions r20;
+        r20.rampSeconds = 0.020;
+
+        q.refErr = xoRelErr (y, listenRefRender (fs, x, eqY, -1, none, wishes, LxRefOptions()));
+        q.refnLead = xoRelErr (y, listenRefRender (fs, x, eqY, -1, none, wishes, lead));
+        q.refn20 = xoRelErr (y, listenRefRender (fs, x, eqY, -1, none, wishes, r20));
+
+        const std::vector<double> hard = listenHardRender (fs, x, eqY, -1, none, wishes, 1);
+        const std::vector<double> rest = listenHardRender (fs, x, eqY, -1, none, wishes, tm.fade);
+
+        const std::size_t win[2][2] = { { tm.tOn - tm.pre, tm.tOn + tm.postOn }, { tm.tOff - tm.pre, tm.tOff + tm.postOff } };
+        const bool at1k = tone > 500.0;
+
+        for (int ev = 0; ev < 2; ++ev)
+        {
+            const std::size_t a = win[ev][0], b = win[ev][1];
+            const double held = std::max (lxMaxD2 (eqY, a, b), lxMaxD2 (liY, a, b));
+            q.a[ev] = rmRatio (lxMaxD2 (y, a, b), held);
+            q.hard[ev] = rmRatio (lxMaxD2 (hard, a, b), held);
+
+            if (ev == 0)
+                q.fromRest = rmRatio (lxMaxD2 (rest, a, b), held);
+
+            q.levelEq[ev] = lxRmsDb (eqY, a, b);
+            q.levelLi[ev] = lxRmsDb (liY, a, b);
+
+            if (at1k)
+                q.k[ev] = lxKappaRatio (lxKappa (y, a, b, fs), lxKappa (eqY, a, b, fs), lxKappa (liY, a, b, fs));
+        }
+
+        q.heldD2 = lxMaxD2 (liY, win[0][0], win[0][1]);
+        q.heldK = lxKappa (liY, win[0][0], win[0][1], fs);
+        q.finite = rmAllFinite (y) && rmAllFinite (eqY) && rmAllFinite (liY);
+
+        eq::Designer designer;
+        designer.prepare (fs);
+        eq::BandDesign d {};
+        designer.design (mapped.settings, d);
+        q.stopDb = eq::bandMagDb (d, 2.0 * kPi * tone / fs);
+        return q;
+    }
+
+    struct LxChgReading
+    {
+        double a = 0.0, k = -1.0, refErr = 0.0, refnLead = 0.0, refn20 = 0.0;
+        bool finite = true;
+    };
+
+    LxChgReading lxChgMeasure (double fs, int c0, int c1, double tone, int phase, const LxOnReading& held0, const LxOnReading& held1)
+    {
+        LxChgReading q;
+        const LxTimes tm = lxTimes (fs);
+        const std::vector<double> x = lxTone (fs, tone, phase, tm.total);
+        const eq::BandInput b0 = lxInput (kLxCases[c0], false), b1 = lxInput (kLxCases[c1], false);
+        const eq::BandInput m0 = eq::listenInputFor (b0), m1 = eq::listenInputFor (b1);
+        const LxChain chain { { 0, b0 }, { 1, b1 } };
+
+        const std::vector<double> y = lxMonoRender (fs, chain, x, { { 0, 0 }, { tm.tOn, 1 } }, kLxBlock);
+
+        const std::vector<LxRefWish> wishes { { tm.tOn, 1, m1 } };
+        LxRefOptions lead;
+        lead.weightLead = 1;
+        LxRefOptions r20;
+        r20.rampSeconds = 0.020;
+
+        q.refErr = xoRelErr (y, listenRefRender (fs, x, x, 0, m0, wishes, LxRefOptions()));
+        q.refnLead = xoRelErr (y, listenRefRender (fs, x, x, 0, m0, wishes, lead));
+        q.refn20 = xoRelErr (y, listenRefRender (fs, x, x, 0, m0, wishes, r20));
+
+        const std::size_t a = tm.tOn - tm.pre, b = tm.tOn + tm.postOn;
+        q.a = rmRatio (lxMaxD2 (y, a, b), std::max (held0.heldD2, held1.heldD2));
+
+        if (tone > 500.0)
+            q.k = lxKappaRatio (lxKappa (y, a, b, fs), held0.heldK, held1.heldK);
+
+        q.finite = rmAllFinite (y);
+        return q;
+    }
+
+    struct LxChgSpec
+    {
+        int rate = 0, from = 0, to = 0;
+    };
+
+    /** XL-on, XL-onh, XL-chg; returns the XL-ref / XL-refn tally over every render. */
+    LxRefTally rowsXlOnChg()
+    {
+        const int perRate = kLxCaseCount * 2 * kLxPhases;
+        const int onTasks = kLxNumRates * perRate;
+        std::vector<LxOnReading> on (ix (onTasks));
+
+        parallelFor (onTasks, [&on] (int task)
+        {
+            const int phase = task % kLxPhases;
+            const int t = (task / kLxPhases) % 2;
+            const int c = (task / (2 * kLxPhases)) % kLxCaseCount;
+            const int r = task / (kLxCaseCount * 2 * kLxPhases);
+            on[ix (task)] = lxOnMeasure (kLxRates[ix (r)], c, kLxTones[t], phase);
+        });
+
+        const auto onAt = [&on] (int r, int c, int t, int phase) -> const LxOnReading&
+        {
+            return on[ix (((r * kLxCaseCount + c) * 2 + t) * kLxPhases + phase)];
+        };
+
+        LxRefTally tally;
+        int nonFinite = 0;
+
+        //======================================================================
+        // XL-on: per rate, band, tone and event, the worst of the four phases
+        //======================================================================
+        int aAbove = 0, kAbove = 0, kUnscored = 0, readings = 0, kVoid = 0;
+        double aWorst[kLxNumRates][2] = {}, kWorst[kLxNumRates][2] = {};
+        std::string aWhere[kLxNumRates][2], kWhere[kLxNumRates][2], kVoidText;
+
+        for (int r = 0; r < kLxNumRates; ++r)
+            for (int c = 0; c < kLxCaseCount; ++c)
+                for (int t = 0; t < 2; ++t)
+                {
+                    for (int ph = 0; ph < kLxPhases; ++ph)
+                    {
+                        const LxOnReading& q = onAt (r, c, t, ph);
+                        lxTallyRef (tally, q.refErr, q.refnLead, q.refn20, strf ("XL-on %s %.0f Hz %.0f kHz phase %d", kLxCases[c].name,
+                                                                                kLxTones[t], kLxRates[ix (r)] / 1000.0, ph));
+
+                        if (! q.finite)
+                            ++nonFinite;
+                    }
+
+                    for (int ev = 0; ev < 2; ++ev)
+                    {
+                        double a = 0.0, k = -1.0;
+                        bool kNone = true;
+
+                        for (int ph = 0; ph < kLxPhases; ++ph)
+                        {
+                            const LxOnReading& q = onAt (r, c, t, ph);
+                            a = std::max (a, q.a[ev]);
+
+                            if (q.k[ev] >= 0.0)
+                            {
+                                k = std::max (k, q.k[ev]);
+                                kNone = false;
+                            }
+                        }
+
+                        ++readings;
+                        const std::string where = strf ("%s, %.0f Hz", kLxCases[c].name, kLxTones[t]);
+
+                        if (! (a <= 2.0))
+                            ++aAbove;
+
+                        if (! (a <= aWorst[r][ev]))
+                        {
+                            aWorst[r][ev] = a;
+                            aWhere[r][ev] = where;
+                        }
+
+                        // PLAN-2.6 execute, Taylor's call 2026-11-15: kappa void into (or out of) near silence.
+                        const LxOnReading& q0 = onAt (r, c, t, 0);
+                        const double sourceDb = ev == 0 ? q0.levelEq[ev] : q0.levelLi[ev];
+                        const double destDb = ev == 0 ? q0.levelLi[ev] : q0.levelEq[ev];
+
+                        if (t == 1 && lxKappaVoid (sourceDb, destDb))
+                        {
+                            ++kVoid;
+                            kVoidText += strf ("%s%s %s %.0f kHz (%+.1f dB, %.2fx)", kVoidText.empty() ? "" : "; ", kLxCases[c].name,
+                                               ev == 0 ? "on" : "off", kLxRates[ix (r)] / 1000.0, destDb - sourceDb, k);
+                        }
+                        else if (t == 1)
+                        {
+                            if (kNone)
+                            {
+                                ++kUnscored;
+                            }
+                            else
+                            {
+                                if (! (k <= 2.5))
+                                    ++kAbove;
+
+                                if (! (k <= kWorst[r][ev]))
+                                {
+                                    kWorst[r][ev] = k;
+                                    kWhere[r][ev] = kLxCases[c].name;
+                                }
+                            }
+                        }
+                    }
+                }
+
+        row (aAbove == 0 && kAbove == 0 && nonFinite == 0 && readings == kLxNumRates * kLxCaseCount * 2 * 2,
+             "XL-on listen on / off, the 20 bench bands, 50 Hz / 1 kHz at -6 dBFS, 4 phases, 48 / 96 / 192 kHz, events off the grid: "
+             "(a) <= 2.0x the louder held render; 1 kHz kappa <= 2.5x",
+             strf ("%d of %d readings above 2.0x; %d of %d scored 1 kHz kappa readings above 2.5x (%d kappa-void, %d with no frame above "
+                   "-80 dB in any render); %d non-finite",
+                   aAbove, readings, kAbove, readings / 2 - kUnscored - kVoid, kVoid, kUnscored, nonFinite));
+        note (strf ("KAPPA-VOID (destination held level at 1 kHz more than 40 dB from the source's; (a) binds them; Taylor's call "
+                    "2026-11-15): %d: ", kVoid) + (kVoidText.empty() ? std::string ("none") : kVoidText));
+
+        for (int r = 0; r < kLxNumRates; ++r)
+            note (strf ("%5.0f Hz: on (a) %.3fx (%s; bench 1.21x) | off (a) %.3fx (%s; bench 1.12x) | 1 kHz scored kappa on %.2fx (%s; bench "
+                        "2.36x), off %.2fx (%s; bench 2.25x)%s",
+                        kLxRates[ix (r)], aWorst[r][0], aWhere[r][0].c_str(), aWorst[r][1], aWhere[r][1].c_str(), kWorst[r][0], kWhere[r][0].c_str(),
+                        kWorst[r][1], kWhere[r][1].c_str(), r == 0 ? "" : " (no bench at this rate, R5)"));
+
+        //======================================================================
+        // XL-onh: the hard control on the engage, gated where the listen
+        // filter's stop band holds the tone (<= -20 dB at the tone)
+        //======================================================================
+        int hardBelow = 0, hardCounted = 0, voidCount = 0;
+        double hardLowest[2] = { kInf, kInf }, restWorst = 0.0, offLowest = kInf;
+        std::string hardWhere[2], restWhere, voidText, offWhere;
+
+        for (int r = 0; r < kLxNumRates; ++r)
+            for (int c = 0; c < kLxCaseCount; ++c)
+                for (int t = 0; t < 2; ++t)
+                {
+                    double hard = 0.0, off = 0.0, rest = 0.0;
+
+                    for (int ph = 0; ph < kLxPhases; ++ph)
+                    {
+                        const LxOnReading& q = onAt (r, c, t, ph);
+                        hard = std::max (hard, q.hard[0]);
+                        off = std::max (off, q.hard[1]);
+                        rest = std::max (rest, q.fromRest);
+                    }
+
+                    const double stopDb = onAt (r, c, t, 0).stopDb;
+                    const std::string where = strf ("%s @ %.0f Hz, %.0f kHz", kLxCases[c].name, kLxTones[t], kLxRates[ix (r)] / 1000.0);
+
+                    if (! (rest <= restWorst))
+                    {
+                        restWorst = rest;
+                        restWhere = where;
+                    }
+
+                    if (! (off >= offLowest))
+                    {
+                        offLowest = off;
+                        offWhere = where;
+                    }
+
+                    if (! (stopDb <= -20.0))
+                    {
+                        ++voidCount;
+
+                        if (r == 0)
+                            voidText += strf ("%s%s @ %.0f Hz (%.1f dB, %.1fx)", voidText.empty() ? "" : "; ", kLxCases[c].name, kLxTones[t],
+                                              stopDb, hard);
+
+                        continue;
+                    }
+
+                    ++hardCounted;
+
+                    if (! (std::isfinite (hard) && hard >= 10.0))
+                        ++hardBelow;
+
+                    if (! (hard >= hardLowest[t]))
+                    {
+                        hardLowest[t] = hard;
+                        hardWhere[t] = where;
+                    }
+                }
+
+        row (hardBelow == 0 && hardCounted > 0 && hardCounted + voidCount == kLxNumRates * kLxCaseCount * 2,
+             "XL-onh listenHardRender (R = 0, N = 1) on the XL-on engage: (a) >= 10x on every reading whose tone lies in the listen "
+             "filter's stop band (<= -20 dB at the tone)",
+             strf ("%s: %d of %d counted readings >= 10x; lowest 50 Hz %.0fx (%s), 1 kHz %.1fx (%s); R = 0 / N = 20 ms (fade from rest) "
+                   "worst %.0fx (%s; bench 29 672x)",
+                   hardBelow == 0 ? "the control fires" : "the control did NOT fire", hardCounted - hardBelow, hardCounted, hardLowest[0],
+                   hardWhere[0].c_str(), hardLowest[1], hardWhere[1].c_str(), restWorst, restWhere.c_str()));
+        note (strf ("VOID (tone in the listen pass band, printed at 48 kHz, not counted; %d readings over the three rates): ", voidCount)
+              + voidText);
+        note (strf ("hard switch back to the EQ path (off event, not gated: the EQ path is warm): lowest %.2fx (%s)", offLowest, offWhere.c_str()));
+
+        //======================================================================
+        // XL-chg: all 380 ordered pairs at 48 kHz, 64 sampled at 96 / 192 kHz
+        //======================================================================
+        std::vector<LxChgSpec> specs;
+
+        for (int a = 0; a < kLxCaseCount; ++a)
+            for (int b = 0; b < kLxCaseCount; ++b)
+                if (a != b)
+                    specs.push_back ({ 0, a, b });
+
+        for (int r = 1; r < kLxNumRates; ++r)
+        {
+            Rng rng (0x584C434847ull + static_cast<std::uint64_t> (r));
+            std::array<bool, kLxCaseCount * kLxCaseCount> taken {};
+            int count = 0;
+
+            while (count < 64)
+            {
+                const int a = rng.below (kLxCaseCount), b = rng.below (kLxCaseCount);
+
+                if (a == b || taken[ix (a * kLxCaseCount + b)])
+                    continue;
+
+                taken[ix (a * kLxCaseCount + b)] = true;
+                specs.push_back ({ r, a, b });
+                ++count;
+            }
+        }
+
+        const int numSpecs = static_cast<int> (specs.size());
+        const int chgTasks = numSpecs * 2 * kLxPhases;
+        std::vector<LxChgReading> chg (ix (chgTasks));
+
+        parallelFor (chgTasks, [&chg, &specs, &onAt] (int task)
+        {
+            const int phase = task % kLxPhases;
+            const int t = (task / kLxPhases) % 2;
+            const LxChgSpec& s = specs[ix (task / (2 * kLxPhases))];
+            chg[ix (task)] = lxChgMeasure (kLxRates[ix (s.rate)], s.from, s.to, kLxTones[t], phase, onAt (s.rate, s.from, t, phase),
+                                           onAt (s.rate, s.to, t, phase));
+        });
+
+        int cAbove = 0, ckAbove = 0, ckUnscored = 0, cReadings = 0, cNonFinite = 0, ckVoid = 0;
+        std::string ckVoidText;
+        int over2[kLxNumRates] = {}, phaseReadings[kLxNumRates] = {}, pairs[kLxNumRates] = {};
+        double cWorst[kLxNumRates][2] = {}, ckWorst[kLxNumRates] = {};
+        std::string cWhere[kLxNumRates][2], ckWhere[kLxNumRates];
+
+        for (int si = 0; si < numSpecs; ++si)
+        {
+            const LxChgSpec& s = specs[ix (si)];
+            ++pairs[s.rate];
+
+            for (int t = 0; t < 2; ++t)
+            {
+                double a = 0.0, k = -1.0;
+                bool kNone = true;
+
+                for (int ph = 0; ph < kLxPhases; ++ph)
+                {
+                    const LxChgReading& q = chg[ix ((si * 2 + t) * kLxPhases + ph)];
+                    a = std::max (a, q.a);
+                    ++phaseReadings[s.rate];
+
+                    if (q.a > 2.0)
+                        ++over2[s.rate];
+
+                    if (q.k >= 0.0)
+                    {
+                        k = std::max (k, q.k);
+                        kNone = false;
+                    }
+
+                    if (! q.finite)
+                        ++cNonFinite;
+
+                    lxTallyRef (tally, q.refErr, q.refnLead, q.refn20, strf ("XL-chg %s -> %s %.0f Hz %.0f kHz phase %d", kLxCases[s.from].name,
+                                                                            kLxCases[s.to].name, kLxTones[t], kLxRates[ix (s.rate)] / 1000.0, ph));
+                }
+
+                ++cReadings;
+                const std::string where = strf ("%s -> %s", kLxCases[s.from].name, kLxCases[s.to].name);
+
+                if (! (a <= 2.0))
+                    ++cAbove;
+
+                if (! (a <= cWorst[s.rate][t]))
+                {
+                    cWorst[s.rate][t] = a;
+                    cWhere[s.rate][t] = where;
+                }
+
+                // PLAN-2.6 execute, Taylor's call 2026-11-15: kappa void when B's held level is more than 40 dB from A's.
+                const double levelA = onAt (s.rate, s.from, 1, 0).levelLi[0], levelB = onAt (s.rate, s.to, 1, 0).levelLi[0];
+
+                if (t == 1 && lxKappaVoid (levelA, levelB))
+                {
+                    ++ckVoid;
+                    ckVoidText += strf ("%s%s %.0f kHz (%+.1f dB, %.2fx)", ckVoidText.empty() ? "" : "; ", where.c_str(),
+                                        kLxRates[ix (s.rate)] / 1000.0, levelB - levelA, k);
+                }
+                else if (t == 1)
+                {
+                    if (kNone)
+                    {
+                        ++ckUnscored;
+                    }
+                    else
+                    {
+                        if (! (k <= 2.5))
+                            ++ckAbove;
+
+                        if (! (k <= ckWorst[s.rate]))
+                        {
+                            ckWorst[s.rate] = k;
+                            ckWhere[s.rate] = where;
+                        }
+                    }
+                }
+            }
+        }
+
+        row (cAbove == 0 && ckAbove == 0 && cNonFinite == 0 && pairs[0] == 380 && pairs[1] >= 60 && pairs[2] >= 60,
+             "XL-chg listen band changes: all 20 x 19 ordered pairs at 48 kHz, 64 sampled pairs at 96 and 192 kHz, both tones, 4 phases: "
+             "(a) <= 2.0x, (b) 1 kHz kappa <= 2.5x",
+             strf ("%d of %d readings above 2.0x; %d of %d scored kappa readings above 2.5x (%d kappa-void, %d unscored); over 2.0x per "
+                   "phase: %d / %d at 48 kHz (bench 0 / 3040), %d / %d at 96 kHz, %d / %d at 192 kHz; %d non-finite",
+                   cAbove, cReadings, ckAbove, cReadings / 2 - ckUnscored - ckVoid, ckVoid, ckUnscored, over2[0], phaseReadings[0], over2[1],
+                   phaseReadings[1], over2[2], phaseReadings[2], cNonFinite));
+        note (strf ("KAPPA-VOID (B's held level at 1 kHz more than 40 dB from A's; (a) binds them; Taylor's call 2026-11-15): %d: ", ckVoid)
+              + (ckVoidText.empty() ? std::string ("none") : ckVoidText));
+
+        for (int r = 0; r < kLxNumRates; ++r)
+            note (strf ("%5.0f Hz, %d pairs: (a) 50 Hz %.3fx (%s), 1 kHz %.3fx (%s); bench 1.35x | 1 kHz scored kappa %.2fx (%s; bench 2.41x)%s",
+                        kLxRates[ix (r)], pairs[r], cWorst[r][0], cWhere[r][0].c_str(), cWorst[r][1], cWhere[r][1].c_str(), ckWorst[r],
+                        ckWhere[r].c_str(), r == 0 ? "" : " (no bench at this rate, R5)"));
+
+        return tally;
+    }
+
+    //==========================================================================
+    // XL-sweep: the listened bell swept, against the 2.3 same-motion reference
+    //==========================================================================
+    void rowXlSweep()
+    {
+        static const int motionIndex[2] = { 0, 3 };
+        static const int blocks[2] = { 32, 512 };
+        const double fs = 48000.0;
+
+        struct Reading
+        {
+            double engine = 0.0, reference = 0.0;
+            bool finite = true, moved = false;
+        };
+
+        std::array<Reading, 8> readings {};
+
+        parallelFor (8, [&readings, fs] (int task)
+        {
+            const RmMotion& m = kRmMotions[motionIndex[task / 4]];
+            const double tone = kLxTones[(task / 2) % 2];
+            const int block = blocks[task % 2];
+            const std::size_t numSamples = ix (static_cast<int> (std::llround (rmSweepSeconds (m) * fs)));
+            const std::size_t from = ix (static_cast<int> (std::llround (0.3 * fs)));
+
+            std::vector<double> x (numSamples);
+
+            for (std::size_t i = 0; i < numSamples; ++i)
+                x[i] = 0.5 * std::sin (2.0 * kPi * tone * static_cast<double> (i) / fs);
+
+            const auto engineRender = [&x, fs, block, numSamples] (const std::vector<eq::BandSettings>& script)
+            {
+                std::unique_ptr<LxEngine> e = std::make_unique<LxEngine>();
+                e->prepare (fs, false);
+                e->listenWanted = 0;
+                std::vector<double> y = x, scratch (numSamples, 0.0);
+
+                for (std::size_t pos = 0; pos < numSamples; pos += ix (block))
+                {
+                    eq::BandInput in {};
+                    in.settings = script[std::min (pos / ix (block), script.size() - 1)];
+                    in.placement = eq::Placement::stereo;
+                    in.active = true;
+                    e->requested[0] = in;
+                    e->process (y.data() + pos, scratch.data() + pos, static_cast<int> (std::min (ix (block), numSamples - pos)));
+                }
+
+                return y;
+            };
+
+            const std::vector<eq::BandSettings> motion = rmSweepScript (m, tone, fs, block, 0, numSamples);
+            const std::vector<eq::BandSettings> atA = rmSweepScript (m, tone, fs, block, 1, numSamples);
+            std::vector<eq::BandSettings> mapped;
+
+            for (const eq::BandSettings& s : motion)
+            {
+                eq::BandInput in {};
+                in.settings = s;
+                in.placement = eq::Placement::stereo;
+                in.active = true;
+                mapped.push_back (eq::listenInputFor (in).settings);
+            }
+
+            eq::Designer designer;
+            designer.prepare (fs);
+            const std::vector<double> yE = engineRender (motion);
+            const std::vector<double> yA = engineRender (atA);
+            const std::vector<double> yR = refRender (designer, fs, block, mapped, x);
+
+            Reading& q = readings[ix (task)];
+            q.engine = rmLocalKappa (yE, fs, from);
+            q.reference = rmLocalKappa (yR, fs, from);
+            q.finite = rmAllFinite (yE) && rmAllFinite (yR);
+            q.moved = rmFirstDifference (yE, yA, numSamples) >= 0;
+        });
+
+        int above = 0, bad = 0;
+        double worst = 0.0;
+        std::string text;
+
+        for (int task = 0; task < 8; ++task)
+        {
+            const Reading& q = readings[ix (task)];
+            const double ratio = rmRatio (q.engine, q.reference);
+
+            if (! (ratio <= 4.0))
+                ++above;
+
+            if (! q.finite || ! q.moved)
+                ++bad;
+
+            worst = std::max (worst, ratio);
+            text += strf ("%s%s %.0f Hz b%d %.3fx", text.empty() ? "" : "; ", task / 4 == 0 ? "f" : "Q", kLxTones[(task / 2) % 2],
+                          blocks[task % 2], ratio);
+        }
+
+        row (above == 0 && bad == 0,
+             "XL-sweep the listened bell's f 10 Hz -> 30 kHz in 50 ms and Q 0.025 -> 40 in 20 ms (RM motions 1, 4), 50 Hz / 1 kHz, "
+             "blocks 32 / 512: listen local kappa <= 4.0x the 2.3 same-motion per-sample reference on the listen filter",
+             strf ("%d of 8 above 4.0x; worst %.3fx; %d not finite or not moving: %s", above, worst, bad, text.c_str()));
+    }
+
+    void rowsXlRef (const LxRefTally& t)
+    {
+        row (t.worst <= 1.0e-12 && t.renders > 0,
+             "XL-ref Listen in the P10 driver against listenRefRender over every XL-on and XL-chg render: <= 1e-12 relative, sample by sample",
+             strf ("%d renders; worst relative difference %.3g (%s)", t.renders, t.worst, t.where.c_str()));
+
+        row (t.renders > 0 && t.leadFired == t.renders && t.r20Fired == t.renders,
+             "XL-refn listenRefRender with the weight from R - 1 (one sample early), and with R = 20 ms: each differs from Listen by > 1e-9 "
+             "on every render",
+             strf ("%s: weight one sample early %d of %d (lowest %.3g); R = 20 ms %d of %d (lowest %.3g)",
+                   (t.leadFired == t.renders && t.r20Fired == t.renders) ? "both controls fire" : "a control did NOT fire", t.leadFired,
+                   t.renders, t.leadLowest, t.r20Fired, t.renders, t.r20Lowest));
+    }
+
+    //==========================================================================
+    // XL-latch: requests during each move kind
+    //==========================================================================
+    void rowXlLatch()
+    {
+        const double fs = 48000.0;
+        std::unique_ptr<LxEngine> e = std::make_unique<LxEngine>();
+        e->prepare (fs, true);
+
+        for (int b = 0; b < 10; ++b)
+            e->requested[ix (b)] = lxInput (kLxCases[b * 2], true);
+
+        e->requested[4] = lxInput (kLxCases[13], true);         // Bell 2 kHz +12 Q 10: its gain is edited at 15000
+
+        struct Wish
+        {
+            std::size_t at;
+            int listen;
+        };
+
+        // 48 kHz: grid 16, R 1440, N 960; engage / change 2400 samples, release 960.
+        static const Wish wishes[] = { { 100, 3 }, { 1000, 5 }, { 1500, 7 }, { 3000, 9 }, { 8000, -1 }, { 8500, 2 }, { 12000, 4 },
+                                       { 12500, 2 }, { 13000, 4 }, { 17000, -1 }, { 17500, -1 } };
+        constexpr std::size_t total = 18500;
+        std::vector<eq::ListenState> states (total);
+        std::vector<unsigned long> moves (total), latched (total);
+        double l0[1], l1[1];
+        Rng rng (0x584C4C41544348ull);
+        std::size_t w = 0;
+
+        for (std::size_t i = 0; i < total; ++i)
+        {
+            for (; w < sizeof (wishes) / sizeof (wishes[0]) && wishes[w].at <= i; ++w)
+                e->listenWanted = wishes[w].listen;
+
+            if (i == 15000)
+                e->requested[4] = eq::effectiveBandInput (enRaw (eq::Type::bell, 2000.0, 3.0, 10.0, 0, eq::Placement::stereo), kEnScale100, true);
+
+            l0[0] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            l1[0] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            e->process (l0, l1, 1);
+            states[i] = e->listen.getState();
+            moves[i] = e->listen.getMovesStarted();
+            latched[i] = e->listen.getLatchedStarted();
+        }
+
+        struct Check
+        {
+            std::size_t after;
+            eq::ListenMove move;
+            int target, position;
+            long long latchedCount;
+            const char* what;
+        };
+
+        using M = eq::ListenMove;
+        static const Check checks[] =
+        {
+            { 2510,  M::engage,  3, 2399, 0, "engage to 3 runs its full length; 5 and 7 wait" },
+            { 2511,  M::change,  7,    0, 1, "engage end: the latest wish (7) starts at the next sample, 5 never" },
+            { 2512,  M::change,  7,    1, 1, "the latched change runs" },
+            { 4910,  M::change,  7, 2399, 1, "a wish (9) during a change waits" },
+            { 4911,  M::change,  9,    0, 2, "change end: the change to 9 starts" },
+            { 7311,  M::none,    9,    0, 2, "listening to 9" },
+            { 8958,  M::release, -1, 959, 2, "a wish (2) during a release waits" },
+            { 8959,  M::engage,  2,    0, 3, "release end: the engage to 2 starts" },
+            { 11359, M::none,    2,    0, 3, "listening to 2" },
+            { 14398, M::change,  4, 2399, 3, "wishes 2 then 4 during the change to 4: the move is not cancelled" },
+            { 14399, M::none,    4,    0, 3, "change end: the request equals the target, nothing starts" },
+            { 16000, M::none,    4,    0, 3, "a gain edit of the listened band maps to the same input: nothing" },
+            { 17967, M::none,   -1,    0, 3, "release (a repeated -1 during it starts nothing)" }
+        };
+
+        int bad = 0;
+        std::string text;
+
+        for (const Check& c : checks)
+        {
+            const eq::ListenState& s = states[c.after];
+            const bool ok = s.move == c.move && s.target == c.target && s.movePosition == c.position
+                            && static_cast<long long> (latched[c.after]) == c.latchedCount;
+
+            if (! ok)
+            {
+                ++bad;
+                text += strf (" [after %zu: %s; got move %d target %d position %d latched %lu]", c.after, c.what, static_cast<int> (s.move),
+                              s.target, s.movePosition, latched[c.after]);
+            }
+        }
+
+        // Moves: engage 3, change 7, change 9, release, engage 2, change 4, release. Nothing else, at no sample.
+        const bool countOk = moves[total - 1] == 7ul && moves[16000] == 6ul && moves[14399] == 6ul;
+        const bool idleAtEnd = states[total - 1].target == -1 && states[total - 1].move == M::none && e->listen.isIdle();
+
+        if (! countOk)
+            text += strf (" [moves started %lu, expected 7]", moves[total - 1]);
+
+        row (bad == 0 && countOk && idleAtEnd,
+             "XL-latch a second request during each move kind (engage, change, release): taken at the move's end, the latest wins; a "
+             "request equal to the current target cancels nothing and starts nothing",
+             strf ("%d of %d checks wrong; %lu moves started (7 expected), %lu latched (3 expected); idle at the end %s%s", bad,
+                   static_cast<int> (sizeof (checks) / sizeof (checks[0])), moves[total - 1], latched[total - 1], idleAtEnd ? "yes" : "NO",
+                   text.c_str()));
+    }
+
+    //==========================================================================
+    // XL-seed: startSettled on each listened type (one band, P17)
+    //==========================================================================
+    void rowXlSeed()
+    {
+        static const int caseIndex[8] = { 0, 4, 5, 6, 7, 8, 9, 12 };       // one band of each type
+        const double fs = 48000.0;
+        const std::size_t n = static_cast<std::size_t> (3.0 * fs);
+        const std::size_t from = static_cast<std::size_t> (2.0 * fs);
+
+        Rng rng (0x584C53454544ull);
+        std::vector<double> noiseL (n), noiseR (n);
+
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            noiseL[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        struct Reading
+        {
+            double rel = kInf;
+            long long exactBad = -1;
+            bool stateOk = false, engagedLater = false;
+        };
+
+        std::array<Reading, 8> readings {};
+
+        parallelFor (8, [&readings, &noiseL, &noiseR, fs, n, from] (int task)
+        {
+            const eq::BandInput band = lxInput (kLxCases[caseIndex[task]], true);
+            const eq::BandInput mapped = eq::listenInputFor (band);
+            Reading& q = readings[ix (task)];
+
+            // A: listen on from the first block (seeded).
+            std::unique_ptr<LxEngine> a = std::make_unique<LxEngine>();
+            a->prepare (fs, true);
+            a->requested[0] = band;
+            a->listenWanted = 0;
+            std::vector<double> al = noiseL, ar = noiseR;
+            a->process (al.data(), ar.data(), kLxBlock);
+
+            const eq::ListenState s = a->listen.getState();
+            q.stateOk = s.move == eq::ListenMove::none && s.target == 0 && s.rampPosition[s.activeVoice] == s.rampLength
+                        && s.voiceLive[s.activeVoice] && ! s.voiceLive[1 - s.activeVoice];
+
+            lxRun (*a, al.data() + kLxBlock, ar.data() + kLxBlock, n - ix (kLxBlock), kLxBlock, {});
+
+            // Exact weight 1 from sample 0: F of the dry lanes from rest, a static chain, bit for bit.
+            eq::Designer designer;
+            designer.prepare (fs);
+            XfRefChain c;
+            xfRefChainSet (c, designer, mapped);
+            q.exactBad = 0;
+
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                const double rl = xfRefTick (c, 0, noiseL[i]);
+                const double rr = xfRefTick (c, 1, noiseR[i]);
+
+                if (! sameBits (rl, al[i]) || ! sameBits (rr, ar[i]))
+                    ++q.exactBad;
+            }
+
+            // B: listen off for the first block, then on (an engage: ramp and fade), measured from 2 s.
+            std::unique_ptr<LxEngine> b = std::make_unique<LxEngine>();
+            b->prepare (fs, true);
+            b->requested[0] = band;
+            std::vector<double> bl = noiseL, br = noiseR;
+            lxRun (*b, bl.data(), br.data(), n, kLxBlock, { { 0, -1 }, { ix (kLxBlock), 0 } });
+
+            double peak = 0.0, err = 0.0;
+
+            for (std::size_t i = from; i < n; ++i)
+            {
+                peak = std::max ({ peak, std::fabs (al[i]), std::fabs (ar[i]) });
+                err = std::max ({ err, std::fabs (al[i] - bl[i]), std::fabs (ar[i] - br[i]) });
+            }
+
+            q.rel = peak > 0.0 ? err / peak : kInf;
+            q.engagedLater = rmFirstDifference (al, bl, from) >= 0;
+        });
+
+        int bad = 0;
+        double worst = 0.0;
+        std::string worstWhere = "none", text;
+
+        for (int task = 0; task < 8; ++task)
+        {
+            const Reading& q = readings[ix (task)];
+            const bool ok = q.rel <= 1.0e-12 && q.exactBad == 0 && q.stateOk && q.engagedLater;
+
+            if (! ok)
+            {
+                ++bad;
+                text += strf (" [%s: %.3g, %lld samples not exact, state %s, B %s]", kLxCases[caseIndex[task]].name, q.rel, q.exactBad,
+                              q.stateOk ? "ok" : "WRONG", q.engagedLater ? "engaged later" : "IDENTICAL");
+            }
+
+            if (! (q.rel <= worst))
+            {
+                worst = q.rel;
+                worstWhere = kLxCases[caseIndex[task]].name;
+            }
+        }
+
+        row (bad == 0,
+             "XL-seed startSettled on each band type (one band, stereo noise, 48 kHz): weight 1 and no ramp from sample 0 (bit-exact F of the "
+             "dry input from rest); equal to a listen engaged at 10.7 ms and measured from 2 s within 1e-12 of peak",
+             strf ("%d of 8 wrong; worst %.3g of peak (%s)%s", bad, worst, worstWhere.c_str(), text.c_str()));
+    }
+
+    //==========================================================================
+    // XL-ag: C3, listen after auto gain
+    //==========================================================================
+    void rowXlAg()
+    {
+        const double fs = 48000.0;
+        const std::size_t n = static_cast<std::size_t> (fs);
+        const std::size_t from = n / 2;
+
+        Rng rng (0x584C4147ull);
+        std::vector<double> noiseL (n), noiseR (n);
+
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            noiseL[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[i] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        const eq::BandInput shelf = eq::effectiveBandInput (enRaw (eq::Type::lowShelf, 200.0, 12.0, 1.0, 1, eq::Placement::stereo), kEnScale100, true);
+        double autoTarget = 0.0;
+
+        const auto level = [&] (bool autoOn, int listenBand)
+        {
+            std::unique_ptr<LxEngine> e = std::make_unique<LxEngine>();
+            e->prepare (fs, true);
+            e->requested[0] = shelf;
+            e->agWanted = autoOn;
+            e->listenWanted = listenBand;
+            std::vector<double> l = noiseL, r = noiseR;
+            lxRun (*e, l.data(), r.data(), n, kLxBlock, {});
+
+            if (autoOn)
+                autoTarget = e->stage.getAutoSmoother().getTarget();
+
+            double energy = 0.0;
+
+            for (std::size_t i = from; i < n; ++i)
+                energy += l[i] * l[i] + r[i] * r[i];
+
+            return std::sqrt (energy / static_cast<double> (2 * (n - from)));
+        };
+
+        const double listenOn = level (true, 0), listenOff = level (false, 0);
+        const double eqOn = level (true, -1), eqOff = level (false, -1);
+        const double diff = 20.0 * std::log10 (listenOn / listenOff);
+        const double estimate = xoDb (autoTarget);
+        const double eqDiff = 20.0 * std::log10 (eqOn / eqOff);
+        const bool live = std::fabs (estimate - (-6.167)) <= 0.001 && std::fabs (eqDiff - estimate) <= 0.01;
+
+        row (std::fabs (diff) <= 1.0e-9 && live,
+             "XL-ag C3: auto gain on with the G12 +12 dB Low Shelf, listen on that band: the listen output level equals the auto-gain-off "
+             "listen output",
+             strf ("listen level auto on - auto off %.3g dB (limit 1e-9); auto-gain estimate %.4f dB (G12 -6.167), the EQ path with "
+                   "listen off moves %.4f dB%s",
+                   diff, estimate, eqDiff, live ? "" : " (VOID: auto gain not in effect)"));
+    }
+
+    //==========================================================================
+    // XO-split: nextGains against process (P9)
+    //==========================================================================
+    void rowXoSplit()
+    {
+        constexpr int histories = 2000;
+        constexpr int workers = 8;
+
+        struct Task
+        {
+            long long samples = 0, productBad = 0, stateBad = 0, tailBad = 0, snaps = 0, constSegments = 0, unitySegments = 0, moving = 0;
+        };
+
+        std::array<Task, workers> tasks {};
+
+        parallelFor (workers, [&tasks] (int wk)
+        {
+            Task& out = tasks[ix (wk)];
+            Rng rng (0x584F53504C4954ull + static_cast<std::uint64_t> (wk));
+            const std::size_t maxLength = static_cast<std::size_t> (0.3 * 192000.0) + 1;
+            std::vector<double> ones (maxLength), ag (maxLength), og (maxLength), tailA (maxLength), tailB (maxLength);
+
+            for (int h = wk; h < histories; h += workers)
+            {
+                const double fs = kRates8[ix (rng.below (8))];
+                eq::OutputStage a, b;
+                a.prepare (fs);
+                b.prepare (fs);
+
+                for (int step = 0; step < 40; ++step)
+                {
+                    const double r = rng.uniform();
+
+                    if (r < 0.3)
+                    {
+                        const double t = eq::outputGainTarget (-36.0 + 72.0 * rng.uniform());
+                        a.setOutputPending (t);
+                        b.setOutputPending (t);
+                        a.applyOutputPending();
+                        b.applyOutputPending();
+                    }
+                    else if (r < 0.5)
+                    {
+                        const double t = xoLin (-18.0 + 30.0 * rng.uniform());
+                        a.setAutoTarget (t);
+                        b.setAutoTarget (t);
+                    }
+                    else if (r < 0.55)
+                    {
+                        const double t1 = 2.0 * rng.uniform(), t2 = 2.0 * rng.uniform();
+                        a.snap (t1, t2);
+                        b.snap (t1, t2);
+                    }
+                    else if (r < 0.6)
+                    {
+                        a.setOutputPending (1.0);
+                        b.setOutputPending (1.0);
+                        a.applyOutputPending();
+                        b.applyOutputPending();
+                        a.setAutoTarget (1.0);
+                        b.setAutoTarget (1.0);
+                    }
+
+                    // Mostly short segments; one in ten long enough to run through the snap.
+                    const int length = 1 + (rng.uniform() < 0.1 ? static_cast<int> (0.3 * fs * rng.uniform()) : rng.below (300));
+                    const bool wasSettled = a.getOutputSmoother().isSettled() && a.getAutoSmoother().isSettled();
+
+                    if (wasSettled)
+                    {
+                        if (sameBits (a.getOutputSmoother().getTarget() * a.getAutoSmoother().getTarget(), 1.0))
+                            ++out.unitySegments;
+                        else
+                            ++out.constSegments;
+                    }
+                    else
+                    {
+                        ++out.moving;
+                    }
+
+                    std::fill (ones.begin(), ones.begin() + length, 1.0);
+                    a.process (ones.data(), nullptr, length);
+                    b.nextGains (ag.data(), og.data(), length);
+                    out.samples += length;
+
+                    for (int i = 0; i < length; ++i)
+                        if (! sameBits (ones[ix (i)], ag[ix (i)] * og[ix (i)]))
+                        {
+                            ++out.productBad;
+                            break;
+                        }
+
+                    if (! wasSettled && a.getOutputSmoother().isSettled() && a.getAutoSmoother().isSettled())
+                        ++out.snaps;
+
+                    const eq::GainSmoother& ao = a.getOutputSmoother();
+                    const eq::GainSmoother& bo = b.getOutputSmoother();
+                    const eq::GainSmoother& aa = a.getAutoSmoother();
+                    const eq::GainSmoother& ba = b.getAutoSmoother();
+
+                    if (! sameBits (ao.getCurrent(), bo.getCurrent()) || ao.isSettled() != bo.isSettled() || ! sameBits (ao.getTarget(), bo.getTarget())
+                        || ! sameBits (aa.getCurrent(), ba.getCurrent()) || aa.isSettled() != ba.isSettled()
+                        || ! sameBits (aa.getTarget(), ba.getTarget()))
+                        ++out.stateBad;
+                }
+
+                // Final states: the same new targets on both, then process on both: every sample bit-equal.
+                const double t = eq::outputGainTarget (-36.0 + 72.0 * rng.uniform());
+                const double at = xoLin (-18.0 + 30.0 * rng.uniform());
+
+                for (eq::OutputStage* s : { &a, &b })
+                {
+                    s->setOutputPending (t);
+                    s->applyOutputPending();
+                    s->setAutoTarget (at);
+                }
+
+                const int tail = static_cast<int> (0.3 * fs);
+                std::fill (tailA.begin(), tailA.begin() + tail, 1.0);
+                std::fill (tailB.begin(), tailB.begin() + tail, 1.0);
+                a.process (tailA.data(), nullptr, tail);
+                b.process (tailB.data(), nullptr, tail);
+
+                if (std::memcmp (tailA.data(), tailB.data(), sizeof (double) * ix (tail)) != 0)
+                    ++out.tailBad;
+            }
+        });
+
+        Task sum;
+
+        for (const Task& t : tasks)
+        {
+            sum.samples += t.samples;
+            sum.productBad += t.productBad;
+            sum.stateBad += t.stateBad;
+            sum.tailBad += t.tailBad;
+            sum.snaps += t.snaps;
+            sum.constSegments += t.constSegments;
+            sum.unitySegments += t.unitySegments;
+            sum.moving += t.moving;
+        }
+
+        const bool live = sum.snaps > 100 && sum.constSegments > 100 && sum.unitySegments > 10 && sum.moving > 1000;
+
+        row (sum.productBad == 0 && sum.stateBad == 0 && sum.tailBad == 0 && live,
+             "XO-split nextGains against process: 2000 random gain histories incl. snaps, 8 rates: ag x og bit-equal to process's g; "
+             "final smoother states equal",
+             strf ("%lld samples; %lld segments with a product differing, %lld with a smoother state differing, %lld of %d tails differing; "
+                   "coverage: %lld snaps, %lld settled non-unity segments, %lld settled unity, %lld moving%s",
+                   sum.samples, sum.productBad, sum.stateBad, sum.tailBad, histories, sum.snaps, sum.constSegments, sum.unitySegments, sum.moving,
+                   live ? "" : " (VOID: a case not reached)"));
+    }
+
+    //==========================================================================
+    // XO-os18: GainSmoother against a restated cascade (VERIFICATION-2.5 OS18)
+    //==========================================================================
+    /** PLAN-2.5 P2 re-stated once more: four one-poles, snapped when all four stages are within 1e-9
+        (lastOnly: when the last stage is, the OS18 mutant). */
+    struct LxPoles
+    {
+        double y[4] = { 1.0, 1.0, 1.0, 1.0 };
+        double target = 1.0, a = 1.0;
+        bool settled = true, lastOnly = false;
+
+        void start (double t, int length, bool lastStageOnly)
+        {
+            a = 1.0 - std::exp (-kXoSettleX / static_cast<double> (length));
+            target = t;
+
+            for (double& v : y)
+                v = t;
+
+            settled = true;
+            lastOnly = lastStageOnly;
+        }
+
+        void retarget (double t)
+        {
+            target = t;
+            settled = y[0] == t && y[1] == t && y[2] == t && y[3] == t;
+        }
+
+        double step()
+        {
+            if (settled)
+                return target;
+
+            y[0] += a * (target - y[0]);
+            y[1] += a * (y[0] - y[1]);
+            y[2] += a * (y[1] - y[2]);
+            y[3] += a * (y[2] - y[3]);
+
+            bool near = std::fabs (y[3] - target) <= kXoSnapTolerance;
+
+            if (! lastOnly)
+                for (int k = 0; k < 3; ++k)
+                    near = near && std::fabs (y[k] - target) <= kXoSnapTolerance;
+
+            if (near)
+            {
+                for (double& v : y)
+                    v = target;
+
+                settled = true;
+            }
+
+            return y[3];
+        }
+    };
+
+    void rowXoOs18()
+    {
+        // The 28 XO-step pairs (one change) and the 32 XO-ret rows (a second change inside the move).
+        const std::vector<XoPair> pairs = xoStepPairs();
+        const int numPairs = static_cast<int> (pairs.size());
+        const int perRate = numPairs + 32;
+
+        struct Reading
+        {
+            long long samples = 0, mismatch = 0, controlDiffers = 0;
+            bool snapped = true;
+        };
+
+        std::vector<Reading> readings (ix (8 * perRate));
+
+        parallelFor (8 * perRate, [&readings, &pairs, numPairs, perRate] (int task)
+        {
+            const double fs = kRates8[ix (task / perRate)];
+            const int k = task % perRate;
+            bool autoGain = false;
+            double a0 = 1.0, a1 = 1.0, a2 = 1.0;
+            double second = -1.0;           // the second change's offset as a fraction of the length (-1: none)
+
+            if (k < numPairs)
+            {
+                const XoPair& p = pairs[ix (k)];
+                autoGain = p.autoGain;
+                a0 = xoLin (p.fromDb);
+                a1 = xoLin (p.toDb);
+            }
+            else
+            {
+                const int r = k - numPairs;
+                const XoRetCase& rc = kXoRetCases[(r / 4) % 4];
+                autoGain = r >= 16;
+                a0 = xoLin (rc.a);
+                a1 = xoLin (rc.b);
+                a2 = xoLin (rc.c);
+                second = kXoRetFracs[r % 4];
+            }
+
+            const int length = xoLength (autoGain ? kXoAgSeconds : kXoOgSeconds, fs);
+            const int at2 = second < 0.0 ? -1 : static_cast<int> (kXoGrid) * static_cast<int> (std::lround (second * static_cast<double> (length)
+                                                                                                        / static_cast<double> (kXoGrid)));
+            const int total = 16 + std::max (at2, 0) + 4 * length;
+
+            eq::GainSmoother s;
+            s.prepare (eq::smootherLengthSamples (autoGain ? eq::autoGainSeconds : eq::outputGainSeconds, fs));
+            s.snap (a0);
+            LxPoles ref, control;
+            ref.start (a0, length, false);
+            control.start (a0, length, true);
+
+            Reading& q = readings[ix (task)];
+
+            for (int i = 0; i < total; ++i)
+            {
+                if (i == 16 || (at2 >= 0 && i == 16 + at2))
+                {
+                    const double t = i == 16 ? a1 : a2;
+                    s.setTarget (t);
+                    ref.retarget (t);
+                    control.retarget (t);
+                }
+
+                const double v = s.next();
+                const double r = ref.step();
+                const double c = control.step();
+                ++q.samples;
+
+                if (! sameBits (v, r) || s.isSettled() != ref.settled)
+                    ++q.mismatch;
+
+                if (! sameBits (v, c) || s.isSettled() != control.settled)
+                    ++q.controlDiffers;
+            }
+
+            q.snapped = s.isSettled() && ref.settled;
+        });
+
+        long long samples = 0, mismatch = 0;
+        int notSnapped = 0, controlFiredStep = 0, controlFiredRet = 0;
+
+        for (int task = 0; task < 8 * perRate; ++task)
+        {
+            const Reading& q = readings[ix (task)];
+            samples += q.samples;
+            mismatch += q.mismatch;
+
+            if (! q.snapped)
+                ++notSnapped;
+
+            if (q.controlDiffers > 0)
+            {
+                if (task % perRate < numPairs)
+                    ++controlFiredStep;
+                else
+                    ++controlFiredRet;
+            }
+        }
+
+        // A step (or a reversal) is monotone in the tail: the last stage is always the last to enter the
+        // tolerance, so the OS18 mutant is unobservable there (0 of 480 above). Random automation
+        // (VERIFICATION-2.5 probe T3's template) retargets while the stages' errors differ in sign, which is
+        // where 'last stage only' snaps early: 400 histories, 60 retargets each, 8 rates, both lengths.
+        constexpr int histories = 400;
+        std::vector<Reading> random (ix (histories));
+
+        parallelFor (histories, [&random] (int h)
+        {
+            Rng rng (0x584F4F533138ull + static_cast<std::uint64_t> (h));
+            const double fs = kRates8[ix (h % 8)];
+            const bool autoGain = (h / 8) % 2 != 0;
+            const int length = xoLength (autoGain ? kXoAgSeconds : kXoOgSeconds, fs);
+            eq::GainSmoother s;
+            s.prepare (eq::smootherLengthSamples (autoGain ? eq::autoGainSeconds : eq::outputGainSeconds, fs));
+            s.snap (1.0);
+            LxPoles ref, control;
+            ref.start (1.0, length, false);
+            control.start (1.0, length, true);
+            Reading& q = random[ix (h)];
+
+            for (int ev = 0; ev < 60; ++ev)
+            {
+                const double t = xoLin (-36.0 + 72.0 * rng.uniform());
+                s.setTarget (t);
+                ref.retarget (t);
+                control.retarget (t);
+                const int n = 1 + rng.below (rng.uniform() < 0.5 ? 4 * length : 64);
+
+                for (int i = 0; i < n; ++i)
+                {
+                    const double v = s.next();
+                    const double r = ref.step();
+                    const double c = control.step();
+                    ++q.samples;
+
+                    if (! sameBits (v, r) || s.isSettled() != ref.settled)
+                        ++q.mismatch;
+
+                    if (! sameBits (v, c) || s.isSettled() != control.settled)
+                        ++q.controlDiffers;
+                }
+            }
+        });
+
+        int controlFiredRandom = 0;
+
+        for (const Reading& q : random)
+        {
+            samples += q.samples;
+            mismatch += q.mismatch;
+
+            if (q.controlDiffers > 0)
+                ++controlFiredRandom;
+        }
+
+        row (mismatch == 0 && notSnapped == 0 && controlFiredRandom > 0,
+             "XO-os18 GainSmoother against a restated four-stage cascade (snap: all four stages within 1e-9), 8 rates, the 28 XO-step pairs, "
+             "32 XO-ret rows and 400 random-automation histories, through the snap: bit-exact sample by sample; the 'last stage only' "
+             "restatement differs (control)",
+             strf ("%lld samples, %lld differ; %d of %d step renders not snapped by the end; control %s: differs on %d of %d step pairs, "
+                   "%d of 256 reversal rows, %d of %d random histories",
+                   samples, mismatch, notSnapped, 8 * perRate, controlFiredRandom > 0 ? "fires" : "did NOT fire", controlFiredStep,
+                   8 * numPairs, controlFiredRet, controlFiredRandom, histories));
+    }
+
+    //==========================================================================
+    // XT-ring, XT-thr, XT-gen: eq::SpectrumTap
+    //==========================================================================
+    /** The value the producer writes at sequence position p: exact in float, 24-bit wrap. */
+    float lxTapValue (std::uint64_t p)
+    {
+        return static_cast<float> (static_cast<std::uint32_t> (p & 0xFFFFFFu));
+    }
+
+    void rowXtRing()
+    {
+        constexpr int ops = 20000;
+        const std::uint32_t capacity = static_cast<std::uint32_t> (eq::SpectrumTap::capacity);
+        std::unique_ptr<eq::SpectrumTap> tap = std::make_unique<eq::SpectrumTap>();
+        std::vector<float> src (65536), dest (40000);
+        std::vector<std::uint64_t> model;           // the producer positions in the ring, oldest first
+        std::size_t head = 0;                       // model[head ...] is unread
+        std::uint64_t produced = 0, modelDrops = 0;
+        long long valueBad = 0, countBad = 0, dropBad = 0, availBad = 0, drained = 0, overflowPushes = 0, longPushes = 0, emptyDrains = 0;
+        Rng rng (0x5854524E47ull);
+
+        for (int op = 0; op < ops; ++op)
+        {
+            if (rng.below (2) == 0)
+            {
+                // Push 1 - 65 536 samples (log-uniform; both ends forced now and then).
+                int n = 1 + static_cast<int> (std::pow (65536.0, rng.uniform()));
+                n = std::min (n, 65536);
+
+                if (op % 997 == 0)
+                    n = 65536;
+                else if (op % 991 == 0)
+                    n = 1;
+
+                for (int i = 0; i < n; ++i)
+                    src[ix (i)] = lxTapValue (produced + static_cast<std::uint64_t> (i));
+
+                const std::uint64_t used = static_cast<std::uint64_t> (model.size() - head);
+                const std::uint64_t space = capacity - used;
+                const std::uint64_t count = static_cast<std::uint64_t> (n);
+                const std::uint64_t kept = std::min (count, space);
+
+                if (count > space)
+                {
+                    ++overflowPushes;
+                    modelDrops += count - space;
+                }
+
+                if (n > eq::SpectrumTap::capacity)
+                    ++longPushes;
+
+                for (std::uint64_t i = count - kept; i < count; ++i)
+                    model.push_back (produced + i);
+
+                tap->push (src.data(), n);
+                produced += count;
+            }
+            else
+            {
+                const int maxN = rng.below (40001);
+                std::uint32_t gen = 0, drops = 0;
+                const int got = tap->drain (dest.data(), maxN, gen, drops);
+                const std::size_t expect = std::min (static_cast<std::size_t> (maxN), model.size() - head);
+
+                if (static_cast<std::size_t> (got) != expect)
+                    ++countBad;
+
+                if (got == 0)
+                    ++emptyDrains;
+
+                for (int i = 0; i < got && static_cast<std::size_t> (i) < expect; ++i)
+                    if (dest[ix (i)] != lxTapValue (model[head + ix (i)]))
+                        ++valueBad;
+
+                head += expect;
+                drained += got;
+
+                if (static_cast<std::uint64_t> (drops) != modelDrops)
+                    ++dropBad;
+
+                // Compact the model now and then.
+                if (head > 1000000)
+                {
+                    model.erase (model.begin(), model.begin() + static_cast<std::ptrdiff_t> (head));
+                    head = 0;
+                }
+            }
+
+            if (static_cast<std::uint64_t> (tap->getDropCount()) != modelDrops)
+                ++dropBad;
+
+            if (static_cast<std::size_t> (tap->getNumAvailable()) != model.size() - head)
+                ++availBad;
+        }
+
+        const bool live = overflowPushes > 100 && longPushes > 10 && drained > 1000000 && emptyDrains > 10;
+
+        row (valueBad == 0 && countBad == 0 && dropBad == 0 && availBad == 0 && live,
+             "XT-ring SpectrumTap, one thread, 20 000 random pushes of 1 - 65 536 and drains of 0 - 40 000: every drained sample is the "
+             "producer's sample at that position; an overflow keeps exactly the newest that fit; the drop count is exact",
+             strf ("%lld samples drained; %lld wrong values, %lld wrong counts, %lld drop-count and %lld available-count mismatches; "
+                   "%lld overflowing pushes (%lld longer than the ring), %lld empty drains, %llu dropped%s",
+                   drained, valueBad, countBad, dropBad, availBad, overflowPushes, longPushes, emptyDrains,
+                   static_cast<unsigned long long> (modelDrops), live ? "" : " (VOID: a case not reached)"));
+    }
+
+    void rowXtThr()
+    {
+        constexpr double seconds = 20.0;
+        std::unique_ptr<eq::SpectrumTap> tap = std::make_unique<eq::SpectrumTap>();
+        std::atomic<bool> stop { false };
+        std::atomic<long long> pushes { 0 };
+        std::atomic<std::uint64_t> producedTotal { 0 };
+
+        std::thread producer ([&tap, &stop, &pushes, &producedTotal]
+        {
+            Rng rng (0x585450524F44ull);
+            std::vector<float> block (4096);
+            std::uint64_t position = 0;
+
+            while (! stop.load (std::memory_order_relaxed))
+            {
+                const int n = 1 + rng.below (4096);
+
+                for (int i = 0; i < n; ++i)
+                    block[ix (i)] = lxTapValue (position + static_cast<std::uint64_t> (i));
+
+                tap->push (block.data(), n);
+                position += static_cast<std::uint64_t> (n);
+                pushes.fetch_add (1, std::memory_order_relaxed);
+                producedTotal.store (position, std::memory_order_relaxed);
+
+                if (rng.below (4) != 0)
+                    std::this_thread::sleep_for (std::chrono::microseconds (rng.below (400)));
+            }
+        });
+
+        std::vector<float> dest (ix (eq::SpectrumTap::capacity));
+        Rng rng (0x585443304E53ull);
+        std::uint32_t expectNext = 0, generation0 = tap->getGeneration();
+        std::uint64_t gapTotal = 0;
+        long long runs = 0, torn = 0, samples = 0, contiguousRuns = 0, runsAfterDrop = 0, genMoves = 0;
+        std::uint32_t lastDrops = 0;
+        bool first = true;
+
+        const auto consume = [&] (int got, std::uint32_t gen, std::uint32_t drops)
+        {
+            if (gen != generation0)
+                ++genMoves;
+
+            if (got <= 0)
+                return;
+
+            ++runs;
+            samples += got;
+            bool gapInRun = false;
+
+            for (int i = 0; i < got; ++i)
+            {
+                const std::uint32_t v = static_cast<std::uint32_t> (dest[ix (i)]);
+
+                if (first)
+                {
+                    first = false;
+                    gapTotal = v;               // the samples dropped before the first one read
+                }
+                else
+                {
+                    const std::uint32_t gap = (v - expectNext) & 0xFFFFFFu;
+
+                    if (gap >= 0x800000u)
+                    {
+                        ++torn;                 // backwards: not the producer's sequence
+                    }
+                    else if (gap != 0)
+                    {
+                        gapTotal += gap;
+                        gapInRun = true;
+                    }
+                }
+
+                expectNext = (v + 1u) & 0xFFFFFFu;
+            }
+
+            // Every gap read so far was counted by the time of this drain's drop-count load.
+            if (gapTotal > static_cast<std::uint64_t> (drops))
+                ++torn;
+
+            if (gapInRun || drops != lastDrops)
+                ++runsAfterDrop;
+            else
+                ++contiguousRuns;
+
+            lastDrops = drops;
+        };
+
+        const auto t0 = RmClock::now();
+
+        while (rmSeconds (t0, RmClock::now()) < seconds)
+        {
+            std::uint32_t gen = 0, drops = 0;
+            const int got = tap->drain (dest.data(), eq::SpectrumTap::capacity, gen, drops);
+            consume (got, gen, drops);
+            std::this_thread::sleep_for (std::chrono::microseconds (rng.below (6000)));
+        }
+
+        stop.store (true);
+        producer.join();
+
+        // Drain what is left: every dropped sample is now accounted for, exactly.
+        std::uint32_t gen = 0, drops = 0;
+        consume (tap->drain (dest.data(), eq::SpectrumTap::capacity, gen, drops), gen, drops);
+
+        // Pushes dropped whole after the last sample read leave no gap behind them: count them from the producer's total.
+        gapTotal += static_cast<std::uint64_t> ((static_cast<std::uint32_t> (producedTotal.load()) - expectNext) & 0xFFFFFFu);
+        const bool exact = gapTotal == static_cast<std::uint64_t> (tap->getDropCount());
+        const bool live = runs > 1000 && contiguousRuns > 100 && runsAfterDrop > 100 && tap->getDropCount() > 0u;
+
+        row (torn == 0 && exact && genMoves == 0 && live,
+             "XT-thr SpectrumTap, two threads for 20 s (producer at random blocks of 1 - 4096, consumer draining at random intervals of "
+             "0 - 6 ms): every drained run is a contiguous run of the producer's sequence or follows a drop-counter move",
+             strf ("%lld torn runs; %lld runs, %lld samples, %lld pushes; %lld runs contiguous with the last, %lld after a drop; gaps read "
+                   "%llu = drop count %u: %s%s",
+                   torn, runs, samples, pushes.load(), contiguousRuns, runsAfterDrop, static_cast<unsigned long long> (gapTotal),
+                   tap->getDropCount(), exact ? "exact" : "MISMATCH", live ? "" : " (VOID: a case not reached)"));
+    }
+
+    void rowXtGen()
+    {
+        std::unique_ptr<eq::SpectrumTap> tap = std::make_unique<eq::SpectrumTap>();
+        std::vector<float> src (40000), dest (40000);
+        Rng rng (0x5854474E45ull);
+        int cycles = 0, genBad = 0, staleBad = 0, firstNotEmpty = 0, countBad = 0;
+
+        for (int c = 0; c < 400; ++c)
+        {
+            const std::uint32_t g0 = tap->getGeneration();
+
+            // Pre-reset samples: negative values; some read, the rest left in the ring (or overflowing it).
+            const int pre = 1 + rng.below (40000);
+
+            for (int i = 0; i < pre; ++i)
+                src[ix (i)] = -1.0f - static_cast<float> (i);
+
+            tap->push (src.data(), pre);
+
+            std::uint32_t gen = 0, drops = 0;
+            const int partial = rng.below (pre + 1);
+            tap->drain (dest.data(), partial, gen, drops);
+
+            const int resets = 1 + (c % 3 == 0 ? 1 : 0);
+
+            for (int r = 0; r < resets; ++r)
+                tap->reset();
+
+            // The next drain: no sample, the moved generation.
+            const int got0 = tap->drain (dest.data(), 40000, gen, drops);
+
+            if (got0 != 0)
+                ++firstNotEmpty;
+
+            if (gen != g0 + static_cast<std::uint32_t> (resets) || tap->getGeneration() != gen)
+                ++genBad;
+
+            // Post-reset samples only from now on.
+            const int post = 1 + rng.below (20000);
+
+            for (int i = 0; i < post; ++i)
+                src[ix (i)] = 1.0f + static_cast<float> (i);
+
+            tap->push (src.data(), post);
+            const int got = tap->drain (dest.data(), 40000, gen, drops);
+
+            if (got != post)
+                ++countBad;
+
+            for (int i = 0; i < got; ++i)
+                if (! (dest[ix (i)] == 1.0f + static_cast<float> (i)))
+                {
+                    ++staleBad;
+                    break;
+                }
+
+            if (gen != g0 + static_cast<std::uint32_t> (resets))
+                ++genBad;
+
+            ++cycles;
+        }
+
+        row (genBad == 0 && staleBad == 0 && firstNotEmpty == 0 && countBad == 0 && cycles == 400,
+             "XT-gen reset() between drains (400 cycles, single and double resets, ring partly read or overflowing): the next drain reports "
+             "the moved generation and no sample; no pre-reset sample is returned after it",
+             strf ("%d cycles; %d generation, %d non-empty first drains, %d stale samples, %d post-reset count errors", cycles, genBad,
+                   firstNotEmpty, staleBad, countBad));
+    }
+
+    //==========================================================================
+    // XG-exact, XG-ctl: G9 engine row, damped circle, double (no float rounding)
+    //==========================================================================
+    using LgCx = std::complex<double>;
+
+    struct LgM2
+    {
+        LgCx a, b, c, d;        // [[a b] [c d]]
+    };
+
+    LgM2 lgMul (const LgM2& x, const LgM2& y)
+    {
+        return { x.a * y.a + x.b * y.c, x.a * y.b + x.b * y.d, x.c * y.a + x.d * y.c, x.c * y.b + x.d * y.d };
+    }
+
+    /** ARCHITECTURE "True-response display": the band's 2x2 matrix in L / R. */
+    LgM2 lgPlacementMatrix (eq::Placement p, LgCx f)
+    {
+        const LgCx one (1.0, 0.0), zero (0.0, 0.0);
+        const LgCx h = 0.5 * (f - one);
+
+        switch (p)
+        {
+            case eq::Placement::stereo: return { f, zero, zero, f };
+            case eq::Placement::left:   return { f, zero, zero, one };
+            case eq::Placement::right:  return { one, zero, zero, f };
+            case eq::Placement::mid:    return { one + h, h, h, one + h };
+            case eq::Placement::side:   return { one + h, -h, -h, one + h };
+        }
+
+        return { one, zero, zero, one };
+    }
+
+    struct LgBand
+    {
+        eq::BandDesign design;
+        eq::Placement placement;
+    };
+
+    /** M = M_n ... M_1 in index order; LL, RR, MM, SS. */
+    std::array<LgCx, 4> lgDrawn (const std::vector<LgBand>& bands, LgCx z, bool sideAsMid)
+    {
+        LgM2 m { LgCx (1.0, 0.0), LgCx (0.0, 0.0), LgCx (0.0, 0.0), LgCx (1.0, 0.0) };
+
+        for (const LgBand& b : bands)
+        {
+            const eq::Placement p = (sideAsMid && b.placement == eq::Placement::side) ? eq::Placement::mid : b.placement;
+            m = lgMul (lgPlacementMatrix (p, eq::bandResponseAtZ (b.design, z)), m);
+        }
+
+        return { m.a, m.d, 0.5 * (m.a + m.b + m.c + m.d), 0.5 * (m.a - m.b - m.c + m.d) };
+    }
+
+    double lgDb (LgCx v)
+    {
+        return 20.0 * std::log10 (std::max (std::abs (v), 1.0e-300));
+    }
+
+    struct LgReading
+    {
+        double worst = 0.0;
+        int scored = 0;
+        double control[4] = { -1.0, -1.0, -1.0, -1.0 };     // -1: the control does not apply to this draw
+        double perResponseWorst = 0.0;                       // diagnostic: within 80 dB of each response's own maximum
+        double topDb = 0.0;                                  // the largest maximum among the drawn responses
+        bool finite = true;
+        int bands = 0;
+    };
+
+    LgReading lgMeasure (double fs, bool stereo, int draw)
+    {
+        LgReading q;
+        constexpr int N = 1 << 17;
+        const double damp = std::pow (1.0e-9, 1.0 / static_cast<double> (N));
+
+        // The draw (G5 ranges), the same at every rate and layout; one in eight forced to hold a Left band then a Mid band.
+        Rng rng (0x5847455841435400ull + static_cast<std::uint64_t> (draw));
+        std::array<eq::RawBand, kLxBands> raws {};
+
+        for (eq::RawBand& r : raws)
+            r = enRandomRaw (rng);
+
+        int numBands = 1 + rng.below (kLxBands);
+
+        if (draw % 8 == 0)
+        {
+            numBands = std::max (numBands, 2);
+            raws[0].placement = static_cast<float> (static_cast<int> (eq::Placement::left));
+            raws[1].placement = static_cast<float> (static_cast<int> (eq::Placement::mid));
+        }
+
+        for (int b = numBands; b < kLxBands; ++b)
+            raws[ix (b)].enabled = 0.0f;
+
+        q.bands = numBands;
+
+        // The engine: 24 SlotBand settled on the inputs (the double chain of the processor).
+        struct Engine
+        {
+            eq::Designer designer;
+            eq::FadeTable table;
+            std::array<eq::SlotBand, kLxBands> bands;
+        };
+
+        std::unique_ptr<Engine> e = std::make_unique<Engine>();
+        e->designer.prepare (fs);
+        e->table.prepare (fs);
+
+        for (eq::SlotBand& band : e->bands)
+            band.prepare (eq::controlGridSize (fs), eq::rampLengthTicks (fs));
+
+        std::array<eq::BandInput, kLxBands> inputs {};
+        std::vector<LgBand> designs;
+
+        for (int b = 0; b < kLxBands; ++b)
+        {
+            inputs[ix (b)] = eq::effectiveBandInput (raws[ix (b)], kEnScale100, stereo);
+
+            if (inputs[ix (b)].active)
+            {
+                LgBand lb {};
+                e->designer.design (inputs[ix (b)].settings, lb.design);
+                lb.placement = inputs[ix (b)].placement;
+                designs.push_back (lb);
+            }
+        }
+
+        // Impulse responses: L, R, mid (1, 1), side (1, -1) on stereo; L on mono.
+        const int numStimuli = stereo ? 4 : 1;
+        static const double impulses[4][2] = { { 1.0, 0.0 }, { 0.0, 1.0 }, { 1.0, 1.0 }, { 1.0, -1.0 } };
+        std::array<std::vector<double>, 4> seq;
+        std::vector<double> l (ix (N)), r (ix (N));
+
+        for (int s = 0; s < numStimuli; ++s)
+        {
+            for (int b = 0; b < kLxBands; ++b)
+                e->bands[ix (b)].startSettled (inputs[ix (b)], e->designer);
+
+            std::fill (l.begin(), l.end(), 0.0);
+            std::fill (r.begin(), r.end(), 0.0);
+            l[0] = impulses[s][0];
+            r[0] = impulses[s][1];
+
+            for (int p = 0; p < N; p += 4096)
+                for (eq::SlotBand& band : e->bands)
+                    if (band.isRunning())
+                        band.process (l.data() + p, r.data() + p, 4096, stereo, e->table, e->designer);
+
+            std::vector<double>& v = seq[ix (s)];
+            v.resize (ix (N));
+
+            for (int i = 0; i < N; ++i)
+            {
+                const std::size_t ui = ix (i);
+
+                switch (s)
+                {
+                    case 0:  v[ui] = l[ui]; break;
+                    case 1:  v[ui] = r[ui]; break;
+                    case 2:  v[ui] = 0.5 * (l[ui] + r[ui]); break;
+                    default: v[ui] = 0.5 * (l[ui] - r[ui]); break;
+                }
+            }
+
+            q.finite = q.finite && rmAllFinite (v);
+        }
+
+        // The grid: 192 log points 10 Hz - min (30 kHz, 0.49 fs).
+        constexpr int points = 192;
+        const double hi = std::min (30000.0, 0.49 * fs);
+        std::vector<std::array<LgCx, 4>> measured (ix (points)), closed (ix (points));
+        std::vector<std::array<std::array<LgCx, 4>, 4>> controls (ix (points));
+
+        // Control variants (P12, harness-side closed forms).
+        std::vector<LgBand> kBad = designs, poleBad = designs, orderBad = designs;
+        bool kApplies = false, poleApplies = false, orderApplies = false, sideApplies = false;
+
+        for (int sct = 0; sct < kBad[0].design.numSections; ++sct)
+        {
+            eq::SectionParams& p = kBad[0].design.params[ix (sct)];
+
+            if (p.hasSvf)
+            {
+                p.k *= 1.01;
+                kApplies = true;
+            }
+        }
+
+        for (LgBand& b : poleBad)
+            for (int sct = 0; sct < b.design.numSections; ++sct)
+                if (b.design.params[ix (sct)].hasOnePole)
+                {
+                    b.design.params[ix (sct)].hasOnePole = false;
+                    poleApplies = true;
+                }
+
+        if (stereo)
+        {
+            int iL = -1, iM = -1;
+
+            for (std::size_t i = 0; i < designs.size(); ++i)
+            {
+                if (iL < 0 && designs[i].placement == eq::Placement::left)
+                    iL = static_cast<int> (i);
+
+                if (iM < 0 && designs[i].placement == eq::Placement::mid)
+                    iM = static_cast<int> (i);
+
+                if (designs[i].placement == eq::Placement::side)
+                    sideApplies = true;
+            }
+
+            if (iL >= 0 && iM >= 0)
+            {
+                std::swap (orderBad[ix (iL)], orderBad[ix (iM)]);
+                orderApplies = true;
+            }
+        }
+
+        for (int k = 0; k < points; ++k)
+        {
+            const double f = std::exp (std::log (10.0) + (std::log (hi) - std::log (10.0)) * static_cast<double> (k) / static_cast<double> (points - 1));
+            const double w = 2.0 * kPi * f / fs;
+            const LgCx z = std::polar (1.0 / damp, w);
+            closed[ix (k)] = lgDrawn (designs, z, false);
+            controls[ix (k)][0] = lgDrawn (kBad, z, false);
+            controls[ix (k)][1] = lgDrawn (poleBad, z, false);
+            controls[ix (k)][2] = lgDrawn (orderBad, z, false);
+            controls[ix (k)][3] = lgDrawn (designs, z, true);
+
+            // The damped DFT: sum h[n] a^n e^(-j w n), a recursive phasor re-normalised every 4096 samples.
+            const double cr = damp * std::cos (w), ci = -damp * std::sin (w);
+            double pr = 1.0, pim = 0.0;
+            double ar[4] = { 0.0, 0.0, 0.0, 0.0 }, ai[4] = { 0.0, 0.0, 0.0, 0.0 };
+
+            for (int i = 0; i < N; ++i)
+            {
+                for (int s = 0; s < numStimuli; ++s)
+                {
+                    const double v = seq[ix (s)][ix (i)];
+                    ar[s] += v * pr;
+                    ai[s] += v * pim;
+                }
+
+                const double t = pr * cr - pim * ci;
+                pim = pr * ci + pim * cr;
+                pr = t;
+
+                if ((i & 4095) == 4095)
+                {
+                    const double want = std::pow (damp, static_cast<double> (i + 1));
+                    const double mag = std::sqrt (pr * pr + pim * pim);
+
+                    if (mag > 0.0)
+                    {
+                        pr *= want / mag;
+                        pim *= want / mag;
+                    }
+                }
+            }
+
+            for (int s = 0; s < 4; ++s)
+                measured[ix (k)][ix (s)] = s < numStimuli ? LgCx (ar[s], ai[s]) : LgCx (0.0, 0.0);
+        }
+
+        // Scored: within 80 dB of the LARGEST maximum among LL / RR / MM / SS over the grid (PLAN-2.6 execute,
+        // Taylor's call 2026-11-15: a response tens or hundreds of dB below the configuration's largest one sits
+        // at the double cascade's rounding floor and is not measurable). The per-response scoring of the bench
+        // (within 80 dB of each response's own maximum) is kept as a diagnostic, not gated.
+        const int responses = stereo ? 4 : 1;
+        const bool applies[4] = { kApplies, poleApplies, orderApplies, sideApplies };
+
+        for (int c = 0; c < 4; ++c)
+            q.control[c] = applies[c] ? 0.0 : -1.0;
+
+        double topAll = -1.0e300;
+
+        for (int resp = 0; resp < responses; ++resp)
+            for (int k = 0; k < points; ++k)
+                topAll = std::max (topAll, lgDb (closed[ix (k)][ix (resp)]));
+
+        q.topDb = topAll;
+
+        for (int resp = 0; resp < responses; ++resp)
+        {
+            double top = -1.0e300;
+
+            for (int k = 0; k < points; ++k)
+                top = std::max (top, lgDb (closed[ix (k)][ix (resp)]));
+
+            for (int k = 0; k < points; ++k)
+            {
+                const double ref = lgDb (closed[ix (k)][ix (resp)]);
+
+                if (ref >= top - 80.0)
+                    q.perResponseWorst = std::max (q.perResponseWorst, std::fabs (lgDb (measured[ix (k)][ix (resp)]) - ref));
+
+                // PLAN-2.6 execute, Taylor's call 2026-11-15: and at or above -150 dB re the unit impulse (absolute,
+                // double): below it the cascade's rounding floor, not the filter, is what the IR holds.
+                if (ref < topAll - 80.0 || ref < -150.0)
+                    continue;
+
+                const double me = lgDb (measured[ix (k)][ix (resp)]);
+                ++q.scored;
+                q.worst = std::max (q.worst, std::fabs (me - ref));
+
+                for (int c = 0; c < 4; ++c)
+                    if (applies[c])
+                        q.control[c] = std::max (q.control[c], std::fabs (me - lgDb (controls[ix (k)][ix (c)][ix (resp)])));
+            }
+        }
+
+        if (! std::isfinite (q.worst))
+            q.finite = false;
+
+        return q;
+    }
+
+    void rowsXgExact()
+    {
+        constexpr int draws = 400;
+        const int tasks = 5 * 2 * draws;
+        std::vector<LgReading> readings (ix (tasks));
+
+        parallelFor (tasks, [&readings] (int task)
+        {
+            const int draw = task % draws;
+            const bool stereo = ((task / draws) % 2) == 0;
+            const double fs = kRates5[ix (task / (2 * draws))];
+            readings[ix (task)] = lgMeasure (fs, stereo, draw);
+        });
+
+        double worst[5][2] = {}, ctlMax[4] = { 0.0, 0.0, 0.0, 0.0 };
+        int nonFinite = 0, unscored = 0, ctlFired[4] = {}, ctlApplied[4] = {};
+        long long scored = 0;
+        std::string worstWhere = "none";
+        double worstAll = 0.0, perResponse = 0.0;
+        int perResponseOver = 0;
+        std::string voidText;
+
+        for (int task = 0; task < tasks; ++task)
+        {
+            const LgReading& q = readings[ix (task)];
+            const int ri = task / (2 * draws), li = (task / draws) % 2;
+            perResponse = std::max (perResponse, q.perResponseWorst);
+
+            if (q.perResponseWorst > 1.0e-4)
+                ++perResponseOver;
+
+            if (! q.finite)
+                ++nonFinite;
+
+            // PLAN-2.6 execute, Taylor's call 2026-11-15: no point at or above the floor -> void, listed.
+            if (q.scored == 0)
+            {
+                ++unscored;
+                voidText += strf ("%s%.1f kHz %s draw %d (%d bands, loudest %.0f dB)", voidText.empty() ? "" : "; ", kRates5[ix (ri)] / 1000.0,
+                                  li == 0 ? "stereo" : "mono", task % draws, q.bands, q.topDb);
+            }
+
+            scored += q.scored;
+            worst[ri][li] = std::max (worst[ri][li], q.worst);
+
+            if (! (q.worst <= worstAll))
+            {
+                worstAll = q.worst;
+                worstWhere = strf ("%.1f kHz %s draw %d (%d bands)", kRates5[ix (ri)] / 1000.0, li == 0 ? "stereo" : "mono", task % draws, q.bands);
+            }
+
+            for (int c = 0; c < 4; ++c)
+                if (q.control[c] >= 0.0)
+                {
+                    ++ctlApplied[c];
+                    ctlMax[c] = std::max (ctlMax[c], q.control[c]);
+
+                    if (q.control[c] > 0.05)
+                        ++ctlFired[c];
+                }
+        }
+
+        row (worstAll <= 1.0e-4 && nonFinite == 0 && unscored < tasks,
+             "XG-exact G9 engine row: 400 random 1 - 24-band configurations x 5 rates, stereo and mono: the double SlotBand chain's damped "
+             "impulse response (2^17, a^N = 1e-9) against bandResponseAtZ composed in index order, LL / RR / MM / SS within 80 dB of the "
+             "largest maximum among them and at or above -150 dB, on 192 log points (Taylor's call 2026-11-15): <= 1e-4 dB",
+             strf ("%d renders, %lld points scored; worst %.3g dB (%s; bench 1.1e-6); %d non-finite, %d void (nothing at or above the floor); INFO "
+                   "by-response-level diagnostic (within 80 dB of each response's own maximum, not gated): worst %.3g dB, %d renders above "
+                   "1e-4 dB", tasks, scored, worstAll, worstWhere.c_str(), nonFinite, unscored, perResponse, perResponseOver));
+        note (strf ("VOID (no point at or above -150 dB; Taylor's call 2026-11-15): %d: ", unscored) + (voidText.empty() ? std::string ("none") : voidText));
+        note (strf ("worst dB stereo / mono: 44.1 kHz %.2e / %.2e | 48 %.2e / %.2e | 88.2 %.2e / %.2e | 96 %.2e / %.2e | 192 %.2e / %.2e",
+                    worst[0][0], worst[0][1], worst[1][0], worst[1][1], worst[2][0], worst[2][1], worst[3][0], worst[3][1], worst[4][0],
+                    worst[4][1]));
+
+        static const char* const names[4] = { "k x 1.01 (first band)", "one-pole dropped", "Left and Mid bands in the wrong order",
+                                              "Mid matrix for Side" };
+        bool allFire = true;
+        std::string text;
+
+        for (int c = 0; c < 4; ++c)
+        {
+            allFire = allFire && ctlFired[c] > 0;
+            text += strf ("%s%s: %d of %d draws above 0.05 dB (largest %.3g dB)", c == 0 ? "" : "; ", names[c], ctlFired[c], ctlApplied[c],
+                          ctlMax[c]);
+        }
+
+        row (allFire,
+             "XG-ctl the four controls on the XG-exact draws (k x 1.01; one-pole dropped; an L and an M band composed in the wrong order, "
+             "every 8th draw forced to hold the pair; Mid matrix for Side): each exceeds 0.05 dB on at least one draw",
+             strf ("%s: %s", allFire ? "all four controls fire" : "a control did NOT fire", text.c_str()));
+    }
+
+    //==========================================================================
+    // XT-alloc: no allocation in the P10 driver with listen and two taps
+    //==========================================================================
+    struct LxAllocExtra
+    {
+        long long blocks = 0, finiteBlocks = 0, rampingBlocks = 0, splitSegments = 0, switches = 0;
+        unsigned long moves = 0, refreshes = 0;
+        std::uint32_t preDrops = 0, postDrops = 0;
+    };
+
+    /** The processor's tap feed (P2): the mono sum in 256-sample float pieces. */
+    void lxTapPush (eq::SpectrumTap& tap, const double* l0, const double* l1, int n)
+    {
+        float piece[256];
+
+        for (int start = 0; start < n; start += 256)
+        {
+            const int m = std::min (256, n - start);
+
+            for (int i = 0; i < m; ++i)
+                piece[i] = static_cast<float> (0.5 * (l0[start + i] + l1[start + i]));
+
+            tap.push (piece, m);
+        }
+    }
+
+    /** 1e4 host blocks of 128 at 48 kHz, stereo, inside a malloc_logger window on this thread, the first block
+        included: 24 bands moving at every block (the listened band too, so its listen voice ramps), auto gain on
+        and refreshing, the output target redrawn per block (the nextGains path while listening), listen
+        switching every 100 ms (engage, change, release), and both taps pushed into rings that are never
+        drained (they saturate within 0.7 s and every later push overflows). `plant`: one deliberate
+        allocation inside the window. The hook, its counters and the vacuity probe are A1's. */
+    AllocResult runLxAlloc (bool plant, LxAllocExtra* extra)
+    {
+        AllocResult result;
+
+       #if defined (__APPLE__)
+        constexpr int numBlocks = 10000;
+        constexpr int block = 128;
+        constexpr int noiseLength = 4096;
+        const double fs = 48000.0;
+        static const int listenSequence[8] = { -1, 3, 7, -1, 12, 20, 5, 5 };
+        static const eq::Type types[6] = { eq::Type::bell, eq::Type::lowShelf, eq::Type::highShelf, eq::Type::lowCut, eq::Type::highCut,
+                                           eq::Type::tilt };
+
+        std::unique_ptr<LxEngine> e = std::make_unique<LxEngine>();
+        e->prepare (fs, true);
+        std::unique_ptr<eq::SpectrumTap> preTap = std::make_unique<eq::SpectrumTap>();
+        std::unique_ptr<eq::SpectrumTap> postTap = std::make_unique<eq::SpectrumTap>();
+
+        std::array<eq::RawBand, kLxBands> raws {};
+        std::array<double, kLxBands> base {};
+
+        for (int b = 0; b < kLxBands; ++b)
+        {
+            base[ix (b)] = 40.0 * std::pow (1.28, static_cast<double> (b));
+            raws[ix (b)] = enRaw (types[b % 6], base[ix (b)], (b & 1) != 0 ? 6.0 : -6.0, 0.7, 7, static_cast<eq::Placement> (b % 5));
+            e->requested[ix (b)] = eq::effectiveBandInput (raws[ix (b)], kEnScale100, true);
+        }
+
+        e->agWanted = true;
+
+        Rng rng (0x5854414C4C4F43ull);
+        std::vector<double> noiseL (ix (noiseLength)), noiseR (ix (noiseLength));
+
+        for (int i = 0; i < noiseLength; ++i)
+        {
+            noiseL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            noiseR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        double lane0[block], lane1[block];
+        long long finiteBlocks = 0, rampingBlocks = 0, switches = 0;
+        int lastWanted = -2;
+
+        malloc_logger_t* const previous = malloc_logger;
+        allocThread = pthread_self();
+        allocCount = 0;
+        freeCount = 0;
+        malloc_logger = countAllocation;
+
+        // Vacuity: the hook must see a deliberate allocation and its release.
+        allocArmed = true;
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+        allocArmed = false;
+        result.vacuityAllocs = allocCount;
+        result.vacuityFrees = freeCount;
+        allocCount = 0;
+        freeCount = 0;
+
+        allocArmed = true;
+
+        for (int i = 0; i < numBlocks; ++i)
+        {
+            // Block start: every band moves, the output target is redrawn, listenBand follows the 100 ms schedule.
+            for (int b = 0; b < kLxBands; ++b)
+            {
+                raws[ix (b)].freq = static_cast<float> (base[ix (b)] * (1.0 + 0.25 * std::sin (0.37 * static_cast<double> (i)
+                                                                                                  + static_cast<double> (b))));
+                e->requested[ix (b)] = eq::effectiveBandInput (raws[ix (b)], kEnScale100, true);
+            }
+
+            e->outputTarget = eq::outputGainTarget (-12.0 + 24.0 * rng.uniform());
+            const int slot = static_cast<int> ((static_cast<long long> (i) * block / 4800) % 8);
+            e->listenWanted = listenSequence[slot];
+
+            if (e->listenWanted != lastWanted)
+            {
+                ++switches;
+                lastWanted = e->listenWanted;
+            }
+
+            const std::size_t offset = ix ((i * block) % (noiseLength - block));
+            std::memcpy (lane0, noiseL.data() + offset, sizeof (lane0));
+            std::memcpy (lane1, noiseR.data() + offset, sizeof (lane1));
+
+            lxTapPush (*preTap, lane0, lane1, block);
+            e->process (lane0, lane1, block);
+            lxTapPush (*postTap, lane0, lane1, block);
+
+            const eq::ListenState s = e->listen.getState();
+
+            if (s.target >= 0 && e->listen.getVoiceBand (s.incomingVoice).isMoving())
+                ++rampingBlocks;
+
+            if (std::isfinite (lane0[block - 1]) && std::isfinite (lane1[block - 1]))
+                ++finiteBlocks;
+        }
+
+        if (plant)
+        {
+            void* volatile planted = std::malloc (64);
+            std::free (planted);
+        }
+
+        allocArmed = false;
+        malloc_logger = previous;
+
+        result.available = true;
+        result.allocs = allocCount;
+        result.frees = freeCount;
+        result.checksum = finiteBlocks;
+
+        if (extra != nullptr)
+        {
+            extra->blocks = numBlocks;
+            extra->finiteBlocks = finiteBlocks;
+            extra->rampingBlocks = rampingBlocks;
+            extra->splitSegments = e->splitSegments;
+            extra->switches = switches;
+            extra->moves = e->listen.getMovesStarted();
+            extra->refreshes = e->autoGain.getRefreshCount();
+            extra->preDrops = preTap->getDropCount();
+            extra->postDrops = postTap->getDropCount();
+        }
+       #else
+        (void) plant;
+        (void) extra;
+       #endif
+
+        return result;
+    }
+
+    void rowXtAlloc()
+    {
+        LxAllocExtra extra;
+        const AllocResult r = runLxAlloc (false, &extra);
+
+        if (! r.available)
+        {
+            info ("XT-alloc allocation gate SKIPPED: no malloc_logger on this platform");
+            return;
+        }
+
+        const bool hookLive = r.vacuityAllocs >= 1 && r.vacuityFrees >= 1;
+        const bool live = extra.blocks == 10000 && extra.finiteBlocks == extra.blocks && extra.moves >= 200 && extra.rampingBlocks > 1000
+                          && extra.splitSegments > 10000 && extra.preDrops > 0u && extra.postDrops > 0u && extra.refreshes > 1000;
+
+        row (hookLive && r.allocs == 0 && r.frees == 0 && live,
+             "XT-alloc 1e4 blocks of the P10 driver, first block included: listen switching every 100 ms with its voice ramping, the "
+             "nextGains path, auto gain refreshing, two taps pushed into rings never drained: 0 allocations, 0 frees (malloc_logger)",
+             strf ("%d allocations, %d frees; hook %s (planted: %d / %d); %lld listenBand switches, %lu listen moves, %lld blocks with the "
+                   "listen voice ramping, %lld split-gain segments, %lu refreshes; drops pre %u / post %u; %lld of %lld blocks end finite%s",
+                   r.allocs, r.frees, hookLive ? "live" : "DEAD", r.vacuityAllocs, r.vacuityFrees, extra.switches, extra.moves,
+                   extra.rampingBlocks, extra.splitSegments, extra.refreshes, extra.preDrops, extra.postDrops, extra.finiteBlocks, extra.blocks,
+                   live ? "" : " (VOID: a case not reached)"));
+    }
+
+    //==========================================================================
+    // XL-cpu: INFO
+    //==========================================================================
+    void infoXlCpu()
+    {
+        const double fs = 48000.0;
+        eq::Designer designer;
+        designer.prepare (fs);
+        eq::FadeTable table;
+        table.prepare (fs);
+        const int grid = eq::controlGridSize (fs);
+        constexpr int length = 1 << 21;
+        const int piece = grid;                         // one control interval per call, a tick before each
+
+        std::vector<double> dryL (ix (piece)), dryR (ix (piece)), l (ix (piece)), r (ix (piece));
+        Rng rng (0x584C435055ull);
+
+        for (int i = 0; i < piece; ++i)
+        {
+            dryL[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+            dryR[ix (i)] = (rng.uniform() * 2.0 - 1.0) * 0.25;
+        }
+
+        // ns per stereo sample frame; twoVoices: a change move always in flight.
+        const auto measure = [&] (eq::Placement placement, bool twoVoices)
+        {
+            std::unique_ptr<eq::Listen> listen = std::make_unique<eq::Listen>();
+            listen->prepare (fs, grid, eq::rampLengthTicks (fs));
+            const eq::BandInput a = eq::listenInputFor (lxInput (kLxCases[0], true, placement));
+            const eq::BandInput b = eq::listenInputFor (lxInput (kLxCases[13], true, placement));
+            listen->startSettled (0, a, designer);
+            int index = 0;
+            volatile double sink = 0.0;
+            const RmClock::time_point t0 = RmClock::now();
+
+            for (int done = 0; done < length; done += piece)
+            {
+                {
+                    if (twoVoices && listen->getMove() == eq::ListenMove::none)
+                    {
+                        index = 1 - index;
+                        listen->setPending (index, index == 0 ? a : b);
+                    }
+
+                    listen->applyPending (designer);
+                    listen->controlTick (designer);
+                }
+
+                std::memcpy (l.data(), dryL.data(), sizeof (double) * ix (piece));
+                std::memcpy (r.data(), dryR.data(), sizeof (double) * ix (piece));
+                listen->process (dryL.data(), dryR.data(), l.data(), r.data(), piece, true, table, designer);
+                sink = sink + l[0];
+            }
+
+            return 1.0e9 * rmSeconds (t0, RmClock::now()) / static_cast<double> (length);
+        };
+
+        const double oneStereo = measure (eq::Placement::stereo, false);
+        const double oneMid = measure (eq::Placement::mid, false);
+        const double twoStereo = measure (eq::Placement::stereo, true);
+        const double twoMid = measure (eq::Placement::mid, true);
+
+        info ("XL-cpu Listen::process per stereo sample, 48 kHz, Bell 1 kHz Q 2 -> Band Pass (one voice) and a change to Bell 2 kHz Q 10 "
+              "in flight (two voices)",
+              strf ("one voice: Stereo %.2f ns, Mid %.2f ns; two voices: Stereo %.2f ns, Mid %.2f ns (48 kHz: 20 833 ns per sample); "
+                    "G10 binds in Stage 4",
+                    oneStereo, oneMid, twoStereo, twoMid));
+    }
+
+    /** Every 2.6 row, in the T5 table's order. */
+    void rowsPhase26()
+    {
+        rowXlMap();
+        rowXlRoute();
+        const LxRefTally tally = rowsXlOnChg();
+        rowXlSweep();
+        rowsXlRef (tally);
+        rowXlLatch();
+        rowXlSeed();
+        rowXlAg();
+        rowXoSplit();
+        rowXoOs18();
+        rowXtRing();
+        rowXtThr();
+        rowXtGen();
+        rowsXgExact();
+        rowXtAlloc();
+        infoXlCpu();
+    }
+
+    //==========================================================================
     // --neg
     //==========================================================================
     /** Runs one negative control. Exit code 0 only if the targeted row FAILS. */
@@ -15708,8 +19048,17 @@ namespace
             return fires ? 0 : 1;
         }
 
+        if (which == "tap-alloc")
+        {
+            const AllocResult r = runLxAlloc (true, nullptr);
+            const bool fires = r.available && r.allocs > 0;
+            std::printf ("neg tap-alloc: planted allocation inside the XT-alloc window: %d allocations, %d frees counted: %s\n",
+                         r.allocs, r.frees, fires ? "XT-alloc FAILS - the control fires" : "the control did NOT fire");
+            return fires ? 0 : 1;
+        }
+
         std::fprintf (stderr, "unknown negative control '%s' (rbj, f1, alloc, seed, rbj-b, binary-gate, first-build, engine-alloc, "
-                              "ramp-alloc, fade-alloc, ag-alloc)\n",
+                              "ramp-alloc, fade-alloc, ag-alloc, tap-alloc)\n",
                       which.c_str());
         return 255;
     }
@@ -15750,7 +19099,7 @@ int main (int argc, char** argv)
         {
             std::fprintf (stderr, "usage: %s [--golden-dir <dir>] [--long] [--dump-designs] [--dump-polished] "
                                   "[--neg rbj|f1|alloc|seed|rbj-b|binary-gate|first-build|engine-alloc|ramp-alloc|fade-alloc|"
-                                  "ag-alloc]\n", argv[0]);
+                                  "ag-alloc|tap-alloc]\n", argv[0]);
             return 255;
         }
     }
@@ -15926,6 +19275,12 @@ int main (int argc, char** argv)
     rowXoAgSch();
     rowXoAlloc();
     infoXoCpu();
+
+    //==========================================================================
+    // Phase 2.6 (PLAN-2.6 T5): eq::Listen, eq::SpectrumTap, nextGains, the G9 engine row, in double
+    //==========================================================================
+    heading ("2.6 / taps, listen, display truth (double)");
+    rowsPhase26();
 
     std::printf ("\n%d PASS, %d FAIL, %d INFO\n", passes, failures, infos);
     std::fflush (stdout);

@@ -308,4 +308,20 @@ inline BandChange classifyBandChange (const BandInput& current, const BandInput&
     return BandChange::continuous;
 }
 
+//==============================================================================
+// Added in Phase 2.6 (PLAN-2.6 P1): the one raw -> effective input
+//==============================================================================
+
+/** makeBandInput (raw, gainScaleRaw, 0.0), then the placement mapped by
+    effectivePlacement for the layout: the band input the processor's
+    makeInput builds (the same two statements, in the same order) and the
+    display model builds, from one definition. The offset argument is 0: each
+    slot reads its own dynamic offset (Band.h). */
+inline BandInput effectiveBandInput (const RawBand& raw, float gainScaleRaw, bool stereoLayout) noexcept
+{
+    BandInput input = makeBandInput (raw, gainScaleRaw, 0.0);
+    input.placement = effectivePlacement (input.placement, stereoLayout);
+    return input;
+}
+
 } // namespace eq

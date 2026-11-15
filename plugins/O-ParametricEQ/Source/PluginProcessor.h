@@ -128,11 +128,31 @@
       - A max-hold peak per output channel, updated after every block on
         every path and read-and-reset by the editor (Stage 3).
 
-    What this phase does in place of later ones:
+    Stage 2, Phase 2.6 (analyzer taps, display model, listen): PLAN-2.6
+    P10, P11.
 
-      2.6                         no taps, no display model, no listen. The
-                                  listen path will sit between the bands and
-                                  the output stage
+      - Two spectrum taps (eq::SpectrumTap, SpectrumTap.h): the float mono
+        sum of the input (before processAudio) and of the output (after it),
+        pushed in 256-sample stack pieces into fixed rings, on every prepared
+        path. A tap writes only while an analyzer consumer is registered
+        (setAnalyzerConsumer) and analyzerMode has its bit (1 Pre, 2 Post);
+        the mode is read once per block. The taps read the buffer only.
+      - Band listen (eq::Listen, Listen.h): listenBand (-1 off; not saved,
+        not a parameter) is read at every processed block start and handed
+        to listen at the next control tick, like a band request. Listen
+        sits after auto gain and before output gain (call C3): with listen
+        engaged a segment runs lanes x auto gain, listen (the band's region
+        of the dry input, solo-routed), lanes x output gain; with listen
+        not engaged the 2.5 fused multiply runs, unchanged. Listen engages
+        over a 30 ms input ramp plus the 20 ms fade (call C2) and is seeded
+        with the bands at the first block and both un-bypass restarts.
+      - The idle test of steps 5 and 6 is pathIdleForBlock(): the 2.5 stage
+        test and listen idle (no target, no move, nothing pending).
+      - preparedRate and preparedStereo are published at the end of
+        prepareToPlay for the message-thread display model and analyzer
+        (Source/analysis), which design and transform on their own thread.
+      - With listen off and no consumer registered, the output is
+        bit-identical to 0.5.0.
 
     No WebView editor (Stage 3), no presets (Stage 4).
 
@@ -153,9 +173,11 @@
 #include "dsp/ControlRamp.h"
 #include "dsp/Designer.h"
 #include "dsp/Fade.h"
+#include "dsp/Listen.h"
 #include "dsp/OutputStage.h"
 #include "dsp/Router.h"
 #include "dsp/SlotBand.h"
+#include "dsp/SpectrumTap.h"
 
 // vu-meter 1.0.0 compile proof (Stage 1 plan, P6): the header is included so
 // that its first build inside a plugin happens now. No member is declared;
@@ -178,7 +200,9 @@ public:
         every snapshot. The next block is then the first block: every band
         starts settled on its current values and the bypass state is set
         without a fade. Reports latency 0. Safe to call repeatedly and at a
-        different rate: nothing is carried across it. */
+        different rate: nothing is carried across it. Phase 2.6: prepares
+        listen (idle), empties both taps (generation bumped), then publishes
+        preparedStereo and preparedRate. */
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
 
@@ -251,6 +275,42 @@ public:
     unsigned long getAutoGainRefreshCount() const noexcept      { return autoGain.getRefreshCount(); }
 
     //==========================================================================
+    // Phase 2.6: analyzer taps, display model, listen (PLAN-2.6 P10, P11)
+    //==========================================================================
+
+    /** The analyzer's owner registers (true) and unregisters (false) here:
+        the editor in Stage 3, the render harness in Stage 2. While false the
+        audio thread writes neither tap. Any thread. */
+    void setAnalyzerConsumer (bool registered) noexcept  { analyzerConsumer.store (registered, std::memory_order_release); }
+    bool hasAnalyzerConsumer() const noexcept           { return analyzerConsumer.load (std::memory_order_acquire); }
+
+    /** The two rings (pre: the input, post: the output). The audio thread is
+        the only producer; one reader drains each (SpectrumAnalyzer). Fixed
+        storage, members from construction. */
+    eq::SpectrumTap& getPreTap() noexcept               { return preTap; }
+    eq::SpectrumTap& getPostTap() noexcept              { return postTap; }
+    const eq::SpectrumTap& getPreTap() const noexcept   { return preTap; }
+    const eq::SpectrumTap& getPostTap() const noexcept  { return postTap; }
+
+    /** The rate and layout of the last prepareToPlay, published at its end
+        (release, after the taps' generation bump). 0 / true before the
+        first prepare. Any thread. */
+    double getPreparedRate() const noexcept             { return preparedRate.load (std::memory_order_acquire); }
+    bool getPreparedStereo() const noexcept             { return preparedStereo.load (std::memory_order_acquire); }
+
+    /** Test accessor (render-harness rows XR-g9id and the G9 rows): the
+        design band `band` runs on, from its current slot (Band::
+        getRealisedDesign: numSections and params[] are realised values).
+        False, with `out` untouched, for an index out of range and when the
+        current slot is off or the band asleep. Audio-thread state: read by
+        the harness between blocks only. */
+    bool getBandRealisedDesign (int band, eq::BandDesign& out) const noexcept;
+
+    /** Test accessor: listen's target, move and positions (eq::ListenState).
+        Audio-thread state: read by the harness between blocks only. */
+    eq::ListenState getListenState() const noexcept     { return listen.getState(); }
+
+    //==========================================================================
     /** 196 parameters. State tree type "OParametricEQ". */
     juce::AudioProcessorValueTreeState parameters;
 
@@ -264,8 +324,13 @@ public:
     /** 0 = en, 1 = fr, 2 = zh-Hans. */
     std::atomic<int> uiLanguage { 0 };
 
-    /** 0 Off, 1 Pre, 2 Post, 3 Pre+Post. */
+    /** 0 Off, 1 Pre, 2 Post, 3 Pre+Post: the taps' bit mask (PLAN-2.6 P11). */
     std::atomic<int> analyzerMode { 2 };
+
+    /** The listened band, 0 ... 23; -1 (or any value out of range) is off.
+        Transient UI state: not saved, not a parameter. Read at every
+        processed block start, handed to listen at the next control tick. */
+    std::atomic<int> listenBand { -1 };
 
     /** Plus / minus dB shown by the response display: 6, 12 or 30. */
     std::atomic<int> uiDisplayRange { 12 };
@@ -284,6 +349,11 @@ public:
     static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
 private:
+    /** The display model reads the raw parameter values through
+        readBandSnapshot and readGainScaleRaw (PLAN-2.6 P8: friend, so the
+        raw-value cache stays private and there is one raw read path). */
+    friend class DisplayModel;
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     //==========================================================================
@@ -337,9 +407,13 @@ private:
     /** Reads the raw values of band `band` and the raw gain_scale. */
     BandSnapshot readBandSnapshot (int band, float gainScaleRaw) const noexcept;
 
+    /** The raw gain_scale value. */
+    float readGainScaleRaw() const noexcept;
+
     /** The canonical input of a snapshot, with the placement that takes
         effect on the negotiated layout and a dynamic offset of 0: the band
-        reads its own offset. */
+        reads its own offset. eq::effectiveBandInput, the one definition the
+        display model also calls. */
     eq::BandInput makeInput (const BandSnapshot&) const noexcept;
 
     /** Writes the indices of the bands that are running (a fade in flight,
@@ -356,13 +430,33 @@ private:
         the block-start parameter reads, never latched. Steps 5 and 6. */
     bool stageIdleForBlock() const noexcept;
 
+    /** PLAN-2.6 P10: the whole path after the bands has nothing to do in
+        this block: stageIdleForBlock() and listen idle (no target, no move,
+        no pending request). Computed after step 4, never latched. Steps 5
+        and 6, nowhere else. */
+    bool pathIdleForBlock() const noexcept;
+
     /** Seeding (first block, both un-bypass restarts): auto gain takes its
         wanted state and the stage snaps to its targets, every band's
         estimate evaluated at once. */
     void seedOutputStage() noexcept;
 
+    /** Seeding of listen, after the bands and the output stage: settled on
+        the wish read at this block's start. */
+    void seedListen() noexcept;
+
     /** After every block, on every path. */
     void updateOutputPeak (const juce::AudioBuffer<float>&) noexcept;
+
+    /** PLAN-2.6 P11: the tap bit mask for this block (bit 0 Pre, bit 1
+        Post): 0 without a consumer, when not prepared, or when the buffer
+        is narrower than the layout. Reads analyzerMode once. */
+    int tapMaskForBlock (const juce::AudioBuffer<float>&) const noexcept;
+
+    /** Pushes the float mono sum of the buffer (0.5f * (L + R), or the
+        single channel on a mono layout) into `tap`, in 256-sample stack
+        pieces. Read-only on the buffer. */
+    void pushTap (eq::SpectrumTap& tap, const juce::AudioBuffer<float>&) const noexcept;
 
     //==========================================================================
     juce::AudioProcessorParameter* bypassParam = nullptr;
@@ -431,6 +525,22 @@ private:
 
     /** Max-hold output peaks (readAndResetOutputPeak). */
     std::array<std::atomic<float>, 2> outputPeak { { 0.0f, 0.0f } };
+
+    /** The spectrum taps: 2 x 128 KB of fixed storage, members of this
+        heap-allocated object from construction (never sized in prepare). */
+    eq::SpectrumTap preTap;
+    eq::SpectrumTap postTap;
+
+    /** Set by the analyzer's owner; the audio thread's write gate. */
+    std::atomic<bool> analyzerConsumer { false };
+
+    /** Band listen: two voices and the 30 ms ramp table, about 90 KB of
+        fixed storage. Audio thread only (prepare in prepareToPlay). */
+    eq::Listen listen;
+
+    /** Published at the end of prepareToPlay; 0 / true before. */
+    std::atomic<double> preparedRate { 0.0 };
+    std::atomic<bool> preparedStereo { true };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OuariconParametricEQAudioProcessor)
 };
