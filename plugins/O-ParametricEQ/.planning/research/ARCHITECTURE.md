@@ -36,7 +36,7 @@
 | 3 | Slopes 6-96 dB/oct | Order N = slope / 6. Honoured by Low Cut, High Cut, Low Shelf, High Shelf, Tilt Shelf (Butterworth families, Q = resonance factor on the highest-Q section, Q 1.0 = Butterworth). Inert for Bell, Notch, Band Pass in v1. Type / slope / placement / enable / bypass changes crossfade between two section chains over 20 ms. |
 | 4 | Placement with 24 serial bands | Bands run in index order on L/R. Mid and Side bands filter m or s and inject only the difference back into L and R. Inactive bands are skipped, so untouched channels and the all-off case are bit-identical. |
 | 5 | True-response display | The message thread runs the same designer on the current parameter values and pushes section parameter sets; JS evaluates the closed-form complex response. No audio-thread hand-off, so the curve updates with the transport stopped. Analyzer: lock-free FIFO, FFT on the message thread at 30 Hz. |
-| 6 | Auto gain | Curve-derived: negative of the pink-weighted mean power gain of the target response, 64 log-spaced points 40 Hz - 16 kHz, clamped to -18 / +12 dB, 100 ms ramp, computed on the audio thread. |
+| 6 | Auto gain | Curve-derived: negative of the pink-weighted mean power gain of the target response, 512 log-spaced cell midpoints 40 Hz - 16 kHz (amended 2026-11-14 from 64, Phase 2.5 plan, Taylor's call C1), clamped to -18 / +12 dB, four-pole smoother (within 1e-3 at 100 ms), computed on the audio thread. |
 | 7 | Dynamic-EQ forward compatibility | The 72 reserved parameters are NOT registered in v1. v1 parameters use `ParameterID { id, 1 }`; dynamic-EQ parameters are added later with version hint 2 under reserved IDs. State carries `stateVersion`. The band engine already takes a per-band gain offset on the control grid. |
 | 8 | CPU | 24 bands x 96 dB/oct cut, stereo, 48 kHz = 384 SVF sections per sample. Budget 10 % of one core settled, 35 % with all bands modulating. Inactive bands are not in the active list. SIMD deferred. |
 | 9 | Verification | 13 gates with thresholds, section "Verification Gates". |
@@ -87,13 +87,13 @@
 - **JUCE Class:** Custom ramps (not `juce::dsp::Gain`: the unseeded ramp fades in from silence at every `prepareToPlay`, suite lesson)
 - **Purpose:** Auto gain, output gain, global soft bypass, output peak meter.
 - **Parameters Affected:** `auto_gain`, `output_gain`, `bypass`
-- **Configuration:** all gains ramp 20 ms (auto gain 100 ms); a gain of exactly 1.0 that is not ramping is skipped.
+- **Configuration:** each gain is a cascade of four one-pole smoothers in linear amplitude (amended 2026-11-14, Phase 2.5 plan; RESEARCH-2.5 Q1: a linear ramp fails G3 at 50 Hz). Output gain: within 1e-3 of a step at 20 ms, exact (snapped) at about 50 ms; auto gain: within 1e-3 at 100 ms, exact at about 230 ms. The gain is a weighted average of past targets, so it never overshoots or reaches zero. Seeded: snapped to its target on the first block after a prepare and at un-bypass. A gain of exactly 1.0 that is settled is skipped. Global soft bypass stays the last stage (`eq::BypassFade`, Phase 2.4); the output peak meter is a pair of max-hold atomics, read and reset by the editor.
 
 ### 7. Auto Gain Estimator (`eq::AutoGain`)
 - **JUCE Class:** Custom
 - **Purpose:** Deterministic curve-derived loudness compensation.
 - **Parameters Affected:** `auto_gain`, every band parameter
-- **Configuration:** 64 log-spaced points 40 Hz - 16 kHz, per-band cached log-power vectors, re-evaluated at most every 1024 samples at 48 kHz.
+- **Configuration:** 512 log-spaced cell midpoints 40 Hz - 16 kHz, per-band cached linear power vectors, re-evaluated at most every 1024 samples at 48 kHz (amended 2026-11-14, Phase 2.5 plan, C1; RESEARCH-2.5 Q3).
 
 ### 8. Spectrum Tap and Analyzer (`eq::SpectrumTap`, `SpectrumAnalyzer`)
 - **JUCE Class:** `juce::AbstractFifo` (juce_core), `juce::dsp::FFT`, `juce::dsp::WindowingFunction<float>` (juce_dsp)
@@ -217,7 +217,7 @@ A Stage 1 gate freezes the layout: `tests/golden/params.tsv` (ID, index, version
 | Parameter ID | Type | Range / choices | Default | Skew | DSP Component | Usage |
 |--------------|------|-----------------|---------|------|---------------|-------|
 | `bypass` | Bool | Off / On | Off | — | Output Stage | Returned by `getBypassParameter()`. 20 ms crossfade to dry. |
-| `output_gain` | Float, interval 0 | -36 … +36 dB | 0 | linear | Output Stage | Linear gain `10^(dB/20)`, 20 ms ramp. |
+| `output_gain` | Float, interval 0 | -36 … +36 dB | 0 | linear | Output Stage | Linear gain `10^(dB/20)`, four-pole smoother (within 1e-3 at 20 ms). |
 | `gain_scale` | Float, interval 0 | 0 … 200 % | 100 | linear | Prototype Builder | `gEff = gain * scale / 100`. 100 is exactly normalised 0.5. |
 | `auto_gain` | Bool | Off / On | Off | — | Auto Gain | Enables the curve-derived compensation. |
 
@@ -473,15 +473,18 @@ Type, slope, placement, enabled and bypass change the section list or the lanes;
 Deterministic and program-independent, so null tests and offline renders are repeatable.
 
 ```
-grid:   f_i, i = 0 … 63, log-spaced 40 Hz … min(16 kHz, 0.45 fs); equal weights (pink-noise assumption)
-band b: p_b[i] = Σ over its sections of ln |H_section(f_i)|²        (target parameters, closed form)
-lanes:  PL[i] = exp( Σ p_b[i] over active Stereo, Mid and Left bands )
-        PR[i] = exp( Σ p_b[i] over active Stereo, Mid and Right bands )      # mono: all bands
+grid:   f_i = exp( ln 40 + (ln fTop − ln 40)(i + 0.5) / M ),  i = 0 … M−1,  M = 512,  fTop = min(16 kHz, 0.45 fs)
+        equal weights (pink-noise assumption); t2_i = tan²(π f_i / fs) once per prepare
+band b: P_b[i] = Π over its sections of |H_section(f_i)|²           (target design, closed form, linear power)
+lanes:  PL[i] = Π P_b[i] over contributing Stereo, Mid and Left bands
+        PR[i] = Π P_b[i] over contributing Stereo, Mid and Right bands      # mono: all bands
 AG_dB = -10 log10( mean_i( 0.5 (PL[i] + PR[i]) ) ),  clamped to [-18, +12] dB
 ```
+- Amended 2026-11-14 (Phase 2.5 plan; Taylor's call C1; RESEARCH-2.5 Q3): 512 cell midpoints instead of 64 inclusive points. 64 points alias a narrow boost swept in frequency (0.88 dB peak-to-peak pump on a +12 dB Q 40 bell, 8.7 dB on +30 dB Q 10); 512 take those to 0.03 dB and 0.12 dB, and the G12 case is exact. Linear power products replace summed log-power: the same number with no `log` / `exp` per point.
+- A band contributes through the design of its latest request (not the ramp in flight). An inactive band, or a gain type at exactly 0 dB, contributes nothing; with no contributing band the target is exactly 1.0.
 - Models a centre-panned program: Side bands do not change it; Left / Right bands count at half weight. Stated approximation.
-- Only a band whose target changed recomputes its `p_b`; the sum is refreshed at most every 1024 samples at 48 kHz (scaled with fs) on the control grid, on the audio thread. No message-thread round trip, so offline renders match real-time ones.
-- The gain ramps 100 ms. With `auto_gain` off the gain is exactly 1.0 and the stage is skipped.
+- Only a band whose request changed recomputes its `P_b`; the sum is refreshed at most every 1024 samples at 48 kHz (scaled with fs) on the control grid, on the audio thread. No message-thread round trip, so offline renders match real-time ones.
+- The gain follows a four-pole smoother: within 1e-3 of a step at 100 ms, exact at about 230 ms. With `auto_gain` off the target is exactly 1.0, and once settled the stage is skipped.
 - The +12 dB cap follows the suite lesson that an uncapped auto gain boost is a hazard.
 
 Rejected: measured loudness matching (input vs output RMS / LUFS). It depends on the programme, pumps on transients, and breaks null tests.
@@ -771,7 +774,7 @@ Stage 2 builds a render harness (`tests/render-harness`, suite pattern) and an o
 | **G9 Display truth** | UI-02 | 50 random configurations at 44.1, 48, 88.2, 96, 192 kHz. (a) C++ closed-form response of the designer output vs the response measured from a rendered impulse (LL, RR, MM, SS). (b) The page's JS evaluator run under node on the same section packets vs (a). | (a) ≤ 0.05 dB where the response is above -80 dB. (b) ≤ 0.01 dB. Together within the 0.1 dB of UI-02. |
 | **G10 CPU** | PERF-02 | Render-time ratio, Release, 48 kHz stereo, 512-sample blocks, 60 s. | 24 cuts x 96 dB/oct settled ≤ 10 % of one core; all sweeping ≤ 35 %; 0 bands ≤ 0.3 % and ≤ 1.5x pass-through; cost(24) ≤ 24 x cost(1) x 1.15. INFO (amended 2026-11-13): 24 shelves x 96 dB/oct all sweeping, reported against the 35 % line, not gated (model: 46 % of design cost alone). |
 | **G11 Layout / state** | DSP-07, COMPAT-01 | `param-dump` golden; state round trip; a state with one unknown parameter and one missing parameter; a state with `stateVersion="2"`. | Golden diff empty; round trip exact; foreign states load without error, known values applied, others default. |
-| **G12 Gains** | FUNC-05, FUNC-06 | Output gain at -36, -12, 0, +12, +36 dB on a 1 kHz sine; gain scale 200 % on a ±6 dB bell; auto gain on a +12 dB low shelf at 200 Hz with pink noise band-limited to 40 Hz - 16 kHz. | Output gain ±0.05 dB; 200 % measures as ±12 dB within G1 tolerance; auto gain: output RMS within ±0.5 dB of input RMS on that noise, and two renders are bit-identical; toggling auto gain passes G3. |
+| **G12 Gains** | FUNC-05, FUNC-06 | Output gain at -36, -12, 0, +12, +36 dB on a 1 kHz sine; gain scale 200 % on a ±6 dB bell; auto gain on a +12 dB low shelf at 200 Hz with pink noise band-limited to 40 Hz - 16 kHz. | Output gain ±0.05 dB; 200 % measures as ±12 dB within G1 tolerance; auto gain: output RMS within ±0.5 dB of input RMS on that noise, and two renders are bit-identical; toggling auto gain passes G3. Amended 2026-11-14 (Phase 2.5 plan): the output-gain and auto-gain step, retarget and toggle rows are scored by the G3 step-row measures ((a) ≤ 2.0x the louder held render, both tones; (b) 1 kHz κ ≤ 2.5x; hard control ≥ 10x); output gain −30 → +30 dB in 20 ms and back, and auto gain following a bell gain sweep, are scored by the G3 sweep-row form (≤ 4.0x a same-motion reference). |
 | **G13 Layouts** | COMPAT-02, FUNC-03 | `auval`, pluginval strictness 10 (VST3, AU), mono and stereo; a probe that offers (2,1) and (1,2). | Pass; asymmetric layouts refused; on mono every placement processes the channel. |
 
 ---
