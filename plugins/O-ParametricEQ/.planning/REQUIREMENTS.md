@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-ParametricEQ
 created: 2026-11-12
-lastUpdated: 2026-11-14
+lastUpdated: 2026-11-15
 ---
 
 ## Overview
@@ -23,8 +23,8 @@ lastUpdated: 2026-11-14
 | FUNC-02 | Eight filter types per band: Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch, Band Pass, Tilt Shelf | must | partial | stage-2 |
 | FUNC-03 | Per-band placement: Stereo, Left, Right, Mid, Side | must | complete | stage-2 |
 | FUNC-04 | Per-band bypass and global click-free bypass | must | complete | stage-2 |
-| FUNC-05 | Output gain and gain scale | must | partial | stage-2 |
-| FUNC-06 | Auto gain compensates the curve's loudness change | should | pending | stage-2 |
+| FUNC-05 | Output gain and gain scale | must | complete | stage-2 |
+| FUNC-06 | Auto gain compensates the curve's loudness change | should | complete | stage-2 |
 | FUNC-07 | Presets via the suite preset-manager, with a factory set | should | pending | stage-4 |
 | FUNC-08 | Band solo / listen | should | pending | stage-3 |
 
@@ -103,8 +103,17 @@ lastUpdated: 2026-11-14
 ### FUNC-05: Output gain and gain scale
 
 **Acceptance Criteria:**
-- [ ] Output gain is accurate to ±0.05 dB across its range
+- [x] Output gain is accurate to ±0.05 dB across its range (Phase 2.5: XR-g12o worst 1.59e-7 dB)
 - [x] Gain scale 0 % yields a flat response for all gain-bearing bands; 200 % doubles their dB gain
+
+### FUNC-06: Auto gain
+
+_Complete 2026-11-15 (`stages/2-dsp/VERIFICATION-2.5.md`)._
+
+**Acceptance Criteria:**
+- [x] G12: the negative pink-weighted mean power gain of the target curve (512 cell midpoints, 40 Hz – min (16 kHz, 0.45 fs)), clamped to [−18, +12] dB
+- [x] Toggling auto gain and sweeping a band under it are click-free (G3)
+- [x] Offline and real-time renders are bit-identical
 
 ### DSP-01: Analog-matched response
 
@@ -220,3 +229,5 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 *Phase 2.3 verify, 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): DSP-05 complete; DSP-04 partial (sweeps met, structural changes are 2.4); PERF-01 stays partial until G6 re-runs with the analyzer on (2.6).*
 
 *Phase 2.4 verify, 2026-11-14 (`stages/2-dsp/VERIFICATION-2.4.md`): DSP-03, DSP-04 and FUNC-04 are complete. FUNC-01, FUNC-05, QUAL-01 and PERF-01 stay partial, waiting on presets, output gain, listening and the analyzer G6. Open: the stop-band burst on a steep cut's slope change (Issue 1), held for the hands-on listen.*
+
+*Phase 2.5 verify, 2026-11-15 (`stages/2-dsp/VERIFICATION-2.5.md`): FUNC-05 and FUNC-06 are complete. QUAL-01 and PERF-01 stay partial, waiting on listening and the analyzer G6 (2.6).*

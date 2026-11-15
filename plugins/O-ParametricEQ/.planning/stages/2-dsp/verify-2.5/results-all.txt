@@ -1,0 +1,208 @@
+M0  unmodified control
+   designer: rc 0 | 131 PASS, 0 FAIL, 17 INFO | FAIL: none
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+OS1  settle X 13.0622 -> 10 (slower smoother)
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ref, XO-sweep, XO-snap
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 12 PASS, 5 FAIL | FAIL: T1, T3, T2, S3, S3b
+OS2  two poles instead of four
+   designer: rc 4 | 127 PASS, 4 FAIL, 17 INFO | FAIL: XO-step, XO-ret, XO-ref, XO-snap
+   render:   rc 3 | 119 PASS, 3 FAIL | FAIL: XR-gstep, XR-gret, XR-ref
+   probe:    rc 1 | 12 PASS, 5 FAIL | FAIL: T1, T3, T2, S3, S3b
+OS3  snap tolerance 1e-9 -> 1e-6
+   designer: rc 2 | 129 PASS, 2 FAIL, 17 INFO | FAIL: XO-ref, XO-snap
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 14 PASS, 3 FAIL | FAIL: T1, T3, T2
+OS4  never snaps (never settles after a move)
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ref, XO-snap, XO-unity
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-idle
+   probe:    rc 1 | 14 PASS, 3 FAIL | FAIL: T1, T3, I1
+OS5  setTarget leaves the smoother settled (hard step)
+   designer: rc 7 | 124 PASS, 7 FAIL, 17 INFO | FAIL: XO-step, XO-ret, XO-ref, XO-sweep, XO-stress, XO-snap, XO-alloc
+   render:   rc 4 | 118 PASS, 4 FAIL | FAIL: XR-gstep, XR-gret, XR-ref, XR-gsweep
+   probe:    rc 1 | 12 PASS, 5 FAIL | FAIL: T1, T3, T2, S3, S3b
+OS6  setTarget restarts all stages from the current output
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ret, XO-ref, XO-sweep
+   render:   rc 5 | 117 PASS, 5 FAIL | FAIL: S5, XR-g12o, XR-gstep, XR-ref, XR-idle
+   probe:    rc 1 | 11 PASS, 6 FAIL | FAIL: T1, T3, T2, S3, S3b, I1
+OS9  settled path drops auto gain (g = og only)
+   designer: rc 4 | 127 PASS, 4 FAIL, 17 INFO | FAIL: XO-step, XO-ret, XO-ref, XO-snap
+   render:   rc 5 | 117 PASS, 5 FAIL | FAIL: XR-g12a, XR-gstep, XR-ref, XR-gsweep, XR-seed (i)
+   probe:    rc 1 | 12 PASS, 5 FAIL | FAIL: E1, E2, E3, T2, B1
+OS10  ramp path does not gain R
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-sweep
+   render:   rc 4 | 118 PASS, 4 FAIL | FAIL: XR-gstep, XR-gret, XR-ref, XR-gsweep
+   probe:    rc 1 | 11 PASS, 6 FAIL | FAIL: T1, T3, T2, S3, S3b, B1
+OS11  output gain clamp +-24 dB
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-unity
+   render:   rc 2 | 120 PASS, 2 FAIL | FAIL: XR-g12o, XR-ref
+   probe:    rc 1 | 15 PASS, 2 FAIL | FAIL: T1, T3
+OS12  non-finite output gain reads +36 dB
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-unity
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+OS13  isUnity ignores the pending output target
+   designer: rc 0 | 131 PASS, 0 FAIL, 17 INFO | FAIL: none
+   render:   rc 2 | 120 PASS, 2 FAIL | FAIL: XR-g12o, XR-idle
+   probe:    rc 1 | 14 PASS, 3 FAIL | FAIL: T1, T3, B1
+OS14  isUnity ignores auto gain
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-unity
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-g4an
+   probe:    rc 1 | 14 PASS, 3 FAIL | FAIL: E1, T2, B1
+OS15  auto-gain time 100 -> 50 ms
+   designer: rc 2 | 129 PASS, 2 FAIL, 17 INFO | FAIL: XO-ref, XO-snap
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: T2
+OS16  output-gain time 20 -> 25 ms
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ref, XO-sweep, XO-snap
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 13 PASS, 4 FAIL | FAIL: T1, T3, S3, S3b
+OS18  snap tests the last stage only
+   designer: rc 0 | 131 PASS, 0 FAIL, 17 INFO | FAIL: none
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: T3
+OS19  constant path taken when only og is settled (auto gain jumps)
+   designer: rc 5 | 126 PASS, 5 FAIL, 17 INFO | FAIL: XO-step, XO-ret, XO-ref, XO-snap, XO-unity
+   render:   rc 4 | 118 PASS, 4 FAIL | FAIL: XR-gstep, XR-ref, XR-gsweep, XR-blk5
+   probe:    rc 1 | 14 PASS, 3 FAIL | FAIL: T2, I1, B1
+AG1  256 points
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ag, XO-agref, XO-agrip
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG2  inclusive grid instead of midpoints
+   designer: rc 2 | 129 PASS, 2 FAIL, 17 INFO | FAIL: XO-ag, XO-agref
+   render:   rc 2 | 120 PASS, 2 FAIL | FAIL: XR-ref, XR-seed (i)
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E1
+AG3  top fraction 0.45 -> 0.5 fs
+   designer: rc 0 | 131 PASS, 0 FAIL, 17 INFO | FAIL: none
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E1
+AG4  top 16 -> 20 kHz
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ag, XO-agref, XO-agrip
+   render:   rc 2 | 120 PASS, 2 FAIL | FAIL: XR-ref, XR-seed (i)
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E1
+AG5  bottom 40 -> 20 Hz
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ag, XO-agref, XO-agrip
+   render:   rc 3 | 119 PASS, 3 FAIL | FAIL: XR-g12a, XR-ref, XR-seed (i)
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E1
+AG6  clamp top +12 -> +18
+   designer: rc 3 | 128 PASS, 3 FAIL, 17 INFO | FAIL: XO-ag, XO-agref, XO-agg
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E3
+AG7  clamp bottom -18 -> -24
+   designer: rc 2 | 129 PASS, 2 FAIL, 17 INFO | FAIL: XO-agref, XO-agg
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E3
+AG8  Side bands contribute on stereo (designed, enter no lane)
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-agz
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG9  isDirty never reports an edited evaluated band
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-agid
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG10  isDirty misses non-contributing -> contributing
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-agid
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG11  isDirty ignores an unevaluated band
+   designer: rc 0 | 131 PASS, 0 FAIL, 17 INFO | FAIL: none
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG12  a band is re-designed only when active changes
+   designer: rc 6 | 125 PASS, 6 FAIL, 17 INFO | FAIL: XO-ag, XO-agref, XO-agrip, XO-agid, XO-agg, XO-alloc
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: I1
+AG13  everything-cut guard reads 0 dB
+   designer: rc 2 | 129 PASS, 2 FAIL, 17 INFO | FAIL: XO-agref, XO-agg
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG14  inf guard reads 0 dB
+   designer: rc 0 | 131 PASS, 0 FAIL, 17 INFO | FAIL: none
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG15  mean of the L lane only
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-agref
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E1
+AG16  Mid band left out of the R lane
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-agref
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: E1
+AG18  a 0 dB gain type contributes
+   designer: rc 1 | 130 PASS, 1 FAIL, 17 INFO | FAIL: XO-agz
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+AG19  refresh period one tick longer
+   designer: rc 2 | 129 PASS, 2 FAIL, 17 INFO | FAIL: XO-agsch, XO-alloc
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: T2
+PX1  step 5 returns on an empty list whatever the stage
+   designer: -
+   render:   rc 6 | 116 PASS, 6 FAIL | FAIL: XR-g12o, XR-g4an, XR-idle, XR-gbyp, XR-blk5, XR-meter
+   probe:    rc 1 | 9 PASS, 8 FAIL | FAIL: T1, T3, S1, S2, S3, S2b, S3b, B1
+PX2  step 6: no lane conversion for a non-idle stage
+   designer: -
+   render:   rc 6 | 116 PASS, 6 FAIL | FAIL: XR-g12o, XR-g4an, XR-idle, XR-gbyp, XR-blk5, XR-meter
+   probe:    rc 1 | 7 PASS, 10 FAIL | FAIL: T1, T3, E1, T2n, S1, S2, S3, S2b, S3b, B1
+PX3  step 6: non-idle stage converts L only
+   designer: -
+   render:   rc 4 | 118 PASS, 4 FAIL | FAIL: XR-g12o, XR-g4an, XR-gbyp, XR-blk5
+   probe:    rc 1 | 7 PASS, 10 FAIL | FAIL: T1, T3, E1, T2n, S1, S2, S3, S2b, S3b, B1
+PX4  idle predicate ignores agOn != agWanted
+   designer: -
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 15 PASS, 2 FAIL | FAIL: T2, B1
+PX5  idle predicate ignores dirty bands
+   designer: -
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+PX6  no seeding at the step-4 restart (first block, un-bypass)
+   designer: -
+   render:   rc 4 | 118 PASS, 4 FAIL | FAIL: XR-ref, XR-seed (i), XR-gbyp, XR-unb
+   probe:    rc 1 | 11 PASS, 6 FAIL | FAIL: T1, S1, S2, S3, S2b, S3b
+PX7  no seeding at the step-7 restart
+   designer: -
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-unb
+   probe:    rc 1 | 15 PASS, 2 FAIL | FAIL: S3, S3b
+PX8  seeding leaves auto gain at 1.0 (ramps in)
+   designer: -
+   render:   rc 3 | 119 PASS, 3 FAIL | FAIL: XR-ref, XR-seed (i), XR-unb
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: S1
+PX9  every tick is a refresh tick
+   designer: -
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: T2
+PX10  refresh index from the block-relative position
+   designer: -
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: T2
+PX11  output target applied at the block start, not the next tick
+   designer: -
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 14 PASS, 3 FAIL | FAIL: T1, T1n, T3
+PX13  no peak update on the processBlockBypassed route
+   designer: -
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-meter
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: M1
+PX14  peak overwritten per block (no max-hold)
+   designer: -
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-meter
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: M1
+PX16  stage before the bands
+   designer: -
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 0 | 17 PASS, 0 FAIL | FAIL: none
+PX17  step-7 jump on an empty list whatever the stage (2.4 form)
+   designer: -
+   render:   rc 0 | 122 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 15 PASS, 2 FAIL | FAIL: S3, S3b
+PX18  stage given no R lane
+   designer: -
+   render:   rc 5 | 117 PASS, 5 FAIL | FAIL: XR-g12o, XR-g12a, XR-ref, XR-seed (i), XR-gbyp
+   probe:    rc 1 | 7 PASS, 10 FAIL | FAIL: T1, T3, E1, E3, T2n, S1, S2, S3, S2b, S3b
+PX20  auto_gain never takes effect at a refresh (seeding only)
+   designer: -
+   render:   rc 1 | 121 PASS, 1 FAIL | FAIL: XR-ref
+   probe:    rc 1 | 16 PASS, 1 FAIL | FAIL: T2

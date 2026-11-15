@@ -1,0 +1,40 @@
+=== O-ParametricEQ verify-2.5 probe ===
+[PASS] T1      output gain steps, no band: bit-exact to re-stated P2/P5 440 / 440
+[PASS] T1n     controls: one tick late, N + 1, at the edit sample       3 / 3 differ
+[PASS] T3      random output-gain automation, random blocks: bit-exact  12 / 12 renders, 8017 events
+[INFO] E1      G12 LS 200 +12 12dB Q 1 (harness form) 48k               plugin -6.1665 dB, IR truth -6.1665 (diff 0.00000); inclusive -6.1752, 64 pts -6.1665, fTop 0.5 fs -6.1665
+[INFO] E1      G12 LS 200 +12 12dB Q 0.7071 48k                         plugin -5.4913 dB, IR truth -5.4913 (diff 0.00000); inclusive -5.5010, 64 pts -5.4911, fTop 0.5 fs -5.4913
+[INFO] E1      G12 LS 200 +12 12dB 44.1k                                plugin -5.4913 dB, IR truth -5.4913 (diff 0.00000); inclusive -5.5010, 64 pts -5.4911, fTop 0.5 fs -5.4913
+[INFO] E1      G12 LS 200 +12 12dB 96k                                  plugin -5.4913 dB, IR truth -5.4913 (diff 0.00000); inclusive -5.5010, 64 pts -5.4911, fTop 0.5 fs -5.4913
+[INFO] E1      G12 LS 200 +12 12dB 192k                                 plugin -5.4913 dB, IR truth -5.4913 (diff 0.00000); inclusive -5.5010, 64 pts -5.4911, fTop 0.5 fs -5.4913
+[INFO] E1      G12 LS 200 +12 12dB 22.05k                               plugin -5.7532 dB, IR truth -5.7532 (diff 0.00000); inclusive -5.7618, 64 pts -5.7530, fTop 0.5 fs -5.6931
+[INFO] E1      Bell 1k +6 Q1                                            plugin -1.6276 dB, IR truth -1.6276 (diff 0.00000); inclusive -1.6250, 64 pts -1.6276, fTop 0.5 fs -1.6276
+[INFO] E1      Bell 3k -9 Q4                                            plugin 0.3842 dB, IR truth 0.3842 (diff 0.00000); inclusive 0.3835, 64 pts 0.3842, fTop 0.5 fs 0.3842
+[INFO] E1      HS 8k +6 12dB                                            plugin -1.0485 dB, IR truth -1.0485 (diff 0.00000); inclusive -1.0534, 64 pts -1.0482, fTop 0.5 fs -1.0485
+[INFO] E1      HS 6k +12 12dB 22.05k (fTop 9.9k)                        plugin -2.3266 dB, IR truth -2.3266 (diff 0.00000); inclusive -2.3400, 64 pts -2.3255, fTop 0.5 fs -2.6210
+[INFO] E1      LowCut 100 24dB                                          plugin 1.0051 dB, IR truth 1.0051 (diff 0.00000); inclusive 1.0082, 64 pts 1.0051, fTop 0.5 fs 1.0051
+[INFO] E1      HighCut 5k 48dB                                          plugin 1.1060 dB, IR truth 1.1060 (diff 0.00000); inclusive 1.1090, 64 pts 1.1060, fTop 0.5 fs 1.1060
+[INFO] E1      Left Bell 1k +12 Q1 (stereo lanes)                       plugin -2.6585 dB, IR truth -2.6585 (diff 0.00000); inclusive -2.6546, 64 pts -2.6585, fTop 0.5 fs -2.6585
+[INFO] E1      Right LS 300 +9                                          plugin -2.7690 dB, IR truth -2.7690 (diff 0.00000); inclusive -2.7725, 64 pts -2.7690, fTop 0.5 fs -2.7690
+[INFO] E1      Mid Bell 1k +12 Q1                                       plugin -4.2955 dB, IR truth -4.2955 (diff 0.00000); inclusive -4.2902, 64 pts -4.2955, fTop 0.5 fs -4.2955
+[INFO] E1      mono, Side Bell 1k +12 Q1                                plugin -4.2955 dB, IR truth -4.2955 (diff 0.00000); inclusive -4.2902, 64 pts -4.2955, fTop 0.5 fs -4.2955
+[INFO] E1      two bands: Bell 1k +6, LS 100 -6                         plugin -1.0778 dB, IR truth -1.0778 (diff 0.00000); inclusive -1.0737, 64 pts -1.0779, fTop 0.5 fs -1.0778
+[INFO] E1      Tilt 1k +6                                               plugin -0.4489 dB, IR truth -0.4489 (diff 0.00000); inclusive -0.4499, 64 pts -0.4489, fTop 0.5 fs -0.4489
+[INFO] E1      Notch 2k Q2 + BP 500 Q1 (L / R)                          plugin 2.6443 dB, IR truth 2.6443 (diff 0.00000); inclusive 2.6449, 64 pts 2.6443, fTop 0.5 fs 2.6443
+[PASS] E1      auto gain = IR-measured 512-midpoint pink mean           19 / 19 within 0.001 dB, worst 0.00000 dB
+[PASS] E2      Side band: auto on == off (Mid control differs)          equal; control differs
+[PASS] E3      clamps: +12 dB (narrow pass), -18 dB (two +30 dB bells)  12.00000 / -18.00000 dB
+[PASS] T2      auto-gain toggle: refresh tick, 100 ms smoother (R lane) 12 / 12, worst -144.5 dB re peak
+[PASS] T2n     controls: refresh one tick late, R - 1                   24 / 24 differ
+[PASS] S1      seeded at open: +12 dB output, auto gain: constant from 0 8 / 8
+[PASS] S2      un-bypass by parameter, gain edited while bypassed       blend err -150.5 dB; from u + N bit-exact: yes
+[PASS] S3      latched un-bypass mid-block (512), gain edit in the fade err -150.5 dB; controls: fade 1 sample late -58.3 dB, unseeded ramp -58.3 dB
+[PASS] S2b     un-bypass via processBlockBypassed, gain edited while bypassed blend err -150.5 dB; from u + N bit-exact: yes
+[PASS] S3b     latched un-bypass mid-block, processBlockBypassed route  err -150.5 dB; controls: fade 1 sample late -58.3 dB, unseeded ramp -58.3 dB
+[PASS] I1      auto gain returns to idle: input bit-exact after (ms)    44.1k/1ch 192.4 ms  44.1k/2ch 192.4 ms  48.0k/1ch 191.8 ms  48.0k/2ch 191.8 ms  96.0k/1ch 191.9 ms  96.0k/2ch 191.9 ms  
+[PASS] I2      G4 (a) auto on; 24 bands at gain scale 0, auto on        68 / 68 memcmp equal
+[INFO] I3      auto-gain toggles, no band, subnormal input              2048 samples differ in [4803, 10303]
+[PASS] B1      block identity with gain / auto / band events; offline   all bit-identical; 44.1k:66ev 48.0k:65ev 96.0k:134ev
+[PASS] M1      meter max-hold, reset, routes, mono                      processed: 0.25 / 2 / 0 bypassed: 0.25 / 2 / 0; mono 0.5 / 0 / 0
+
+17 PASS, 0 FAIL
