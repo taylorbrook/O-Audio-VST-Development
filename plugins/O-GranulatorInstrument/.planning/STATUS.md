@@ -2,9 +2,9 @@
 plugin: O-GranulatorInstrument
 stage: 4
 status: installed
-version: 1.3.1
+version: 1.3.2
 current_phase: 4-polish
-gsd_phase: improve_v1_3_1_drones_keytrack_built_installed_daw_check_pending
+gsd_phase: improve_v1_3_2_preset_reverb_cut_built_installed_daw_check_pending
 last_updated: 2026-11-14
 complexity_score: 5.0
 complexity_tier: 6

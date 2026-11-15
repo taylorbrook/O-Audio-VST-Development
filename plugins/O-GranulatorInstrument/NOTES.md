@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.1
+- **Version:** 1.3.2
 - **Type:** Synth (Sample-Based Polyphonic Granular)
 
 ## Lifecycle Timeline
 
+- **2026-11-14:** v1.3.2 — factory Reverb Mix lowered on all 163 values (max(−10 points, ÷2)); built and installed (VST3 + AU). Backup of 1.3.1: `backups/O-GranulatorInstrument/v1.3.1/`
 - **2026-11-14:** v1.3.1 — all 20 Drones track the key at 100 % (were 0–50 %); Bassoon Pedal re-pitched (s1 −24 st) so it stays in tune; harness KT1 gates 100 % on every enabled Keys / Pads / Drones stream; built and installed (VST3 + AU). Backup of 1.3.0: `backups/O-GranulatorInstrument/v1.3.0/`
 - **2026-11-13:** Installed to system folders (VST3 + AU)
 - **2026-11-13:** v1.2.0 — 41 built-in sources (8 + 14 recordings + 19 generated) in a grouped Factory list; a pick sets the stream's root; built and installed (VST3 + AU). Backup of 1.1.0: `backups/O-GranulatorInstrument/v1.1.0/`

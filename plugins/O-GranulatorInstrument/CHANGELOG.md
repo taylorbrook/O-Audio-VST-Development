@@ -1,5 +1,17 @@
 # O-GranulatorInstrument Changelog
 
+## [1.3.2] - 2026-11-14
+
+### Changed
+
+- **Less reverb across the factory bank.** Every factory preset that uses reverb has a lower Reverb Mix on every stream that sets it: 10 points lower, or half for light settings (under 20 %), so a light touch is halved rather than removed. For example 40 % → 30 %, 60 % → 50 %, 15 % → 8 %. That is 163 values in all. Reverb Size, Damp and Position, and the three mod routes that move Reverb Mix, are unchanged.
+
+### Notes
+
+- Only factory preset values change; no parameter, range or session-format change. Saved sessions keep their own reverb settings.
+- The factory preset files are rewritten once on first launch of 1.3.2; your own presets are not touched.
+- Testing: render harness 564 PASS / 0 FAIL. The Pads reverb rule in FP0 moves from 30–60 % to 20–50 %. FP2 loudness spread is 7.22 dB, up from 6.04 and within the 9 dB limit. auval PASS.
+
 ## [1.3.1] - 2026-11-14
 
 ### Changed

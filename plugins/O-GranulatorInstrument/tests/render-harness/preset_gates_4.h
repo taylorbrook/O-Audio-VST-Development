@@ -1244,7 +1244,7 @@ namespace { namespace pg4
                         const float pt = val (s, ("s" + juce::String (k) + "_pitch").toRawUTF8(), 0.0f);
                         interval = interval || pt == 7.0f || pt == 12.0f || pt == -12.0f;
                     }
-                const bool rvOk = anyOnStream (s, [&s] (int k) { const float rv = sval (s, k, "reverb_mix", 0.0f); return rv >= 30 && rv <= 60; });
+                const bool rvOk = anyOnStream (s, [&s] (int k) { const float rv = sval (s, k, "reverb_mix", 0.0f); return rv >= 20 && rv <= 50; });   // 1.3.2: was 30–60 (reverb cut 10 points)
                 chk (on >= 2 && interval && val (s, "amp_attack", 20) >= 700 && val (s, "amp_release", 1500) >= 2500 && rvOk
                              && routed ([] (const Route& r) { return r.src >= 1 && r.src <= 4 && r.dest.endsWith ("_position"); }),
                          "Pads " + n);
