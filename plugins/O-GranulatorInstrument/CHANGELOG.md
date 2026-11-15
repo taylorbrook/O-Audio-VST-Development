@@ -1,5 +1,17 @@
 # O-GranulatorInstrument Changelog
 
+## [1.3.1] - 2026-11-14
+
+### Changed
+
+- **All 20 Drones now follow the keyboard (Key Track 100 % on every stream).** They tracked only 0–50 %, so most keys played nearly the same pitch. Every Keys and Pads preset already tracked fully; that is now enforced by a test across all three categories.
+- **Drones · Bassoon Pedal** was a fixed C1 pedal. It now sits two octaves under the played note, with its reed line an octave under; played at C3 it sounds as before. Its description and Wind Tunnel's are updated to match.
+
+### Notes
+
+- Only the 20 Drones presets change; no parameter, range or session-format change. Sessions that use a Drones preset keep their saved values.
+- The factory preset files are rewritten once on first launch of 1.3.1; your own presets are not touched.
+
 ## [1.3.0] - 2026-11-14
 
 ### Added

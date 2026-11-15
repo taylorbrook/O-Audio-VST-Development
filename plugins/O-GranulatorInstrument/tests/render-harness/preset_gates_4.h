@@ -1190,6 +1190,15 @@ namespace { namespace pg4
                 const auto w = addedWobble (s);
                 chk (w.isEmpty(), "realism wobble " + n + ": " + w);
             }
+            if (c == "Keys" || c == "Pads" || c == "Drones")
+            {
+                // KT1 (1.3.1): every enabled stream of a Keys / Pads / Drones preset
+                // tracks the key at 100 % (a pitched instrument follows the keyboard).
+                bool ktFull = true;
+                for (int k = 1; k <= 4; ++k)
+                    if (streamOn (s, k)) ktFull = ktFull && sval (s, k, "key_track", 100.0f) == 100.0f;
+                chk (ktFull, "KT1 key track 100 % " + n);
+            }
             if (c == "Field")
             {
                 // P7: >= 1 enabled stream on a field source with key_track <= 50, size >= 150 ms,
@@ -1255,7 +1264,8 @@ namespace { namespace pg4
             if (c == "Drones")
             {
                 const bool fbOk = anyOnStream (s, [&s] (int k) { const float fb = sval (s, k, "feedback", 0); return fb >= 30 && fb <= 80 && sval (s, k, "fb_diffusion", 0) > 0; });
-                chk (val (s, "s1_key_track", 100) <= 50 && val (s, "s1_scan_mode", 1) == 2 && fbOk
+                // 1.3.1: Drones track the key fully (was s1 <= 50) — gated by KT1 above.
+                chk (val (s, "s1_scan_mode", 1) == 2 && fbOk
                              && val (s, "amp_release", 1500) >= 5000,
                          "Drones " + n);
                 drFreeze += val (s, "freeze", 0) == 1 ? 1 : 0;
