@@ -1,0 +1,95 @@
+O-ParametricEQ verify 2.4 probe (independent of the harnesses). N = round (0.020 fs); w(n) = 0.5 - 0.5 cos (pi (n+1)/(N+1))
+
+-- 1. Crossfade timing and shape (type change, steady 1 kHz tone, 4 rates) --
+[PASS] F1     Bell+12 -> High Shelf+12 @1k, 1 kHz tone                   44.1 kHz N=882: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+882 = 20.000 ms); raised-cos blend err 5.59e-08 of peak (lim 1e-06); linear 8.45e-02
+[PASS] F1     Bell+12 -> High Shelf+12 @1k, 1 kHz tone                   48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 5.65e-08 of peak (lim 1e-06); linear 8.45e-02
+[PASS] F1     Bell+12 -> High Shelf+12 @1k, 1 kHz tone                   96.0 kHz N=1920: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+1920 = 20.000 ms); raised-cos blend err 5.55e-08 of peak (lim 1e-06); linear 8.46e-02
+[PASS] F1     Bell+12 -> High Shelf+12 @1k, 1 kHz tone                   192.0 kHz N=3840: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+3840 = 20.000 ms); raised-cos blend err 5.86e-08 of peak (lim 1e-06); linear 8.47e-02
+[PASS] F1n    Bell+12 -> High Shelf+12 @1k, white noise                  48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 8.15e-08 of peak (lim 1e-06); linear 8.66e-02
+
+-- 2. Same for slope, placement, enable, band bypass (48 kHz, noise, L != R) --
+[PASS] F2s    Low Cut 200 Hz slope 24 -> 48 dB/oct                       48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 7.49e-08 of peak (lim 1e-06); linear 2.17e-02
+[PASS] F2pm   Bell+9 @800 placement Stereo -> Mid                        48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 6.19e-08 of peak (lim 1e-06); linear 2.74e-02
+[PASS] F2pl   Bell+9 @800 placement Stereo -> Left                       48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 5.66e-08 of peak (lim 1e-06); linear 3.41e-02
+[PASS] F2e1   Bell+9 @800 enable off -> on                               48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 5.70e-08 of peak (lim 1e-06); linear 3.41e-02
+[PASS] F2e0   Bell+9 @800 enable on -> off                               48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 6.45e-08 of peak (lim 1e-06); linear 3.41e-02
+[PASS] F2b1   Bell+9 @800 band bypass off -> on                          48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 6.45e-08 of peak (lim 1e-06); linear 3.41e-02
+[PASS] F2b0   Bell+9 @800 band bypass on -> off                          48.0 kHz N=960: pre-edit==old bit; ==fresh-new from e+N bit (bit-equal from e+960 = 20.000 ms); raised-cos blend err 5.70e-08 of peak (lim 1e-06); linear 3.41e-02
+[PASS] F2n    control: linear weights (n+1)/(N+1) do not match           smallest linear-blend error over the 12 cases above 2.17e-02 of peak (must be > 1e-04)
+
+-- 3. No click (48 kHz, block 512, L 0.5 / R 0.3 +0.7 rad) --
+[PASS] C1     50 Hz tone: Low Cut 100 Hz 48 dB/oct enable off -> on      max 2nd diff over e +-100 ms = 1.241x the louder held render (lim 2.0x); hard splice 688.9x; blend err 3.0e-08; ==fresh from e+N yes | peaks: held old 0.500 new 0.002, render after e 0.433, incoming-from-rest 0.418
+[FAIL] C2     50 Hz tone: Low Cut 60 Hz slope 48 -> 96 dB/oct            max 2nd diff over e +-100 ms = 3.888x the louder held render (lim 2.0x); hard splice 120799.7x; blend err 1.7e-08; ==fresh from e+N yes | peaks: held old 0.091 new 0.024, render after e 0.107, incoming-from-rest 0.416
+[PASS] C3     50 Hz tone: Bell +18 @50 -> Low Shelf -18 @50              max 2nd diff over e +-100 ms = 1.000x the louder held render (lim 2.0x); hard splice 17690.3x; blend err 5.5e-08; ==fresh from e+N yes | peaks: held old 3.972 new 0.177, render after e 3.440, incoming-from-rest 0.431
+[PASS] C4     1 kHz tone: Bell +18 @1k -> Notch @1k                      max 2nd diff over e +-100 ms = 1.000x the louder held render (lim 2.0x); hard splice 45.5x; blend err 5.6e-08; ==fresh from e+N yes | peaks: held old 3.972 new 0.000, render after e 3.971, incoming-from-rest 0.406
+[PASS] C5     1 kHz tone: Bell +18 @1k -> High Shelf +18 @2k             max 2nd diff over e +-100 ms = 1.000x the louder held render (lim 2.0x); hard splice 10.1x; blend err 5.1e-08; ==fresh from e+N yes | peaks: held old 3.972 new 0.609, render after e 3.971, incoming-from-rest 2.815
+[PASS] C6     1 kHz tone: High Cut 2k 24 dB/oct placement Stereo -> Left max 2nd diff over e +-100 ms = 1.000x the louder held render (lim 2.0x); hard splice 29.6x; blend err 6.2e-08; ==fresh from e+N yes | peaks: held old 0.453 new 0.453, render after e 0.453, incoming-from-rest 0.454
+[PASS] C0n    control: hard splice (old | fresh new at e) reads >= 10x   smallest hard reading 10.1x
+[INFO] C2d    50 Hz tone: Low Cut 30 Hz 48 -> 96 dB/oct, block 512       max 2nd diff over e +-100 ms = 1.249x the louder held render (lim 2.0x); hard splice 37572.5x; blend err 5.8e-08; ==fresh from e+N yes | peaks: held old 0.472 new 0.492, render after e 0.536, incoming-from-rest 0.424
+[INFO] C2d    50 Hz tone: Low Cut 40 Hz 48 -> 96 dB/oct, block 512       max 2nd diff over e +-100 ms = 1.173x the louder held render (lim 2.0x); hard splice 11928.6x; blend err 6.8e-08; ==fresh from e+N yes | peaks: held old 0.410 new 0.463, render after e 0.485, incoming-from-rest 0.422
+[INFO] C2d    50 Hz tone: Low Cut 50 Hz 48 -> 96 dB/oct, block 512       max 2nd diff over e +-100 ms = 1.698x the louder held render (lim 2.0x); hard splice 21960.3x; blend err 3.1e-08; ==fresh from e+N yes | peaks: held old 0.247 new 0.247, render after e 0.234, incoming-from-rest 0.419
+[INFO] C2d    50 Hz tone: Low Cut 60 Hz 48 -> 96 dB/oct, block 32        max 2nd diff over e +-100 ms = 2.359x the louder held render (lim 2.0x); hard splice 38144.1x; blend err 3.7e-08; ==fresh from e+N yes | peaks: held old 0.091 new 0.024, render after e 0.091, incoming-from-rest 0.186
+[INFO] C2d    50 Hz tone: Low Cut 80 Hz 48 -> 96 dB/oct, block 512       max 2nd diff over e +-100 ms = 29.183x the louder held render (lim 2.0x); hard splice 944007.1x; blend err 1.6e-08; ==fresh from e+N yes | peaks: held old 0.011 new 0.000, render after e 0.074, incoming-from-rest 0.410
+[INFO] C2d    50 Hz tone: Low Cut 120 Hz 48 -> 96 dB/oct, block 512      max 2nd diff over e +-100 ms = 258.691x the louder held render (lim 2.0x); hard splice 7310604.7x; blend err 8.8e-09; ==fresh from e+N yes | peaks: held old 0.000 new 0.000, render after e 0.046, incoming-from-rest 0.399
+[INFO] C2d    50 Hz tone: Low Cut 60 Hz 96 -> 48 dB/oct, block 512       max 2nd diff over e +-100 ms = 2.662x the louder held render (lim 2.0x); hard splice 119023.8x; blend err 3.3e-08; ==fresh from e+N yes | peaks: held old 0.024 new 0.091, render after e 0.128, incoming-from-rest 0.424
+[INFO] C2d    50 Hz tone: Low Cut 60 Hz 24 -> 48 dB/oct, block 512       max 2nd diff over e +-100 ms = 1.952x the louder held render (lim 2.0x); hard splice 76387.2x; blend err 3.2e-08; ==fresh from e+N yes | peaks: held old 0.160 new 0.091, render after e 0.153, incoming-from-rest 0.424
+[INFO] C2d    50 Hz tone: Low Cut 60 Hz 12 -> 24 dB/oct, block 512       max 2nd diff over e +-100 ms = 1.504x the louder held render (lim 2.0x); hard splice 65358.7x; blend err 3.3e-08; ==fresh from e+N yes | peaks: held old 0.203 new 0.160, render after e 0.202, incoming-from-rest 0.428
+[INFO] C2d    50 Hz tone: Low Cut 60 Hz 96 dB/oct enable off -> on       max 2nd diff over e +-100 ms = 1.366x the louder held render (lim 2.0x); hard splice 800.9x; blend err 3.0e-08; ==fresh from e+N yes | peaks: held old 0.500 new 0.024, render after e 0.433, incoming-from-rest 0.416
+
+-- 4. Latch (48 kHz, block 32, N = 960; edits at e, e+320, e+480, e+640) --
+[PASS] L1     Bell->HS at e, ->LS at e+320: LS fade waits for e+N        fade 1 err 8.1e-08; fade 2 [e+N, e+2N) vs LS-from-rest at e+N err 8.2e-08; ==LS fresh from e+2N bit; unlatched model (LS from e+320) matches: no
+[PASS] L2     three edits in one fade (LS, Notch, BandPass): only the last fade 2 vs HS -> BandPass-from-rest at e+N err 8.0e-08; ==BandPass fresh from e+2N bit (no third fade)
+[PASS] L3     Bell->HS, mid-fade ->LS then ->HS again: no second fade    ==HS fresh-from-e from e+N: bit (first diff after e: 960)
+[PASS] L4     Bell->HS at e, back to Bell at e+320 (A->B->A)             observed: HS fade completes, then a 2nd fade to Bell FROM REST at e+N (err 6.8e-08), ==Bell-from-rest(e+N) from e+2N bit; stays HS no; rejoins the original Bell render yes
+[INFO] L5     Bell->HS+12 at e, gain ->+6 at e+320 (continuous, mid-fade) fade 1 vs unmodified HS+12 blend err 3.7e-01 from e (diverges after e+320 => gain went to the incoming slot at once: yes); from e+N+40 ms vs static HS+6 0.0e+00 of peak
+[PASS] L5     continuous edit mid-fade arrives at the static design      rel diff 0.00e+00 (lim 1e-5, IIR state decays)
+
+-- 5. Global bypass (48 kHz, block 32; input noise with subnormal samples sprinkled) --
+[PASS] B1     bypass param: 20 ms to dry, dry bit-exact, back to fresh   to-dry blend err 5.0e-08; ==input (subnormals intact) from e+960 (N=960) through u: bit; un-bypass blend vs fresh-from-u err 5.3e-08; ==fresh from u+N bit
+[PASS] B2     processBlockBypassed: same path                            to-dry blend err 5.0e-08; ==input (subnormals intact) from e+960 (N=960) through u: bit; un-bypass blend vs fresh-from-u err 5.3e-08; ==fresh from u+N bit
+[PASS] B3     un-bypass at e+320 during the fade to dry: latched, no reversal fade to dry completes (err 5.0e-08); fade back starts at e+N from rest (err 4.9e-08); ==fresh-from-(e+N) from e+2N bit
+[PASS] B3n    control: a reversing envelope does not match               reversing-model error 5.12e-01 of peak
+[PASS] B4     re-bypass at u+320 during the fade back: latched           fade back completes (err 5.3e-08); fade to dry from u+N (err 7.3e-08); ==input from u+2N bit
+[PASS] B5     session opens bypassed (bands on): output == input from sample 0 first differing sample -1
+
+-- 6. Changed while bypassed: in effect after un-bypass (vs fresh instance started at u) --
+[PASS] B6s    structural+continuous edit while bypassed                  param: blend err 5.9e-08, ==fresh from u+N bit  pBB: blend err 5.9e-08, ==fresh from u+N bit
+[PASS] B6c    continuous-only edit while bypassed                        param: blend err 6.8e-08, ==fresh from u+N bit  pBB: blend err 6.8e-08, ==fresh from u+N bit
+[PASS] B6f    continuous edit during the fade to dry (e+320)             param: blend err 6.8e-08, ==fresh from u+N bit  pBB: blend err 6.8e-08, ==fresh from u+N bit
+[PASS] B6r    continuous edit 5 ms before bypass (ramp in flight)        param: blend err 6.8e-08, ==fresh from u+N bit  pBB: blend err 6.8e-08, ==fresh from u+N bit
+
+-- 7. Sleep / wake (48 kHz, block 32) --
+[PASS] S0n    control: awake +1 dB bell flushes subnormal input to 0     57600 of 57600 output samples exactly 0
+[PASS] S1     Bell at exactly 0 dB from the start: untouched             output == input from sample 0 (0.00 ms)
+[PASS] S2     Bell +6 -> 0 dB: sleeps (input untouched) within 100 ms    untouched from edit + 90.00 ms (ramp 20 + sleep 50 + fade 20 = 90 nominal; lim 100)
+[PASS] S3     Bell +12, gain_scale 100 -> 0 %: sleeps within 100 ms      untouched from edit + 90.00 ms
+[PASS] S4     Bell at 0.0001 dB never sleeps, never identity             last 300 ms: subnormal samples passed 0 (0 = band still runs); 1 kHz tone samples differing from input 28800 of 28800
+[PASS] S5     asleep 0 dB, gain -> 0.0001 dB: wakes                      untouched before edit yes; subnormals passed after edit+20 ms: 0
+[PASS] S6     asleep 0 dB bell, gain -> +12 on a 1 kHz tone: no click    max 2nd diff 1.000x the louder held (lim 2.0x)
+[PASS] S7     ... and arrives at the static +12 dB design                from edit+60 ms: max |P - static| 0.00e+00 of peak (lim 1e-5); before edit == input bit
+
+-- 8. Block-size independence (events on multiples of 2048 / 4096) --
+[PASS] K1     48 kHz, 4 bands, scripted structural+bypass events         23 events; host/prepared vs 2048/2048: 1/1:= 32/32:= 64/64:= 512/512:= 2048/512:= 1/2048:= 
+[PASS] K2     192 kHz (N=3840 > 2048: latches occur)                     95 events; host/prepared vs 2048/2048: 1/1:= 32/32:= 64/64:= 512/512:= 2048/512:= 1/2048:= 
+[PASS] K3     host block > prepared (4096 on 512 / 100), events every 4096 vs 512/512: 4096/512 1, 4096/100 1, 64/4096 1
+
+-- 9. prepareToPlay / state mid-fade (48 kHz, block 32) --
+[PASS] R1     prepareToPlay at e+320 mid-fade: settles on the new type, no fade ==fresh HS instance from e+320 bit (first diff at e+320+0)
+[PASS] R2     re-prepared at 96 kHz mid-fade, then HS->LS: equals a fresh 96 kHz instance bit-equal from re-prepare yes
+[PASS] R3     state saved mid-fade holds the requested (new) settings    restored instance == static HS instance: bit
+[PASS] R4     setStateInformation (LS -6 @300) mid-fade: latched like an edit fade 1 err 7.7e-08; fade 2 at e+N to LS-from-rest err 7.9e-08; ==LS fresh(e+N) from e+2N bit
+
+-- 10. NaN / inf during a fade (48 kHz, host block 64, prepared 512) --
+[PASS] N1     NaN in L at e+100 during a type fade                       28 non-finite outputs, last at e+127 (its host block ends at e+128); 200 ms after the fade vs clean HS run 0.0e+00 of peak (lim 1e-5)
+[PASS] N2     +inf in R at e+100 during a type fade                      28 non-finite outputs, last at e+127 (its host block ends at e+128); 200 ms after the fade vs clean HS run 0.0e+00 of peak (lim 1e-5)
+
+-- 11. 24 bands change type at once (48 kHz, block 512) --
+[PASS] M1     24 bands Bell -> LS/HS/Tilt/Notch, 50 Hz tone              max 2nd diff 1.439x held (lim 2.0x); vs serial chain of 24 single-band fades: 1.8e-07 of peak overall, 1.2e-07 in the fade (lim 1e-05; chain edited one block late 1.0e+00); == one fresh instance only from e+237.2 ms (from-rest tails of the series chain decay)
+[PASS] M2     24 bands Bell -> LS/HS/Tilt/Notch, 1 kHz tone              max 2nd diff 1.000x held (lim 2.0x); vs serial chain of 24 single-band fades: 3.5e-07 of peak overall, 2.4e-07 in the fade (lim 1e-05; chain edited one block late 6.6e-01); == one fresh instance only from e+236.0 ms (from-rest tails of the series chain decay)
+[PASS] M0n    control: hard splice of the 24-band change                 smallest 45.7x (>= 10x)
+
+-- 12. Mid / Side structural fade (48 kHz, block 64) --
+[PASS] MS1    Mid band Bell->HS on L=R: both equal the Stereo band's     worst diff 0.0e+00 of peak (in the fade 0.0e+00); channel symmetry err 0.0e+00 (lim 1e-06)
+[PASS] MS2    Side band Bell->HS on L=-R: L equals Stereo band's, R=-L   worst diff 0.0e+00 of peak (in the fade 0.0e+00); channel symmetry err 0.0e+00 (lim 1e-06)
+
+56 PASS, 1 FAIL

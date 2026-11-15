@@ -1,0 +1,171 @@
+M0  unmodified control
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+F1  linear weights instead of raised cosine
+   designer: rc 6 | 108 PASS, 6 FAIL, 16 INFO | FAIL: XF-g3, XF-ref, XF-refn, XF-lat, XF-slp, XF-byp
+   render:   rc 4 | 96 PASS, 4 FAIL | FAIL: TK, XR-g3, XR-g3b, XR-ref
+F2  fade length 10 ms
+   designer: rc 9 | 105 PASS, 9 FAIL, 16 INFO | FAIL: XF-g3, XF-g3k, XF-ref, XF-lat, XF-lane, XF-g4, XF-wake, XF-byp, XF-blk
+   render:   rc 3 | 97 PASS, 3 FAIL | FAIL: XR-g3, XR-g3k, XR-ref
+F3  fade length 40 ms
+   designer: rc 8 | 106 PASS, 8 FAIL, 16 INFO | FAIL: XF-ref, XF-rest, XF-lat, XF-lane, XF-g4, XF-wake, XF-byp, XF-idle
+   render:   rc 3 | 97 PASS, 3 FAIL | FAIL: U2, TK, XR-ref
+F4  weight index n instead of n + 1 (first weight 0)
+   designer: rc 2 | 112 PASS, 2 FAIL, 16 INFO | FAIL: XF-ref, XF-wake
+   render:   rc 2 | 98 PASS, 2 FAIL | FAIL: TK, XR-ref
+F5  weight denominator N instead of N + 1 (last weight 1)
+   designer: rc 3 | 111 PASS, 3 FAIL, 16 INFO | FAIL: XF-ref, XF-g4, XF-wake
+   render:   rc 2 | 98 PASS, 2 FAIL | FAIL: XR-ref, XR-g4f
+F6  pre-roll 2 ms instead of 0
+   designer: rc 8 | 106 PASS, 8 FAIL, 16 INFO | FAIL: XF-ref, XF-rest, XF-lat, XF-lane, XF-g4, XF-wake, XF-byp, XF-idle
+   render:   rc 9 | 91 PASS, 9 FAIL | FAIL: A1, H1 (ii), U2, M3, TK, XR-ref, XR-rest, XR-g4f, XR-byp
+F7  last stored weight forced to 1.0 (fade N - 1 samples)
+   designer: rc 3 | 111 PASS, 3 FAIL, 16 INFO | FAIL: XF-ref, XF-g4, XF-wake
+   render:   rc 2 | 98 PASS, 2 FAIL | FAIL: XR-ref, XR-g4f
+F8  weight past the table end is the last stored weight, not 1
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+F9  sleep after 25 ms
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-wake
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+BF1  bypass fade reverses mid-fade (position kept)
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-byp
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+BF2  latched opposite fade dropped at the fade end (starts at the next block instead)
+   designer: rc 2 | 112 PASS, 2 FAIL, 16 INFO | FAIL: XF-byp, XF-blk
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: XR-blk
+BF3  jump does nothing
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: TK
+BF4  end of toBypass reaches processed, not bypassed (idle never reached; loops)
+   designer: rc 3 | 111 PASS, 3 FAIL, 16 INFO | FAIL: XF-byp, XF-blk, XF-alloc
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: XR-blk
+BF5  bypass mix in complementary form (1 - w) a + w b
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB1  configure does not reset the slot (incoming slot warm start; retire still resets)
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB1b  warm start: neither configure nor retire resets the slot
+   designer: rc 2 | 112 PASS, 2 FAIL, 16 INFO | FAIL: XF-g3, XF-idle
+   render:   rc 5 | 95 PASS, 5 FAIL | FAIL: H1 (ii), U2, M3, XR-g3, XR-byp
+SB2  outgoing slot state cleared at a structural fade start
+   designer: rc 6 | 108 PASS, 6 FAIL, 16 INFO | FAIL: XF-g3, XF-g3k, XF-ref, XF-rest, XF-lat, XF-byp
+   render:   rc 4 | 96 PASS, 4 FAIL | FAIL: XR-g3, XR-g3k, XR-ref, XR-rest
+SB3  slot mix b + (1 - w)(a - b) (same weights, other rounding)
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB3b  slot mix complementary (1 - w) a + w b
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB3c  slot mix b + w (a - b) (direction reversed)
+   designer: rc 6 | 108 PASS, 6 FAIL, 16 INFO | FAIL: XF-g3, XF-g3k, XF-ref, XF-lat, XF-slp, XF-byp
+   render:   rc 4 | 96 PASS, 4 FAIL | FAIL: TK, XR-g3, XR-g3k, XR-ref
+SB4  latch keeps the first request during a fade, not the latest
+   designer: rc 2 | 112 PASS, 2 FAIL, 16 INFO | FAIL: XF-lat, XF-g5
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: S5
+SB5  latch never fires at the fade end
+   designer: rc 4 | 110 PASS, 4 FAIL, 16 INFO | FAIL: XF-lat, XF-lane, XF-blk, XF-g5
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: S5
+SB6  fade end inside a call deferred to the next call's start
+   designer: rc 2 | 112 PASS, 2 FAIL, 16 INFO | FAIL: XF-lat, XF-wake
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB6b  after a fade ends inside a call the rest of the call is left dry
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-blk
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB7  a request identical to the realised input starts a fade
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 2 | 98 PASS, 2 FAIL | FAIL: U3, M2c
+SB8  sleep / zero test |gain| < 1e-3 instead of exactly 0
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-slpc
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: XR-g4n
+SB9  sleep ignores whether the ramp has arrived
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB10  sleep never
+   designer: rc 3 | 111 PASS, 3 FAIL, 16 INFO | FAIL: XF-g4, XF-slp, XF-slpc
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB11  wake snaps: current slot configured at the full target, no fade
+   designer: rc 2 | 112 PASS, 2 FAIL, 16 INFO | FAIL: XF-slp, XF-wake
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: TK
+SB11b  wake fades in the full-gain design (no 0 dB start, no ramp)
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-wake
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: TK
+SB12  touchesLane: current slot only (misses the incoming slot's placement)
+   designer: rc 7 | 107 PASS, 7 FAIL, 16 INFO | FAIL: XF-g3, XF-g3k, XF-ref, XF-lat, XF-lane, XF-slp, XF-blk
+   render:   rc 6 | 94 PASS, 6 FAIL | FAIL: U2, M3, TK, XR-g3, XR-g3k, XR-ref
+SB12b  touchesLane ignores a latched request's placement
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-lane
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB13  goIdle does not retire the current slot
+   designer: rc 2 | 112 PASS, 2 FAIL, 16 INFO | FAIL: XF-g4, XF-idle
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB14  continuous changes on a fading band are latched (not sent to the incoming slot)
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-cont
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB15  continuous change during a fade goes to the outgoing slot
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-cont
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB16  startSettled does not drop a fade in flight
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+SB17  only the current slot gets control ticks (incoming slot never ticks)
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-wake
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: TK
+SB18  clearState does not clear the filter state
+   designer: rc 1 | 113 PASS, 1 FAIL, 16 INFO | FAIL: XF-nan
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: S6
+PX1  processBlockBypassed takes a hard path (buffer untouched, clock advanced, no fade)
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 5 | 95 PASS, 5 FAIL | FAIL: H1 (ii), XR-g3b, XR-g4f, XR-g4n, XR-byp
+PX2  un-bypass restarts on the pre-bypass request (changes while bypassed dropped)
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 3 | 97 PASS, 3 FAIL | FAIL: S5, XR-byp, XR-bypn
+PX2b  bypassed blocks do not mark the snapshots stale
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+PX3  un-bypass does not restart settled (bands re-request instead)
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 2 | 98 PASS, 2 FAIL | FAIL: H1 (ii), XR-byp
+PX4  running list not rebuilt after a latched un-bypass mid-block
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+PX5  chunk with the idle point not written back at all
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 7 | 93 PASS, 7 FAIL | FAIL: XR-g3, XR-g3k, XR-g3b, XR-g4f, XR-g4n, XR-big, XR-blk
+PX5b  chunk with the idle point written back only up to the idle point
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+PX6  bypass mix before the bands (not the last stage)
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 3 | 97 PASS, 3 FAIL | FAIL: XR-g3, XR-g3k, XR-g3b
+PX6b  bypass dry copy taken after the bands run
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 3 | 97 PASS, 3 FAIL | FAIL: XR-g3, XR-g3k, XR-g3b
+PX7  prepareToPlay does not reset the bypass / start state
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 4 | 96 PASS, 4 FAIL | FAIL: E1 (ii), M4, XR-ref, XR-prep
+PX8  fully bypassed blocks do not advance the clock
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: TK
+PX8b  no-running-band blocks do not advance the clock
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: TK
+PX9  segment not cut at the bypass fade's end
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+PX10  processBlockBypassed does not want bypass
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 6 | 94 PASS, 6 FAIL | FAIL: P1, P1, H1 (i), H1 (ii), XR-g4f, XR-byp
+PX11  no-running-band blocks keep a bypass fade in flight (no jump)
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: TK
+PX12  end of toBypass does not send the bands idle
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none
+PX13  non-finite chunk does not clear the band state
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 1 | 99 PASS, 1 FAIL | FAIL: S6
+PX14  latched un-bypass mid-block restarts bands on their realised input, not their latest request
+   designer: rc 0 | 114 PASS, 0 FAIL, 16 INFO | FAIL: none
+   render:   rc 0 | 100 PASS, 0 FAIL | FAIL: none

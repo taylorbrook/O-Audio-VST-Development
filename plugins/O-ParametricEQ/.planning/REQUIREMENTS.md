@@ -22,7 +22,7 @@ lastUpdated: 2026-11-14
 | FUNC-01 | Up to 24 independent bands, created and removed on demand | must | partial | stage-2 |
 | FUNC-02 | Eight filter types per band: Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch, Band Pass, Tilt Shelf | must | partial | stage-2 |
 | FUNC-03 | Per-band placement: Stereo, Left, Right, Mid, Side | must | complete | stage-2 |
-| FUNC-04 | Per-band bypass and global click-free bypass | must | partial | stage-2 |
+| FUNC-04 | Per-band bypass and global click-free bypass | must | complete | stage-2 |
 | FUNC-05 | Output gain and gain scale | must | partial | stage-2 |
 | FUNC-06 | Auto gain compensates the curve's loudness change | should | pending | stage-2 |
 | FUNC-07 | Presets via the suite preset-manager, with a factory set | should | pending | stage-4 |
@@ -34,8 +34,8 @@ lastUpdated: 2026-11-14
 |----|-------------|----------|--------|-------------|
 | DSP-01 | Analog-matched magnitude response for bell and shelf up to Nyquist, without oversampling | must | complete | stage-2 |
 | DSP-02 | Zero latency, minimum phase | must | complete | stage-2 |
-| DSP-03 | Slopes of 6, 12, 18, 24, 36, 48, 72 and 96 dB/oct on every type that supports them | must | partial | stage-2 |
-| DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | partial | stage-2 |
+| DSP-03 | Slopes of 6, 12, 18, 24, 36, 48, 72 and 96 dB/oct on every type that supports them | must | complete | stage-2 |
+| DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | complete | stage-2 |
 | DSP-05 | Numerically stable and quiet at low frequency / high Q at all supported sample rates | must | complete | stage-2 |
 | DSP-06 | Parameter ranges: frequency 10 Hz – 30 kHz, gain ±30 dB, Q 0.025 – 40 | must | partial | stage-2 |
 | DSP-07 | Band engine and state format leave room for dynamic EQ without breaking v1 sessions | should | complete | stage-1 |
@@ -78,7 +78,7 @@ lastUpdated: 2026-11-14
 
 **Acceptance Criteria:**
 - [x] 24 bands can be enabled simultaneously and each affects the output independently
-- [ ] Enabling or removing a band mid-playback produces no click
+- [x] Enabling or removing a band mid-playback produces no click (Phase 2.4)
 - [ ] Band state survives save / reload and preset recall
 
 ### FUNC-02: Filter types
@@ -98,7 +98,7 @@ lastUpdated: 2026-11-14
 
 **Acceptance Criteria:**
 - [x] Global bypass output nulls against input
-- [ ] Toggling band or global bypass during a sustained tone produces no click
+- [x] Toggling band or global bypass during a sustained tone produces no click (Phase 2.4)
 
 ### FUNC-05: Output gain and gain scale
 
@@ -124,14 +124,14 @@ _Complete 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): design side at the Ph
 
 **Acceptance Criteria:**
 - [x] Each slope setting measures its nominal dB/oct in the stop band for low cut and high cut
-- [ ] Slope changes on a live band are click-free
+- [x] Slope changes on a live band are click-free (Phase 2.4: G2 live and the G3 slope rows; stop-band burst open as a listening item, VERIFICATION-2.4 Issue 1)
 
 ### DSP-04: Click-free modulation
 
 **Acceptance Criteria:**
 - [x] Full-range automation sweeps of frequency, gain and Q on a sustained low-frequency sine pass the suite click gate (G3 sweep rows as amended 2026-11-13; Phase 2.3)
-- [ ] Stepped changes of type, slope, placement and enable pass the same gate
-- [ ] No NaN / Inf and no instability under random parameter stress at all block sizes (holds at Phase 2.3: G5, 600 s at 8 rates; re-runs in 2.4 with structural fades)
+- [x] Stepped changes of type, slope, placement and enable pass the same gate (G3 step rows as amended 2026-11-14; Phase 2.4)
+- [x] No NaN / Inf and no instability under random parameter stress at all block sizes (G5, 600 s at 8 rates, with structural fades and bypass; Phase 2.4)
 
 ### DSP-05: Stability and noise
 
@@ -218,3 +218,5 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 *Phase 2.2 verify, 2026-11-13 (`stages/2-dsp/VERIFICATION-2.2.md`): FUNC-03, DSP-01, DSP-02, DSP-07 complete; FUNC-01, FUNC-02, FUNC-04, FUNC-05, DSP-03, DSP-06, PERF-01, QUAL-01 partial (their click-free, modulation, output-stage, UI and listening criteria belong to Phases 2.3 - 2.5 and Stages 3 - 4).*
 
 *Phase 2.3 verify, 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): DSP-05 complete; DSP-04 partial (sweeps met, structural changes are 2.4); PERF-01 stays partial until G6 re-runs with the analyzer on (2.6).*
+
+*Phase 2.4 verify, 2026-11-14 (`stages/2-dsp/VERIFICATION-2.4.md`): DSP-03, DSP-04 and FUNC-04 are complete. FUNC-01, FUNC-05, QUAL-01 and PERF-01 stay partial, waiting on presets, output gain, listening and the analyzer G6. Open: the stop-band burst on a steep cut's slope change (Issue 1), held for the hands-on listen.*
