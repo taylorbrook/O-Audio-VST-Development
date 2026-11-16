@@ -265,7 +265,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 
 **Components:**
 - Analyzer canvas (pre / post), mode control bound to `UI` state
-- `vu-meter` output meter; per-band fills; listen while dragging
+- Page-drawn output meter fed by an `outputLevel` event (RESEARCH-3.3 C1, 2026-11-16: `vu-meter` 1.0.0 cannot draw the approved meter; dropped from the plugin); per-band fills; listen while dragging
 - Listen fix: `Listen::process` reports a non-finite voice output, treated as a non-finite lane at step 8 (VERIFICATION-2.6 Issue 1)
 
 **Test criteria:**
@@ -308,7 +308,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 | Click metric confounded by level changes of slow filters | MEDIUM | 2.3 / 2.4 | Local κ and a firing hard control are already specified |
 | CPU model is not a measurement | MEDIUM | 4 (early smoke measurement in 2.2) | 2-wide SIMD over Stereo lanes |
 | 196 WebView relays | LOW (WKWebView measured ≤ 274 ms cold, RESEARCH-3.1) | 3.1; WebView2 timing in Stage 4 Windows CI | None planned (C1 dropped the selected-band fallback) |
-| `vu-meter` 1.0.0 has no consumer in the registry | LOW | 3.3 | O-AnalogEQ's `outputLevel` event |
+| `vu-meter` 1.0.0 has no consumer in the registry | RETIRED (RESEARCH-3.3 C1, 2026-11-16: the fallback taken; page-drawn meter) | 3.3 | — |
 | Notch and band pass above their frequency clamp park a feature inside the audio band (characterised in Stage 2 research Q2; D10 keeps the clamp) | LOW | 2.1 INFO rows | Clamp as specified |
 
 ---

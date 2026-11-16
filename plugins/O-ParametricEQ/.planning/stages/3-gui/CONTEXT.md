@@ -36,6 +36,7 @@ With 24 bands enabled, a plot click shows a brief tip near the cursor, text from
 
 ### U7 — Output meter on `vu-meter` 1.0.0, fallback ready (user)
 First production consumer of `vu-meter` 1.0.0, mounted in `#meter-mount`: vertical, -60 to +6 dB, two bars, peak hold, ruler inside the bordered box, approved colours (`drawMeter` in `v1-ui-test.html`). If it fails UI-06 (-6 dBFS sine within 0.5 dB) or any gate, fall back to O-AnalogEQ's `outputLevel` atomic + 30 Hz event and a page-drawn meter.
+*Amended at plan 3.3 (RESEARCH-3.3 C1, Taylor 2026-11-16): the fallback is taken. 1.0.0's JS cannot draw the approved meter (stretched-gradient zones, no ruler, per-frame decay) and its bridge overwrites per block. The meter is page-drawn (ported from `drawMeter`, dB-per-second ballistics), fed by an `outputLevel` event from the editor's 60 Hz timer (`readAndResetOutputPeak`, held over the last H reads). `vu-meter` is removed from the plugin and its `used_by` row.*
 
 ### U8 — Stage 2 carry-forwards folded in (user)
 - **3.1:** port the eight (count corrected at plan 3.1; RESEARCH-3.1 Q6) probe-only rows from `stages/2-dsp/verify-2.6/` into the render harness (LS10, LS11, LS12, LS15 / PX26, PX27, PX38, PX39) plus DM2 (layout change at the same rate; the editor relies on it when a host renegotiates mono / stereo), AN1 (no analyzer frame straddles a drop) and PX22 (mono placement edit while listening starts nothing).
