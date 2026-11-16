@@ -242,6 +242,7 @@
       O-ParametricEQ-render-harness --lid-dir <dir>     XR-lid's 0.5.0 session dump (else $OPEQ_LID_DIR)
       O-ParametricEQ-render-harness --dump-sessions <dir>
                                                         write the 16 XR-lid sessions (PLAN-2.6 T1, P13)
+      O-ParametricEQ-render-harness --dump-g9 <dir>     write the 260 XR-g9 draws for tests/g9b (PLAN-3.2 P4)
 
     Harness references (PLAN-2.6 P12), none of which calls eq::Listen,
     OutputStage::process / nextGains or a DisplayModel design call:
@@ -11839,6 +11840,16 @@ namespace
         --lid-dir <dir>, else the environment variable OPEQ_LID_DIR. */
     juce::File lidDumpDir;
 
+    /** --dump-g9 <dir> (PLAN-3.2 P4): the G9 (b) gate's input. When set, the
+        XR-g9 jobs (250 stereo + 10 mono draws, unchanged) each write
+        { rate, stereo, header, packets, grid, cpp } to <dir>/sNNN.json or
+        mNNN.json, and the harness exits 0 before any XR-g9 row is scored.
+        grid = the 192 G9 log points plus each active band's frequency below
+        Nyquist; cpp = composeFromPackets on the unit circle at each grid point,
+        LL / RR / MM / SS as re / im pairs. tests/g9b/g9b.mjs scores the page's
+        own evaluator against it. Without the flag nothing below changes. */
+    juce::File g9DumpDir;
+
     /** Every raw value back to the layout's defaults, listen off, analyzer
         mode 2 (the default), no consumer. */
     void resetAllRaw (Processor& p, const Handles& h)
@@ -12459,6 +12470,7 @@ namespace
         std::array<bool, 4> controlApplies {};
         double jsonDb = 0.0;
         double radius = 0.0;
+        std::string g9bDump;   // --dump-g9 only (PLAN-3.2 P4)
 
         // Diagnostics (printed, not gated): the worst error per response,
         // by that response's own maximum over the grid: >= -20 dB,
@@ -12658,6 +12670,52 @@ namespace
             }
         }
 
+        // --dump-g9 (PLAN-3.2 P4): this draw's packets, header, grid and C++
+        // closed form, for tests/g9b/g9b.mjs. Nothing scored here changes.
+        if (g9DumpDir != juce::File())
+        {
+            std::vector<double> grid (hz.begin(), hz.end());
+
+            for (int b = 0; b < Processor::kNumBands; ++b)
+                if (bands[(size_t) b].active)
+                {
+                    const double f = model->getBandInput (b).settings.freqHz;
+                    if (f >= 10.0 && f <= 30000.0 && f < 0.5 * rate)
+                        grid.push_back (f);
+                }
+
+            std::string s = "{\"rate\":" + std::to_string (rate) + ",\"stereo\":" + (stereo ? "true" : "false");
+            s += ",\"header\":" + juce::JSON::toString (model->headerVar(), true).toStdString();
+            s += ",\"packets\":" + juce::JSON::toString (model->allPackets(), true).toStdString();
+            s += ",\"grid\":[";
+            char buf[64];
+
+            for (size_t k = 0; k < grid.size(); ++k)
+            {
+                std::snprintf (buf, sizeof (buf), "%s%.17g", k ? "," : "", grid[k]);
+                s += buf;
+            }
+
+            s += "],\"cpp\":[";
+
+            for (size_t k = 0; k < grid.size(); ++k)
+            {
+                const auto c4 = composeFromPackets (bands, std::polar (1.0, 2.0 * eq::pi * grid[k] / rate));
+                s += k ? ",[" : "[";
+
+                for (int q = 0; q < 4; ++q)
+                {
+                    std::snprintf (buf, sizeof (buf), "%s%.17g,%.17g", q ? "," : "", c4[(size_t) q].real(), c4[(size_t) q].imag());
+                    s += buf;
+                }
+
+                s += "]";
+            }
+
+            s += "]}";
+            out.g9bDump = std::move (s);
+        }
+
         // XR-g9j: the JSON round trip, composed again on the unit circle,
         // against the unserialised packets, within 80 dB of the largest
         // response maximum (PLAN-2.6 execute, Taylor's call 2026-11-15).
@@ -12831,6 +12889,29 @@ namespace
                 const Job& job = monoJobs[(size_t) j];
                 monoOut[(size_t) j] = g9RunJob (p, h, job.config, kG9Rates[job.rate], false, kG9Length, true, false);
             });
+        }
+
+        // --dump-g9 (PLAN-3.2 P4): write the draws and stop. Exit 0 only when
+        // every draw produced its file.
+        if (g9DumpDir != juce::File())
+        {
+            int written = 0, expected = 0;
+            const auto put = [&written, &expected] (const std::vector<G9Out>& outs, const char* prefix)
+            {
+                for (size_t j = 0; j < outs.size(); ++j)
+                {
+                    ++expected;
+                    const auto file = g9DumpDir.getChildFile (juce::String (prefix) + juce::String ((int) j).paddedLeft ('0', 3) + ".json");
+                    if (! outs[j].g9bDump.empty() && file.replaceWithText (outs[j].g9bDump, false, false, "\n"))
+                        ++written;
+                }
+            };
+
+            put (stereoOut, "s");
+            put (monoOut, "m");
+            std::printf ("G9B dump: %d of %d files in %s\n", written, expected, g9DumpDir.getFullPathName().toRawUTF8());
+            std::fflush (stdout);
+            std::_Exit (written == expected && expected > 0 ? 0 : 1);
         }
 
         //======================================================================
@@ -17383,9 +17464,13 @@ int main (int argc, char** argv)
         {
             lidDumpDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
         }
+        else if (arg == "--dump-g9" && a + 1 < argc)
+        {
+            g9DumpDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
+        }
         else
         {
-            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>]\n", argv[0]);
+            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>] [--dump-g9 <dir>]\n", argv[0]);
             return 255;
         }
     }
@@ -17399,6 +17484,20 @@ int main (int argc, char** argv)
 
     if (dumpSessionsDir != juce::File())
         return dumpLidSessions (dumpSessionsDir);   // PLAN-2.6 T1, P13
+
+    if (g9DumpDir != juce::File())
+    {
+        // PLAN-3.2 P4: only displayRowsXr's G9 jobs; it exits from there.
+        if (! g9DumpDir.createDirectory())
+        {
+            std::printf ("FATAL: cannot create %s\n", g9DumpDir.getFullPathName().toRawUTF8());
+            return 255;
+        }
+
+        displayRowsXr();
+        std::printf ("FATAL: --dump-g9 reached the end of displayRowsXr\n");
+        return 1;
+    }
 
     if (dumpParams)
     {

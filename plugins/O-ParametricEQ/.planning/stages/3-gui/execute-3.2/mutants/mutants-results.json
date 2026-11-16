@@ -1,0 +1,105 @@
+[
+ {
+  "mutant": "control",
+  "target": null,
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "lockedDuringRun": false,
+  "caught": true,
+  "note": "rerun after the E-lag pairing fix (bench only); run-1 control failed E-lag only"
+ },
+ {
+  "mutant": "E15",
+  "target": "E-dblclick",
+  "verdict": "FAIL E-create,E-dblclick,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-create",
+   "E-dblclick",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "onUp-skips-freq-end",
+  "target": "E-drag",
+  "verdict": "FAIL E-drag,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-drag",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "P5-reverted",
+  "target": "E-drag",
+  "verdict": "FAIL E-drag,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-drag",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "P3-reverted",
+  "target": "E-mono",
+  "verdict": "FAIL E-mono,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-mono",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "g9b": "FAIL",
+  "g9bTail": [
+   "  [FAIL] control 5a: on the 10 mono draws the shipping composeSum ignores relay placement (max diff 200.55382806543068 dB over 2035 points)",
+   "  [PASS] control 5b: the 0.7.0 composeSum fed the same relay placements misses by 59.514 dB > 0.05 dB (m000.json view 0 1716.837 Hz: C++ -41.1101 dB, page 18.4041 dB)",
+   "",
+   "G9 (b) FAIL (2)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "fullPush-never-set",
+  "target": "E-eq-reload",
+  "verdict": "FAIL E-eq-reload,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-eq-reload",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "emit-on-empty",
+  "target": "E-eq-idle",
+  "verdict": "FAIL E-idle,E-eq-idle,E-eq-reload,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-idle",
+   "E-eq-idle",
+   "E-eq-reload",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "refused-create-silent",
+  "target": "E-full",
+  "verdict": "FAIL E-full,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-full",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "caught": true
+ }
+]

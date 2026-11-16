@@ -20,14 +20,15 @@
 /*
   ==============================================================================
 
-    O-ParametricEQ - Editor implementation, Phase 3.1
+    O-ParametricEQ - Editor implementation, Phase 3.2
 
     From .planning/mockups/v1-PluginEditor-TEMPLATE.cpp, mapped onto the
     Stage 2 processor (RESEARCH-3.1 Q2; PLAN-3.1 P2):
 
-      - No DisplayModel, no SpectrumAnalyzer here yet (3.2 / 3.3). Building a
-        SpectrumAnalyzer registers the analyzer consumer and turns the taps
-        on, so 3.1 does not. requestEqSections completes and emits nothing.
+      - The editor owns a DisplayModel (3.2): the 60 Hz timer polls it and
+        emits `eqSections` for the bands that changed, all 24 after
+        requestEqSections. No SpectrumAnalyzer yet (3.3): building one
+        registers the analyzer consumer and turns the taps on.
       - No editorOpen / outputLevelDB (the processor has neither; the meter
         reads readAndResetOutputPeak in 3.3).
       - listenBand is 0 ... 23 with -1 off; the page sends 1 ... 24 with 0 off.
@@ -42,6 +43,7 @@
 
 #include "PluginEditor.h"
 #include "PresetSaveGuard.h"
+#include "analysis/DisplayModel.h"
 #include "UIBinaryData.h"
 
 namespace
@@ -199,6 +201,10 @@ Editor::OuariconParametricEQAudioProcessorEditor (Processor& p)
     if (webView2Available)
         webView = std::make_unique<juce::WebBrowserComponent> (options);
 
+    // The response display's model (PLAN-3.2 P2). Construction designs
+    // nothing; its first poll() reports all 24 bands.
+    displayModel = std::make_unique<DisplayModel> (audioProcessor);
+
     // 3. ATTACHMENTS --------------------------------------------------------------
     // Three arguments (parameter, relay, undo manager): JUCE 8.
     // They stay valid without a WebView: the relays drop their events while no
@@ -261,7 +267,7 @@ Editor::OuariconParametricEQAudioProcessorEditor (Processor& p)
     if (restoredWidth != getWidth() || restoredHeight != getHeight())
         setSize (restoredWidth, restoredHeight);
 
-    // The 30 Hz timer starts in the pageReady native function, not here.
+    // The 60 Hz timer starts in the pageReady native function, not here.
 }
 
 Editor::~OuariconParametricEQAudioProcessorEditor()
@@ -388,10 +394,12 @@ Editor::addNativeFunctions (juce::WebBrowserComponent::Options options)
 
     // ── Response display: full push on request (pull, not a one-shot push) ──
     options = options.withNativeFunction ("requestEqSections",
-        [] (auto&, auto complete)
+        [this] (auto&, auto complete)
         {
-            // Phase 3.2: the editor-owned DisplayModel marks every band dirty
-            // and the next timerCallback() emits them all. 3.1 emits nothing.
+            // The next timerCallback() emits all 24 bands. The page calls this
+            // at init (before pageReady: the flag waits for the first tick) and
+            // after every preset load.
+            fullPushPending = true;
             complete (true);
         });
 
@@ -408,7 +416,7 @@ Editor::addNativeFunctions (juce::WebBrowserComponent::Options options)
         });
 
     // ── Page ready: its 196 states are bound, the UI state pull is queued ───
-    // Starts the 30 Hz timer (nothing is sent before the page exists). A page
+    // Starts the 60 Hz timer (nothing is sent before the page exists). A page
     // reload calls it again: idempotent. The argument is the page's own
     // performance.now() at its first painted frame (timing log, P10).
     options = options.withNativeFunction ("pageReady",
@@ -418,7 +426,7 @@ Editor::addNativeFunctions (juce::WebBrowserComponent::Options options)
             pageIsReady = true;
 
             if (! isTimerRunning())
-                startTimerHz (30);
+                startTimerHz (60);
 
             if (timingLogEnabled && first)
                 writeTimingLog (args.size() > 0 ? (double) args[0] : -1.0);
@@ -641,14 +649,62 @@ void Editor::timerCallback()
     if (webView == nullptr || ! pageIsReady)
         return;
 
-    // Phase 3.2: response display. The editor-owned DisplayModel's poll()
-    // packets go out as `eqSections` ({ sampleRate, bands: [...] }), all of
-    // them after requestEqSections or a preset load.
+    // Response display (PLAN-3.2 P2). poll() reads the parameter atomics, so
+    // the curve follows host edits with the transport stopped. Only the bands
+    // that changed go out; all 24 after requestEqSections; nothing at all on a
+    // tick with no change (idle traffic stays 0).
+    //
+    // emitEventIfBrowserIsVisible drops the event while the WebView component
+    // is hidden, and poll() has already consumed the change by then. This
+    // editor never hides the WebView. If a later change does, skip poll()
+    // while it is hidden, or set fullPushPending when it is shown again.
+    const auto changed = displayModel->poll();
+    const bool full = fullPushPending;
+    fullPushPending = false;
+
+    if (full || ! changed.isEmpty())
+    {
+        const auto header = displayModel->headerVar();
+
+        auto* payload = new juce::DynamicObject();
+        payload->setProperty ("sampleRate", header["sampleRate"]);
+        payload->setProperty ("stereo",     header["stereo"]);
+        payload->setProperty ("rateKnown",  header["rateKnown"]);
+
+        juce::Array<juce::var> bands;
+        const auto addBand = [this, &bands] (int b)
+        {
+            auto packet = displayModel->packetFor (b);
+            if (auto* obj = packet.getDynamicObject())
+            {
+                obj->setProperty ("band", b + 1);   // the page is 1-based
+                bands.add (packet);
+            }
+        };
+
+        if (full)
+            for (int b = 0; b < DisplayModel::numBands; ++b)
+                addBand (b);
+        else
+            for (const int b : changed)
+                addBand (b);
+
+        payload->setProperty ("bands", bands);
+        webView->emitEventIfBrowserIsVisible ("eqSections", juce::var (payload));
+
+       #if defined (OPEQ_EDITOR_BENCH)
+        if (opeq::bench::hooks().onEqSections)
+        {
+            juce::Array<int> sent;
+            for (const auto& pk : bands)
+                sent.add ((int) pk["band"] - 1);
+            opeq::bench::hooks().onEqSections (sent);
+        }
+       #endif
+    }
 
     // Phase 3.3: analyzer frames (`analyzerPre` / `analyzerPost`, from an
     // editor-owned SpectrumAnalyzer) and the output meter (readAndResetOutputPeak).
-
-    // Phase 3.1 sends nothing.
 }
 
 //==============================================================================

@@ -284,6 +284,11 @@ export const LABELS = Object.freeze({
     'label.stripHint':  { en: { t: 'Click the display to add a band' },
                           fr: { t: 'Cliquez sur l’affichage pour ajouter une bande', reviewed: false },
                           'zh-Hans': { t: '点击显示区域以添加频段', reviewed: 'mt' } },
+    // The tip at the pointer when a click on the display finds all 24 bands in
+    // use (CONTEXT U5). Shown through setLabel, so it is a LABELS entry.
+    'bands-full':       { en: { t: 'All 24 bands are in use' },
+                          fr: { t: 'Les 24 bandes sont toutes utilisées', reviewed: false },
+                          'zh-Hans': { t: '全部 24 个频段均已使用', reviewed: 'mt' } },
 
     // ── Analyzer segments (Off is ui.off) ───────────────────────────────────
     'opt.analyzer.pre':     { en: { t: 'Pre' },      fr: { t: 'Pré',      reviewed: false }, 'zh-Hans': { t: '前',    reviewed: 'mt' } },

@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    O-ParametricEQ - Editor (WebView UI), Phase 3.1
+    O-ParametricEQ - Editor (WebView UI), Phase 3.2
 
     Window: 960 x 600 default, resizable 800 x 500 to 1600 x 1000, aspect free.
     Parameters: 196 host parameters = 196 relays + 196 attachments
@@ -31,9 +31,9 @@
     BandRelays / BandAttachments struct built from its ID prefix
     ("b01_" ... "b24_").
 
-    Phase 3.1 scope (PLAN-3.1 P2): bindings, 19 native functions, the
-    pageReady timer gate. The timer emits nothing yet: 3.2 adds eqSections
-    (an editor-owned DisplayModel), 3.3 the analyzer (an editor-owned
+    Phase 3.1 (PLAN-3.1 P2): bindings, 19 native functions, the pageReady
+    timer gate. Phase 3.2 (PLAN-3.2 P2): the 60 Hz timer emits eqSections
+    from an editor-owned DisplayModel. 3.3 adds the analyzer (an editor-owned
     SpectrumAnalyzer) and the output meter.
 
   ==============================================================================
@@ -47,6 +47,8 @@
 #include <memory>
 #include <optional>
 #include "PluginProcessor.h"
+
+class DisplayModel;
 
 namespace opeq
 {
@@ -149,6 +151,10 @@ namespace opeq
             /** Called by the bench native function with its first argument and
                 the message-thread time in ms (Time::getMillisecondCounterHiRes). */
             std::function<void (const juce::var&, double)> onReport;
+
+            /** Called on the message thread for every eqSections emit, with
+                the 0-based bands it carries (PLAN-3.2 E-lag / E-stopped). */
+            std::function<void (const juce::Array<int>&)> onEqSections;
         };
 
         Hooks& hooks();
@@ -228,7 +234,14 @@ private:
     // Everything below has no bearing on the relay / WebView / attachment order.
     // ------------------------------------------------------------------------
 
-    // Set by the page's pageReady call (its states are bound); the 30 Hz timer
+    // The response display's section packets (message thread only). Polled by
+    // timerCallback; it reads the processor's parameter atomics, nothing else.
+    std::unique_ptr<DisplayModel> displayModel;
+
+    // Set by requestEqSections: the next tick emits all 24 bands.
+    bool fullPushPending = true;
+
+    // Set by the page's pageReady call (its states are bound); the 60 Hz timer
     // starts there, never before, and sends nothing while this is false
     // (an event before the page loads asserts on window.__JUCE__.backend).
     bool pageIsReady = false;

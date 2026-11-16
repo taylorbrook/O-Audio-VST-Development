@@ -459,6 +459,8 @@ button { cursor: pointer; }
 .tooltip.visible { opacity: 1; }
 .tooltip-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sage-border); margin-bottom: 3px; }
 .tooltip-body { font-size: 11.5px; line-height: 1.35; color: var(--ink); }
+/* U5 point tip: the box itself carries the text (a setLabel element), styled as a body line */
+.tooltip.tip-point { font-size: 11.5px; line-height: 1.35; color: var(--ink); }
 .tooltip::after { content: ''; position: absolute; left: var(--arrow-x, 50%); transform: translateX(-50%); border: 5px solid transparent; }
 .tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--frame); }
 .tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--frame); }
@@ -679,6 +681,7 @@ const CREATE_DBLCLICK_MS = 450;   // a double-click that just created a node doe
 
 const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the window edge
 const TOOLTIP_DELAY_MS   = 350;   // hover dwell before a tip appears
+const BANDS_FULL_TIP_MS  = 1600;  // how long the 25th-band tip (U5) stays up
 const TIPS_STORAGE_KEY   = 'opeq.tipsEnabled';
 
 const WIN_MIN_W = 800, WIN_MIN_H = 500, WIN_MAX_W = 1600, WIN_MAX_H = 1000;   // editor limits (C++ clamps too)
@@ -714,6 +717,7 @@ let tooltipTimer      = null;
 let tooltipTarget     = null;
 let tooltipSuppressed = false;
 let tipsEnabled       = true;
+let pointTipAnchor    = null;     // the U5 tip's zero-size rect at the pointer, while it shows
 
 // ════════════════════════════════════════════════════════════════════════════
 // FUNCTION DECLARATIONS (hoisted — safe to call from init())
@@ -993,7 +997,9 @@ function bindBandStates(juce) {
 // relay properties.
 function parseEntry(st, text) {
     const s = String(text).trim().toLowerCase().replace(/−/g, '-').replace(',', '.');
-    const m = s.match(/^([+-]?\d*\.?\d+)\s*(k)?/);
+    // Exponent forms ("1e9", "2.5e3") parse too, so a huge or tiny typed
+    // value clamps to the range end instead of reading only its leading digits.
+    const m = s.match(/^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*(k)?/);
     if (!m) return null;
     let v = parseFloat(m[1]);
     if (m[2]) v *= 1000;
@@ -1484,24 +1490,32 @@ function magDb(re, im) {
     return m2 > 1e-20 ? 10 * Math.log10(m2) : -200;
 }
 
-// Composes the audible bands, in index order, as 2x2 complex matrices in L/R
-// and returns the dB of one diagonal term. view: 0 LL, 1 RR, 2 MM, 3 SS.
+// Composes the bands the ENGINE runs, in index order, as 2x2 complex matrices
+// in L/R and returns the dB of one diagonal term. view: 0 LL, 1 RR, 2 MM, 3 SS.
 //   Stereo F.I   Left diag(F, 1)   Right diag(1, F)
 //   Mid  I + (F - 1)/2 [[1, 1], [1, 1]]     Side I + (F - 1)/2 [[1, -1], [-1, 1]]
+// Which bands run, and with which placement, come from the C++ packets only
+// (`active`, the EFFECTIVE `placement`), never from the relays: on a mono
+// layout the engine runs every band as Stereo whatever its placement parameter
+// says (BandParams.h effectivePlacement), and a relay-composed curve was off by
+// up to 59.5 dB there (RESEARCH-3.2 finding 3; gate tests/g9b control 5).
 function composeSum(bands, responses, n, view) {
     const out = new Float64Array(n);
+    const run = [];
+    for (const b of bands) {
+        const pk = bandPackets[b], R = responses.get(b);
+        if (pk && pk.active && R) run.push([R, Number(pk.placement) || 0]);
+    }
     for (let i = 0; i < n; i++) {
         // A = [[a, b], [c, d]], complex; starts as identity
         let ar = 1, ai = 0, br = 0, bi = 0, cr = 0, ci = 0, dr = 1, di = 0, valid = true;
-        for (const b of bands) {
-            const R = responses.get(b);
-            if (!R) continue;
+        for (const [R, placement] of run) {
             const fr = R.re[i], fi = R.im[i];
             if (Number.isNaN(fr)) { valid = false; break; }
             // band matrix B = [[p, q], [r, s]]
             let pr, pi, qr, qi, rr, ri, sr, si;
             const hr = (fr - 1) / 2, hi = fi / 2;
-            switch (bandChoice(b, 'placement')) {
+            switch (placement) {
                 case 1:  pr = fr; pi = fi; qr = 0; qi = 0; rr = 0; ri = 0; sr = 1; si = 0; break;
                 case 2:  pr = 1; pi = 0; qr = 0; qi = 0; rr = 0; ri = 0; sr = fr; si = fi; break;
                 case 3:  pr = 1 + hr; pi = hi; qr = hr; qi = hi; rr = hr; ri = hi; sr = 1 + hr; si = hi; break;
@@ -1529,10 +1543,11 @@ function composeSum(bands, responses, n, view) {
 // STAGE 3 DECISION (v1-ui.yaml open question): which summed curve the single
 // ink line shows when L / R / M / S bands are mixed. Here: the diagonal term
 // that matches the selected band's placement (Stereo and Left show LL, Right
-// RR, Mid MM, Side SS). With Stereo-only bands all four coincide.
+// RR, Mid MM, Side SS). With Stereo-only bands all four coincide. The placement
+// is the packet's effective one (Stereo on mono), like composeSum's.
 function sumView() {
-    const s = selectedBand();
-    return s ? [0, 0, 1, 2, 3][bandChoice(s, 'placement')] : 0;
+    const s = selectedBand(), pk = s ? bandPackets[s] : null;
+    return pk ? [0, 0, 1, 2, 3][Number(pk.placement)] || 0 : 0;
 }
 
 // ── Response display: drawing ───────────────────────────────────────────────
@@ -1686,10 +1701,13 @@ function draw() {
         const n = freqs.length, xs = freqs.map(fx);
         const lim = (v) => (Number.isNaN(v) ? NaN : clamp(v, -400, canvasH + 400));
 
-        const responses = new Map();
-        for (const b of bands) {
+        // Every band the page draws (relay-enabled) plus every band the engine
+        // runs (packet active): the two differ for one tick after an enable edit.
+        const responses = new Map(), running = [];
+        for (let b = 1; b <= NB; b++) {
             const pk = bandPackets[b];
-            if (!pk) continue;
+            if (pk && pk.active) running.push(b);
+            if (!pk || !(pk.active || bands.includes(b))) continue;
             const R = { re: new Float64Array(n), im: new Float64Array(n) };
             evalBand(pk, freqs, R.re, R.im);
             responses.set(b, R);
@@ -1722,9 +1740,9 @@ function draw() {
         }
 
         // Summed response: ink, with a soft bleed under the line. Flat and
-        // dashed while the plugin is bypassed.
-        const audible = globalBypass ? [] : bands.filter((b) => !bandBool(b, 'bypass'));
-        const sum = composeSum(audible, responses, n, sumView());
+        // dashed while the plugin is bypassed. The bands and placements are the
+        // engine's (composeSum reads the packets), not the relays'.
+        const sum = composeSum(globalBypass ? [] : running, responses, n, sumView());
         const ys = new Array(n);
         for (let i = 0; i < n; i++) ys[i] = lim(gy(sum[i]));
         cx.lineJoin = 'round'; cx.lineCap = 'round';
@@ -1814,13 +1832,21 @@ function initDisplay() {
         if (!d.moved) {
             if (Math.abs(x - d.sx) + Math.abs(y - d.sy) < DRAG_THRESHOLD_PX) return;
             d.moved = true;
+            // Gain is written (and its gesture opened) only when the drag can
+            // write it, decided once here: an open gesture with no writes still
+            // records in Touch / Latch and flattens that lane (RESEARCH-3.2
+            // finding 4). Fixed for the drag, so a type change by automation
+            // mid-drag cannot unbalance the begin / end pair.
+            d.gain = !!TYPE_HAS_GAIN[bandChoice(d.b, 'type')] && gainScale() > 0.01;
             wheelEnd(fSt); wheelEnd(gSt);
-            fSt.sliderDragStarted(); gSt.sliderDragStarted();    // gesture begin on both
+            fSt.sliderDragStarted();                             // gesture begin: freq
+            if (d.gain) gSt.sliderDragStarted();                 // and gain, when it moves
         }
-        const scale = gainScale();
         setScaled(fSt, xf(x - d.ox));
-        if (TYPE_HAS_GAIN[bandChoice(d.b, 'type')] && scale > 0.01)
-            setScaled(gSt, yg(y - d.oy) / scale);                // clamped by the live range
+        if (d.gain) {
+            const scale = gainScale();
+            if (scale > 0.01) setScaled(gSt, yg(y - d.oy) / scale);   // clamped by the live range
+        }
         requestRender();
     };
 
@@ -1831,7 +1857,7 @@ function initDisplay() {
         ui.drag = null;
         if (d.moved) {
             sliderState[bid(d.b, 'freq')].sliderDragEnded();
-            sliderState[bid(d.b, 'gain')].sliderDragEnded();     // gesture end on both
+            if (d.gain) sliderState[bid(d.b, 'gain')].sliderDragEnded();   // only the pairs opened
         }
         curveEl.removeEventListener('pointerup', onUp);
         curveEl.removeEventListener('pointercancel', onUp);
@@ -1857,9 +1883,12 @@ function initDisplay() {
             if (x < M.l || x > M.l + plotW || y < M.t || y > M.t + plotH) return;
             const scale = gainScale();
             b = createBand(0, xf(x), scale > 0.01 ? Math.round(yg(y) / scale * 10) / 10 : 0);
-            if (!b) return;
+            if (!b) {                           // all 24 in use (U5): say so at the pointer
+                showBandsFullTip(e.clientX, e.clientY);
+                return;
+            }
         }
-        ui.drag = { b, ox, oy, moved: false, sx: x, sy: y };
+        ui.drag = { b, ox, oy, moved: false, gain: false, sx: x, sy: y };
         try { curveEl.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
         curveEl.addEventListener('pointerup', onUp);
         curveEl.addEventListener('pointercancel', onUp);
@@ -2114,6 +2143,7 @@ function showTooltip(target) {
     const title = target.getAttribute('data-tip-title');
     const body  = target.getAttribute('data-tip');
 
+    clearPointTip();
     tooltipEl.textContent = '';
 
     if (title) {
@@ -2128,8 +2158,13 @@ function showTooltip(target) {
     bodyEl.textContent = body;
     tooltipEl.appendChild(bodyEl);
 
-    const anchor = target.getBoundingClientRect();
+    placeTip(target.getBoundingClientRect());
+}
 
+// Places the tooltip box (its content already written) against an anchor
+// rect: the element's for a hover tip, a zero-size rect at the pointer for a
+// point tip. Shared so both kinds get the same measure / pin / clamp rules.
+function placeTip(anchor) {
     // MEASURE, THEN PIN, THEN CLAMP. A fixed box with `left` set and width auto
     // shrinks to fit the space to its right, so measuring at the previous
     // offset under-reports the width and a near-edge `left` re-wraps the tip
@@ -2173,11 +2208,43 @@ function showTooltip(target) {
     tooltipEl.setAttribute('aria-hidden', 'false');
 }
 
+// U5: a click on the empty plot with all 24 bands in use. Feedback, not help:
+// shown with hover help off too, body only, at the pointer, for ~1.6 s, and
+// gone with the next press (initTooltips' capture-phase pointerdown, which a
+// control that preventDefaults its own pointerdown cannot swallow). The body
+// box itself is the setLabel element (class .tip-point), so a language change
+// while it shows re-localizes it, and the observer in initTooltips re-measures
+// and re-clamps it for the new text.
+function showBandsFullTip(clientX, clientY) {
+    if (!tooltipEl) return;
+    clearTimeout(tooltipTimer);
+    tooltipTarget = null;
+    pointTipAnchor = { left: clientX, right: clientX, top: clientY, bottom: clientY, width: 0, height: 0 };
+    tooltipEl.classList.add('tip-point');
+    setLabel(tooltipEl, 'bands-full');
+    placeTip(pointTipAnchor);
+    // The capture-phase dismiss already ran for the press that showed it (it
+    // fires before the plot's own handler), so it is the NEXT press that hides it.
+    tooltipTimer = setTimeout(hideTooltip, BANDS_FULL_TIP_MS);
+}
+
+// The point tip's label binding is dropped before the box is reused, or a
+// later applyI18n would write 'bands-full' over a hover tip.
+function clearPointTip() {
+    pointTipAnchor = null;
+    if (!tooltipEl) return;
+    tooltipEl.classList.remove('tip-point');
+    delete tooltipEl.dataset.i18n;
+    delete tooltipEl.dataset.i18nVars;
+    delete tooltipEl.dataset.label;
+}
+
 function hideTooltip() {
     clearTimeout(tooltipTimer);
     tooltipTarget = null;
 
     if (!tooltipEl) return;
+    clearPointTip();
     tooltipEl.classList.remove('visible');
     tooltipEl.setAttribute('aria-hidden', 'true');
 }
@@ -2223,6 +2290,13 @@ function initTooltips() {
 
     document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
     document.addEventListener('pointercancel', () => { tooltipSuppressed = false; }, true);
+
+    // The U5 point tip re-localizes in place (applyLabel rewrites its text):
+    // measure, pin and clamp it again for the new string.
+    if (typeof MutationObserver === 'function') {
+        new MutationObserver(() => { if (pointTipAnchor) placeTip(pointTipAnchor); })
+            .observe(tooltipEl, { childList: true, characterData: true, subtree: true });
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════

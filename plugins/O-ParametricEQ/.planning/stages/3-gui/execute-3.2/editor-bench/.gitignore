@@ -1,0 +1,5 @@
+build-rel/
+build-dbg/
+results/*.log
+results-dev/
+lockstate

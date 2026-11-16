@@ -1,5 +1,25 @@
 # O-ParametricEQ Changelog
 
+## [0.8.0] - 2026-11-15
+
+Stage 3, Phase 3.2 (interactive response display). The curve is drawn, and the nodes are live.
+
+### Added
+- Response curve: the summed curve and each band's coloured wash, drawn from the plugin's own filter designs at the session's sample rate. It follows automation and preset loads, also with the transport stopped.
+- Nodes: click the empty display to add a band there, drag a node for frequency and gain, scroll on it for Q, double-click it to reset its gain, and press Delete to remove it. Each drag, scroll and reset records as one automation gesture per parameter it changes.
+- With all 24 bands in use, a click on the display shows "All 24 bands are in use" at the pointer, in English, French and Chinese.
+
+### Fixed
+- On a mono track, the curve now shows what the plugin plays (every band as Stereo), not the Left / Right / Mid / Side placement set on the band.
+- Dragging a node whose type has no gain (Low Cut, High Cut, Notch, Band Pass), or with Gain scale at 0 %, no longer opens a gain automation gesture, so it no longer overwrites that band's gain automation in Touch or Latch.
+
+### Changed
+- Nothing audible: the output is bit-identical to 0.7.0.
+
+### Known in this build
+- No analyzer or output meter yet, and listen does not follow a node drag (Phase 3.3).
+- The French and Chinese text are machine drafts, reviewed in Stage 4.
+
 ## [0.7.0] - 2026-11-15
 
 Stage 3, Phase 3.1 (layout, bindings, scale check). The plugin now has its own editor.
