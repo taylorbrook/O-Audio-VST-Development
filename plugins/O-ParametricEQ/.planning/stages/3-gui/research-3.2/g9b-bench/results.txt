@@ -1,0 +1,45 @@
+# g9b.js packet
+{
+ "mode": "packet",
+ "files": 260,
+ "scored": 148956,
+ "worstScoredDb": 1.3721653147058532e-8,
+ "worstAt": "s202.json view 0 f 36.673 Hz cpp -43.4350 js -43.4350",
+ "worstByRate": {
+  "44100": 5.1610129503387725e-9,
+  "48000": 8.298464138078998e-10,
+  "88200": 7.564144866023526e-10,
+  "96000": 3.5012703847314697e-10,
+  "192000": 1.3721653147058532e-8
+ },
+ "worstAboveMinus120Db": 9.068176183291143e-7,
+ "floorHits": 23296,
+ "nanHits": 0
+}
+# g9b.js raw-mono
+{
+ "mode": "raw-mono",
+ "files": 260,
+ "scored": 148956,
+ "worstScoredDb": 59.5142458854339,
+ "worstAt": "m000.json view 0 f 1716.837 Hz cpp -41.1101 js 18.4041",
+ "worstByRate": {
+  "44100": 59.5142458854339,
+  "48000": 46.18067767110384,
+  "88200": 43.6154690485532,
+  "96000": 54.664927225319005,
+  "192000": 1.3721653147058532e-8
+ },
+ "worstAboveMinus120Db": 59.5142458854339,
+ "floorHits": 22896,
+ "nanHits": 0
+}
+# evalcost.js
+bands 24, sections 94, points 801: median 3.617 ms, p99 4.239 ms (node v24.19.0, V8)
+# OPEQ_POLL_BENCH (Release, LTO harness objects, M4 Max)
+POLL 48000 Hz  all 24 changed (poll + payload + JSON) us med/p99/max: 208.6 / 301.4 / 323.9   bytes med/p99/max: 9506.0 / 12969.0 / 13956.0
+POLL 48000 Hz  one band freq (drag tick) us med/p99/max: 6.3 / 29.8 / 40.4
+POLL 48000 Hz  no change us med/p99/max: 0.1 / 0.2 / 0.2
+POLL 192000 Hz  all 24 changed (poll + payload + JSON) us med/p99/max: 202.8 / 287.6 / 296.3   bytes med/p99/max: 9512.0 / 12965.0 / 13970.0
+POLL 192000 Hz  one band freq (drag tick) us med/p99/max: 5.9 / 29.2 / 52.8
+POLL 192000 Hz  no change us med/p99/max: 0.1 / 0.2 / 0.2
