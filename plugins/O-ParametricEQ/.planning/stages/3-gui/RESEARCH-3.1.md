@@ -226,6 +226,8 @@ Apply `research-3.1/probe-port/owed26-render-harness.patch` as written. The scra
 
 ## Calls
 
+**Resolved 2026-11-15 by Taylor: C1 and C2 both as recommended.** The plan binds all 196 relays, removes the fallback from ROADMAP 3.1, and has the processor own `OuariconPresetManager` from 3.1 (excluded `output_gain` and `bypass`, validated apply, `PresetSaveGuard`, empty factory set).
+
 **C1 — Drop the selected-band fallback (U6).** All 196 relays open in ≤ 274 ms and settle a preset in 1 frame. The fallback would save about 15 ms and needs a page rework.
 - **Recommended:** bind all 196 and remove the fallback from ROADMAP 3.1's criterion.
 - Keep the 500 ms row as a measured acceptance check in Logic. WebView2 timing becomes a Stage 4 Windows CI note, not a 3.1 gate.
