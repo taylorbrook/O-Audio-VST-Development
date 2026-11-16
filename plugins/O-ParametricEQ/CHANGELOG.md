@@ -1,5 +1,21 @@
 # O-ParametricEQ Changelog
 
+## [0.7.0] - 2026-11-15
+
+Stage 3, Phase 3.1 (layout, bindings, scale check). The plugin now has its own editor.
+
+### Added
+- Editor: the v1 page at 960 × 600 (resizable 800 × 500 to 1600 × 1000), with the dragonfly plate behind the plot. Every band control, the header and the output section follow automation and preset loads, and edits on the page reach the host. Controls that do nothing for a band's type or slope are disabled.
+- Presets: save and load user presets from the header. A preset never changes output gain or bypass. Factory preset names can't be overwritten.
+- The editor opens in about a quarter of a second.
+
+### Changed
+- Nothing audible: the output is bit-identical to 0.6.0.
+
+### Known in this build
+- No response curve, analyzer or output meter yet, and nodes can't be dragged (Phases 3.2 and 3.3).
+- The preset name shown after reopening a session is "Default".
+
 ## [0.6.0] - 2026-11-15
 
 Stage 2, Phase 2.6 (analyzer taps, display model, listen). The engine side of the editor's band listen, analyzer and response curve; the editor itself comes in Stage 3.

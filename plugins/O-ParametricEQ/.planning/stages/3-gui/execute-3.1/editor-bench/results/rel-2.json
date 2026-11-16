@@ -1,0 +1,4507 @@
+{
+  "cycles": [
+    {
+      "cycle": 0,
+      "ctorMs": 63.40558335185051,
+      "shownMs": 72.363708347082138,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 114.089875012636185,
+      "dclMs": 197.733791679143906,
+      "loadMs": 202.345541685819626,
+      "allPropsMs": 202.19154167175293,
+      "firstPaintMs": 239.730916678905487,
+      "secondFrameMs": 254.266666680574417,
+      "pageReadyMs": 254.229499995708466,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 92,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 88,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 144.000000000000028,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 144.000000000000028,
+      "closeMs": 0.626124978065491,
+      "cycleMs": 24323.091749995946884
+    },
+    {
+      "cycle": 1,
+      "ctorMs": 57.812666654586792,
+      "shownMs": 58.484958320856094,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 89.73649999499321,
+      "dclMs": 114.02649998664856,
+      "loadMs": 118.927333325147629,
+      "allPropsMs": 118.777249991893768,
+      "firstPaintMs": 122.861124992370605,
+      "secondFrameMs": 134.212624996900558,
+      "pageReadyMs": 134.183375000953674,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 33,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 29,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 49,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 49,
+      "closeMs": 0.367249995470047,
+      "cycleMs": 135.799958318471909
+    },
+    {
+      "cycle": 2,
+      "ctorMs": 54.974124997854233,
+      "shownMs": 55.439041644334793,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 86.366541653871536,
+      "dclMs": 111.707083314657211,
+      "loadMs": 116.421041667461395,
+      "allPropsMs": 116.382458329200745,
+      "firstPaintMs": 132.048666656017303,
+      "secondFrameMs": 146.183041661977768,
+      "pageReadyMs": 146.154374986886978,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 34,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 29,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 64,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 64,
+      "closeMs": 0.342833340167999,
+      "cycleMs": 147.739958316087723
+    },
+    {
+      "cycle": 3,
+      "ctorMs": 57.012166678905487,
+      "shownMs": 57.531625002622604,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 88.030124992132187,
+      "dclMs": 111.64658334851265,
+      "loadMs": 116.452666670084,
+      "allPropsMs": 116.302208334207535,
+      "firstPaintMs": 123.268250018358231,
+      "secondFrameMs": 137.653083324432373,
+      "pageReadyMs": 137.604916661977768,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 32,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 28,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 54,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 54,
+      "closeMs": 0.344291657209396,
+      "cycleMs": 139.203500002622604
+    },
+    {
+      "cycle": 4,
+      "ctorMs": 54.752708315849304,
+      "shownMs": 55.293916672468185,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 85.968541651964188,
+      "dclMs": 109.817375004291534,
+      "loadMs": 114.592624992132187,
+      "allPropsMs": 114.423833310604095,
+      "firstPaintMs": 118.410541653633118,
+      "secondFrameMs": 129.836416661739349,
+      "pageReadyMs": 129.806250005960464,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 33,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 28,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 48,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 48,
+      "closeMs": 0.324041664600372,
+      "cycleMs": 130.18133333325386
+    },
+    {
+      "cycle": 5,
+      "ctorMs": 56.239583313465118,
+      "shownMs": 56.783416658639908,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 87.640666663646698,
+      "dclMs": 111.44624999165535,
+      "loadMs": 116.161749988794327,
+      "allPropsMs": 116.016791671514511,
+      "firstPaintMs": 120.022666662931442,
+      "secondFrameMs": 132.946125000715256,
+      "pageReadyMs": 132.918083339929581,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 33,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 28,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 49,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 49,
+      "closeMs": 0.330208331346512,
+      "cycleMs": 134.492958337068558
+    },
+    {
+      "cycle": 6,
+      "ctorMs": 56.031583338975906,
+      "shownMs": 56.556874990463257,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 89.048708319664001,
+      "dclMs": 114.439583331346512,
+      "loadMs": 119.472375005483627,
+      "allPropsMs": 119.280666649341583,
+      "firstPaintMs": 131.72512498497963,
+      "secondFrameMs": 146.062541663646698,
+      "pageReadyMs": 146.034500002861023,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 61,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 61,
+      "closeMs": 0.33308333158493,
+      "cycleMs": 147.61433333158493
+    },
+    {
+      "cycle": 7,
+      "ctorMs": 56.142708331346512,
+      "shownMs": 56.664458334445953,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 88.241416662931442,
+      "dclMs": 112.746708333492279,
+      "loadMs": 117.590749979019165,
+      "allPropsMs": 117.431041657924652,
+      "firstPaintMs": 121.108083337545395,
+      "secondFrameMs": 131.226583331823349,
+      "pageReadyMs": 131.186916649341583,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 33,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 29,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 47,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 47,
+      "closeMs": 0.350416660308838,
+      "cycleMs": 132.626833319664001
+    },
+    {
+      "cycle": 8,
+      "ctorMs": 54.860333353281021,
+      "shownMs": 55.352958351373672,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 87.450083345174789,
+      "dclMs": 111.509958326816559,
+      "loadMs": 116.365458339452744,
+      "allPropsMs": 116.157208353281021,
+      "firstPaintMs": 131.911249995231628,
+      "secondFrameMs": 146.024958342313766,
+      "pageReadyMs": 145.998541682958603,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 33,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 28,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 63,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 63,
+      "closeMs": 0.325583338737488,
+      "cycleMs": 146.369166672229767
+    },
+    {
+      "cycle": 9,
+      "ctorMs": 53.647041648626328,
+      "shownMs": 54.147916674613953,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 85.557458341121674,
+      "dclMs": 110.284041672945023,
+      "loadMs": 115.089208334684372,
+      "allPropsMs": 114.935416668653488,
+      "firstPaintMs": 118.57620832324028,
+      "secondFrameMs": 132.129624992609024,
+      "pageReadyMs": 132.09891664981842,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 34,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 29,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 51.000000000000007,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 51.000000000000007,
+      "closeMs": 0.322249978780746,
+      "cycleMs": 132.472750008106232
+    }
+  ],
+  "presets": [
+    {
+      "method": "single",
+      "rep": 0,
+      "id": 1,
+      "expected": 1,
+      "applyMs": 0.03383332490921,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481086675547917e8,
+      "settledRecvMs": 1.794083327054977,
+      "settled": {
+        "type": "settled",
+        "pnow": 12787,
+        "id": 1,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 3.195291668176651,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 12788,
+        "id": 1,
+        "msArmToPaint": 2,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 0,
+      "id": 2,
+      "expected": 196,
+      "applyMs": 3.719708323478699,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481088242585833e8,
+      "settledRecvMs": 10.062875002622604,
+      "settled": {
+        "type": "settled",
+        "pnow": 12952,
+        "id": 2,
+        "nEvents": 196,
+        "msArmToFirst": 2,
+        "msArmToLast": 10,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 12.606124997138977,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 12954,
+        "id": 2,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 0,
+      "id": 3,
+      "expected": 196,
+      "applyMs": 3.921291679143906,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48108991163875e8,
+      "settledRecvMs": 8.310750007629395,
+      "settled": {
+        "type": "settled",
+        "pnow": 13117,
+        "id": 3,
+        "nEvents": 196,
+        "msArmToFirst": 2,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 9.868541687726974,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13118,
+        "id": 3,
+        "msArmToPaint": 9,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 0,
+      "id": 4,
+      "expected": 196,
+      "applyMs": 0.266874998807907,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481091541063333e8,
+      "settledRecvMs": 6.502916663885117,
+      "settled": {
+        "type": "settled",
+        "pnow": 13278,
+        "id": 4,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.999999999998181,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 9.127541691064835,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13281,
+        "id": 4,
+        "msArmToPaint": 9,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 0,
+      "id": 5,
+      "expected": 194,
+      "applyMs": 5.644708335399628,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48109315717875e8,
+      "settledRecvMs": 11.585333317518234,
+      "settled": {
+        "type": "settled",
+        "pnow": 13445,
+        "id": 5,
+        "nEvents": 388,
+        "msArmToFirst": 0.999999999998181,
+        "msArmToLast": 10.999999999998181,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 13.061624974012375,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13446,
+        "id": 5,
+        "msArmToPaint": 11.999999999998181,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 1,
+      "id": 6,
+      "expected": 1,
+      "applyMs": 0.047749996185303,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481094816744167e8,
+      "settledRecvMs": 0.826958328485489,
+      "settled": {
+        "type": "settled",
+        "pnow": 13600,
+        "id": 6,
+        "nEvents": 1,
+        "msArmToFirst": 1,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 13.627958327531815,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13613,
+        "id": 6,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 1,
+      "id": 7,
+      "expected": 194,
+      "applyMs": 1.533250004053116,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.4810964915275e8,
+      "settledRecvMs": 4.089791685342789,
+      "settled": {
+        "type": "settled",
+        "pnow": 13771,
+        "id": 7,
+        "nEvents": 194,
+        "msArmToFirst": 0,
+        "msArmToLast": 4,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 11.894583344459534,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13778,
+        "id": 7,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 1,
+      "id": 8,
+      "expected": 196,
+      "applyMs": 4.195374995470047,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48109816662e8,
+      "settledRecvMs": 6.865624994039536,
+      "settled": {
+        "type": "settled",
+        "pnow": 13940,
+        "id": 8,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 12.014541655778885,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13946,
+        "id": 8,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 1,
+      "id": 9,
+      "expected": 196,
+      "applyMs": 0.24575001001358,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481099837909583e8,
+      "settledRecvMs": 6.211583346128464,
+      "settled": {
+        "type": "settled",
+        "pnow": 14107.000000000001819,
+        "id": 9,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 5.000000000001819,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 11.6378333568573,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14113,
+        "id": 9,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 1,
+      "id": 10,
+      "expected": 194,
+      "applyMs": 6.099125027656555,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481101494476666e8,
+      "settledRecvMs": 11.142750024795532,
+      "settled": {
+        "type": "settled",
+        "pnow": 14278,
+        "id": 10,
+        "nEvents": 388,
+        "msArmToFirst": 0,
+        "msArmToLast": 10,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 12.813749998807907,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14280.000000000001819,
+        "id": 10,
+        "msArmToPaint": 12.000000000001819,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 2,
+      "id": 11,
+      "expected": 1,
+      "applyMs": 0.048958331346512,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48110315791875e8,
+      "settledRecvMs": 0.824541658163071,
+      "settled": {
+        "type": "settled",
+        "pnow": 14434.000000000001819,
+        "id": 11,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 13.03337499499321,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14446,
+        "id": 11,
+        "msArmToPaint": 11.999999999998181,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 2,
+      "id": 12,
+      "expected": 194,
+      "applyMs": 3.983374983072281,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481104830032917e8,
+      "settledRecvMs": 8.017499983310699,
+      "settled": {
+        "type": "settled",
+        "pnow": 14608,
+        "id": 12,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0.999999999998181,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 12.838166654109955,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14613,
+        "id": 12,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 2,
+      "id": 13,
+      "expected": 196,
+      "applyMs": 2.784083336591721,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481106497748333e8,
+      "settledRecvMs": 4.497999995946884,
+      "settled": {
+        "type": "settled",
+        "pnow": 14772,
+        "id": 13,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 4,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 7.777458339929581,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14775,
+        "id": 13,
+        "msArmToPaint": 7,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 2,
+      "id": 14,
+      "expected": 196,
+      "applyMs": 0.514208316802979,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481108100669583e8,
+      "settledRecvMs": 7.68745830655098,
+      "settled": {
+        "type": "settled",
+        "pnow": 14935,
+        "id": 14,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 14.935083329677582,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14942,
+        "id": 14,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 2,
+      "id": 15,
+      "expected": 194,
+      "applyMs": 5.180124998092651,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.4811097759875e8,
+      "settledRecvMs": 11.783499985933304,
+      "settled": {
+        "type": "settled",
+        "pnow": 15107.000000000001819,
+        "id": 15,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 11.000000000001819,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 14.113000005483627,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15109,
+        "id": 15,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 3,
+      "id": 16,
+      "expected": 1,
+      "applyMs": 0.050000011920929,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481111448443333e8,
+      "settledRecvMs": 0.833416670560837,
+      "settled": {
+        "type": "settled",
+        "pnow": 15263,
+        "id": 16,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 12.809000015258789,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15275,
+        "id": 16,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 3,
+      "id": 17,
+      "expected": 194,
+      "applyMs": 3.217124998569489,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481113090845833e8,
+      "settledRecvMs": 8.201583355665207,
+      "settled": {
+        "type": "settled",
+        "pnow": 15435,
+        "id": 17,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.000000000001819,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 15.99125000834465,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15442,
+        "id": 17,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 3,
+      "id": 18,
+      "expected": 196,
+      "applyMs": 4.197458356618881,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481114795525e8,
+      "settledRecvMs": 7.799708336591721,
+      "settled": {
+        "type": "settled",
+        "pnow": 15605,
+        "id": 18,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0.999999999998181,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 10.969250023365021,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15608,
+        "id": 18,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 3,
+      "id": 19,
+      "expected": 196,
+      "applyMs": 0.551791667938232,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.4811164363e8,
+      "settledRecvMs": 11.321749985218048,
+      "settled": {
+        "type": "settled",
+        "pnow": 15772,
+        "id": 19,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 10,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.999999999998181,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 14.360125005245209,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15775,
+        "id": 19,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 3,
+      "id": 20,
+      "expected": 194,
+      "applyMs": 1.947625011205673,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481118106457083e8,
+      "settledRecvMs": 3.501291662454605,
+      "settled": {
+        "type": "settled",
+        "pnow": 15932,
+        "id": 20,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 4,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 12.862458348274231,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15941,
+        "id": 20,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 4,
+      "id": 21,
+      "expected": 1,
+      "applyMs": 0.032750010490417,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48111976170375e8,
+      "settledRecvMs": 0.907124996185303,
+      "settled": {
+        "type": "settled",
+        "pnow": 16094.000000000001819,
+        "id": 21,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 14.871541678905487,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16108,
+        "id": 21,
+        "msArmToPaint": 13.999999999998181,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 4,
+      "id": 22,
+      "expected": 194,
+      "applyMs": 3.899250000715256,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481121440291667e8,
+      "settledRecvMs": 6.559333324432373,
+      "settled": {
+        "type": "settled",
+        "pnow": 16268,
+        "id": 22,
+        "nEvents": 194,
+        "msArmToFirst": 1.000000000001819,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 14.356583327054977,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16276,
+        "id": 22,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 4,
+      "id": 23,
+      "expected": 196,
+      "applyMs": 4.162958323955536,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481123107098333e8,
+      "settledRecvMs": 6.853583335876465,
+      "settled": {
+        "type": "settled",
+        "pnow": 16435,
+        "id": 23,
+        "nEvents": 196,
+        "msArmToFirst": 0.999999999996362,
+        "msArmToLast": 5.999999999996362,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 13.013333320617676,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16441,
+        "id": 23,
+        "msArmToPaint": 11.999999999996362,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 4,
+      "id": 24,
+      "expected": 196,
+      "applyMs": 0.419666677713394,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48112476016125e8,
+      "settledRecvMs": 8.633333325386047,
+      "settled": {
+        "type": "settled",
+        "pnow": 16602,
+        "id": 24,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 2,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 14.482833325862885,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16608,
+        "id": 24,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 4,
+      "id": 25,
+      "expected": 194,
+      "applyMs": 2.266499996185303,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481126421234167e8,
+      "settledRecvMs": 3.742041677236557,
+      "settled": {
+        "type": "settled",
+        "pnow": 16763,
+        "id": 25,
+        "nEvents": 388,
+        "msArmToFirst": 0,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 14.922916650772095,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16774,
+        "id": 25,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 5,
+      "id": 26,
+      "expected": 1,
+      "applyMs": 0.028833329677582,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481128076232917e8,
+      "settledRecvMs": 0.58733332157135,
+      "settled": {
+        "type": "settled",
+        "pnow": 16926.000000000003638,
+        "id": 26,
+        "nEvents": 1,
+        "msArmToFirst": 1.000000000003638,
+        "msArmToLast": 1.000000000003638,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 15.698874980211258,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16940,
+        "id": 26,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 5,
+      "id": 27,
+      "expected": 194,
+      "applyMs": 1.504666686058044,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481129752177083e8,
+      "settledRecvMs": 3.173083335161209,
+      "settled": {
+        "type": "settled",
+        "pnow": 17096,
+        "id": 27,
+        "nEvents": 194,
+        "msArmToFirst": 0,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 15.741500020027161,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17108,
+        "id": 27,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 5,
+      "id": 28,
+      "expected": 196,
+      "applyMs": 3.706333309412003,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481131440209167e8,
+      "settledRecvMs": 8.370374977588654,
+      "settled": {
+        "type": "settled",
+        "pnow": 17270,
+        "id": 28,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 2.000000000003638,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 13.83924999833107,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17275.000000000003638,
+        "id": 28,
+        "msArmToPaint": 13.000000000003638,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 5,
+      "id": 29,
+      "expected": 196,
+      "applyMs": 0.506999999284744,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.4811331255525e8,
+      "settledRecvMs": 11.11341667175293,
+      "settled": {
+        "type": "settled",
+        "pnow": 17441,
+        "id": 29,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 10,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 2,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 13.205291658639908,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17443,
+        "id": 29,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 5,
+      "id": 30,
+      "expected": 194,
+      "applyMs": 5.564374983310699,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481134790505833e8,
+      "settledRecvMs": 10.602166652679443,
+      "settled": {
+        "type": "settled",
+        "pnow": 17607,
+        "id": 30,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 10,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 2,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 11.908999979496002,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17608,
+        "id": 30,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 6,
+      "id": 31,
+      "expected": 1,
+      "applyMs": 0.053083330392838,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481136440225417e8,
+      "settledRecvMs": 0.744291663169861,
+      "settled": {
+        "type": "settled",
+        "pnow": 17762,
+        "id": 31,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 13.013541638851166,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17774,
+        "id": 31,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 6,
+      "id": 32,
+      "expected": 194,
+      "applyMs": 3.235416680574417,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48113811149e8,
+      "settledRecvMs": 5.935208350419998,
+      "settled": {
+        "type": "settled",
+        "pnow": 17934,
+        "id": 32,
+        "nEvents": 194,
+        "msArmToFirst": 0.999999999996362,
+        "msArmToLast": 4.999999999996362,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 13.470833331346512,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17942,
+        "id": 32,
+        "msArmToPaint": 12.999999999996362,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 6,
+      "id": 33,
+      "expected": 196,
+      "applyMs": 2.497583329677582,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481139785377917e8,
+      "settledRecvMs": 3.868499994277954,
+      "settled": {
+        "type": "settled",
+        "pnow": 18100,
+        "id": 33,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 4,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 12.106124997138977,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18108,
+        "id": 33,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 6,
+      "id": 34,
+      "expected": 196,
+      "applyMs": 0.203458309173584,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481141434580417e8,
+      "settledRecvMs": 4.251874983310699,
+      "settled": {
+        "type": "settled",
+        "pnow": 18265,
+        "id": 34,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 4,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 14.00900000333786,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18275.000000000003638,
+        "id": 34,
+        "msArmToPaint": 14.000000000003638,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 6,
+      "id": 35,
+      "expected": 194,
+      "applyMs": 5.731499999761581,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481143116196667e8,
+      "settledRecvMs": 9.127875000238419,
+      "settled": {
+        "type": "settled",
+        "pnow": 18438,
+        "id": 35,
+        "nEvents": 388,
+        "msArmToFirst": 0,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 12.361291646957397,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18441,
+        "id": 35,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 7,
+      "id": 36,
+      "expected": 1,
+      "applyMs": 0.053166657686234,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481144787142917e8,
+      "settledRecvMs": 0.936541676521301,
+      "settled": {
+        "type": "settled",
+        "pnow": 18597,
+        "id": 36,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 11.764666676521301,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18608,
+        "id": 36,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 7,
+      "id": 37,
+      "expected": 194,
+      "applyMs": 2.412958353757858,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481146435282083e8,
+      "settledRecvMs": 5.030958354473114,
+      "settled": {
+        "type": "settled",
+        "pnow": 18766,
+        "id": 37,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 14.454583346843719,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18775.000000000003638,
+        "id": 37,
+        "msArmToPaint": 14.000000000003638,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 7,
+      "id": 38,
+      "expected": 196,
+      "applyMs": 3.666583329439163,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481148102709167e8,
+      "settledRecvMs": 5.683708310127258,
+      "settled": {
+        "type": "settled",
+        "pnow": 18933,
+        "id": 38,
+        "nEvents": 196,
+        "msArmToFirst": 1.000000000003638,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 13.670791655778885,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18941,
+        "id": 38,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 7,
+      "id": 39,
+      "expected": 196,
+      "applyMs": 0.505541682243347,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481149785577083e8,
+      "settledRecvMs": 6.574291676282883,
+      "settled": {
+        "type": "settled",
+        "pnow": 19102,
+        "id": 39,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 13.552583336830139,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19109,
+        "id": 39,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 7,
+      "id": 40,
+      "expected": 194,
+      "applyMs": 5.217083334922791,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481151463138333e8,
+      "settledRecvMs": 9.188874989748001,
+      "settled": {
+        "type": "settled",
+        "pnow": 19273,
+        "id": 40,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 9,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.000000000003638,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 11.481083333492279,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19275.000000000003638,
+        "id": 40,
+        "msArmToPaint": 11.000000000003638,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 8,
+      "id": 41,
+      "expected": 1,
+      "applyMs": 0.05633333325386,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481153101823333e8,
+      "settledRecvMs": 0.894958347082138,
+      "settled": {
+        "type": "settled",
+        "pnow": 19428,
+        "id": 41,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 9.656125009059906,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19437,
+        "id": 41,
+        "msArmToPaint": 9,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 8,
+      "id": 42,
+      "expected": 194,
+      "applyMs": 2.207041680812836,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48115473255875e8,
+      "settledRecvMs": 5.514416664838791,
+      "settled": {
+        "type": "settled",
+        "pnow": 19596,
+        "id": 42,
+        "nEvents": 194,
+        "msArmToFirst": 0,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 13.933708339929581,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19604,
+        "id": 42,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 8,
+      "id": 43,
+      "expected": 196,
+      "applyMs": 2.96616667509079,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481156406801667e8,
+      "settledRecvMs": 6.420749992132187,
+      "settled": {
+        "type": "settled",
+        "pnow": 19764,
+        "id": 43,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 12.997208327054977,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19771,
+        "id": 43,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 8,
+      "id": 44,
+      "expected": 196,
+      "applyMs": 0.241666674613953,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.4811580752775e8,
+      "settledRecvMs": 5.966708332300186,
+      "settled": {
+        "type": "settled",
+        "pnow": 19931,
+        "id": 44,
+        "nEvents": 196,
+        "msArmToFirst": 1.000000000003638,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 13.738958328962326,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19939,
+        "id": 44,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 8,
+      "id": 45,
+      "expected": 194,
+      "applyMs": 1.761249989271164,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481159749943333e8,
+      "settledRecvMs": 2.91691666841507,
+      "settled": {
+        "type": "settled",
+        "pnow": 20095,
+        "id": 45,
+        "nEvents": 388,
+        "msArmToFirst": 0,
+        "msArmToLast": 2,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 11.053874999284744,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20104,
+        "id": 45,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 9,
+      "id": 46,
+      "expected": 1,
+      "applyMs": 0.026166677474976,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481161394295833e8,
+      "settledRecvMs": 0.493041694164276,
+      "settled": {
+        "type": "settled",
+        "pnow": 20257,
+        "id": 46,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 13.495916694402695,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20270,
+        "id": 46,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 9,
+      "id": 47,
+      "expected": 194,
+      "applyMs": 3.222958356142044,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.48116305423375e8,
+      "settledRecvMs": 7.128916680812836,
+      "settled": {
+        "type": "settled",
+        "pnow": 20430,
+        "id": 47,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 2.000000000003638,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 16.138125002384186,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20439,
+        "id": 47,
+        "msArmToPaint": 16,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 9,
+      "id": 48,
+      "expected": 196,
+      "applyMs": 2.650583356618881,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481164767601666e8,
+      "settledRecvMs": 3.712999999523163,
+      "settled": {
+        "type": "settled",
+        "pnow": 20598,
+        "id": 48,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 9.162041693925858,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20603,
+        "id": 48,
+        "msArmToPaint": 8,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 9,
+      "id": 49,
+      "expected": 196,
+      "applyMs": 0.503291666507721,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481166384162917e8,
+      "settledRecvMs": 9.232666671276093,
+      "settled": {
+        "type": "settled",
+        "pnow": 20765,
+        "id": 49,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 9,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 14.772916674613953,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20771,
+        "id": 49,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "preset",
+      "rep": 9,
+      "id": 50,
+      "expected": 194,
+      "applyMs": 6.030708312988281,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.481168057922917e8,
+      "settledRecvMs": 11.867916643619537,
+      "settled": {
+        "type": "settled",
+        "pnow": 20935,
+        "id": 50,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 11,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 14.140166640281677,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20937,
+        "id": 50,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      }
+    }
+  ],
+  "rows": {
+    "E-res": {
+      "resourceNotFoundBeforeBenchFetch": [],
+      "fetch": {
+        "type": "res",
+        "pnow": 452,
+        "id": "r0",
+        "origin": "juce://juce.backend",
+        "href": "juce://juce.backend/",
+        "referenced": [
+          "juce://juce.backend/",
+          "juce://juce.backend/css/eb-garamond.css",
+          "juce://juce.backend/js/juce/index.js",
+          "juce://juce.backend/js/i18n.js",
+          "juce://juce.backend/modules/preset-manager.js",
+          "juce://juce.backend/fonts/EBGaramond-Regular.woff2",
+          "juce://juce.backend/fonts/EBGaramond-Italic.woff2",
+          "juce://juce.backend/fonts/EBGaramond-Bold.woff2"
+        ],
+        "rows": [
+          {
+            "url": "juce://juce.backend/",
+            "status": 200,
+            "type": "text/html; charset=utf-8",
+            "bytes": 114164,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/css/eb-garamond.css",
+            "status": 200,
+            "type": "text/css; charset=utf-8",
+            "bytes": 7490,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/js/juce/index.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 17959,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/js/i18n.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 26053,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/modules/preset-manager.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 17058,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/fonts/EBGaramond-Regular.woff2",
+            "status": 200,
+            "type": "font/woff2",
+            "bytes": 37656,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/fonts/EBGaramond-Italic.woff2",
+            "status": 200,
+            "type": "font/woff2",
+            "bytes": 38892,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/fonts/EBGaramond-Bold.woff2",
+            "status": 200,
+            "type": "font/woff2",
+            "bytes": 41276,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/index.html",
+            "status": 200,
+            "type": "text/html; charset=utf-8",
+            "bytes": 114164,
+            "referenced": false
+          },
+          {
+            "url": "juce://juce.backend/js/juce/check_native_interop.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 4376,
+            "referenced": false
+          },
+          {
+            "url": "juce://juce.backend/modules/vu-meter.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 15109,
+            "referenced": false
+          }
+        ]
+      },
+      "fonts": {
+        "type": "fonts",
+        "pnow": 466,
+        "id": "f0",
+        "check16": true,
+        "check105": true,
+        "checkItalic": true,
+        "faces": [
+          "EB Garamond normal 400 loaded",
+          "EB Garamond italic 400 loaded",
+          "EB Garamond normal 700 unloaded"
+        ],
+        "dpr": 2,
+        "cssW": 818,
+        "cssH": 438,
+        "labelX": 478.594356012331559,
+        "labelBase": 431,
+        "page": {
+          "w": 9,
+          "n": 87
+        },
+        "refEBG": {
+          "ink": {
+            "w": 9,
+            "n": 87
+          },
+          "adv": 9.964500427246094,
+          "font": "10.5px \"EB Garamond\", Garamond, \"Times New Roman\", serif",
+          "diffVsPage": {
+            "sumAbsAlpha": 0,
+            "pixelsOver32": 0
+          }
+        },
+        "refFallback": {
+          "ink": {
+            "w": 9.5,
+            "n": 110
+          },
+          "adv": 10.5,
+          "font": "10.5px Garamond, \"Times New Roman\", serif",
+          "diffVsPage": {
+            "sumAbsAlpha": 9118,
+            "pixelsOver32": 101
+          }
+        },
+        "refSerif": {
+          "ink": {
+            "w": 9.5,
+            "n": 107
+          },
+          "adv": 10.5,
+          "font": "10.5px serif",
+          "diffVsPage": {
+            "sumAbsAlpha": 9108,
+            "pixelsOver32": 99
+          }
+        },
+        "dEBG": 0,
+        "dFallback": 0.5,
+        "dRefs": 0.5
+      },
+      "resourceNotFoundLogAll": []
+    },
+    "E-idle": {
+      "type": "idle",
+      "pnow": 12481,
+      "ms": 10001,
+      "evals": {
+      },
+      "posts": {
+      }
+    },
+    "E-bind-in": {
+      "type": "bindIn",
+      "pnow": 21100,
+      "id": "bi",
+      "n": 196,
+      "nSlider": 74,
+      "nScaledExact": 70,
+      "nBad": 0,
+      "bad": [],
+      "maxNormErr": 5.960464499743523e-8,
+      "maxScaledErr": 0.00006103515625,
+      "maxTextErr": 0.000061071093796
+    },
+    "E-bind-out": {
+      "normErrOver1e6": 2,
+      "normErrOver1e6List": [
+        "b17_q target=0.032839 normErr=0.000009555 scaledErr=0.000000000702 tol=0.000000007453",
+        "b22_q target=0.050550 normErr=0.000001781 scaledErr=0.000000000856 tol=0.000000007475"
+      ],
+      "maxScaledErrOverTol": 0.114454116699508,
+      "n": 196,
+      "valueBad": 0,
+      "gestureBad": 0,
+      "beginTotal": 196,
+      "endTotal": 196,
+      "maxNormErr": 9.55536961555481e-6,
+      "settleMs": 8.332000017166138,
+      "bad": []
+    },
+    "E-disabled": {
+      "chip": {
+        "type": "chip",
+        "pnow": 21345,
+        "id": "c1",
+        "found": true,
+        "stripEmpty": false,
+        "loz": "01"
+      },
+      "selectedBandAtomic": 1,
+      "d0_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22040,
+          "id": "d0_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "passCount": 64,
+      "d0_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22073,
+          "id": "d0_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22107,
+          "id": "d0_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22141,
+          "id": "d0_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22174,
+          "id": "d0_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22207,
+          "id": "d0_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22241,
+          "id": "d0_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22274,
+          "id": "d0_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22307.000000000003638,
+          "id": "d1_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22341,
+          "id": "d1_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22374,
+          "id": "d1_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22407,
+          "id": "d1_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22441,
+          "id": "d1_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22473,
+          "id": "d1_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22507,
+          "id": "d1_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22541,
+          "id": "d1_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22574,
+          "id": "d2_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22607,
+          "id": "d2_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22641,
+          "id": "d2_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22674,
+          "id": "d2_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22707,
+          "id": "d2_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22740.000000000003638,
+          "id": "d2_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22773,
+          "id": "d2_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22807.000000000003638,
+          "id": "d2_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22841,
+          "id": "d3_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22874,
+          "id": "d3_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22907,
+          "id": "d3_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22941,
+          "id": "d3_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 22974,
+          "id": "d3_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23007,
+          "id": "d3_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23041,
+          "id": "d3_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23074,
+          "id": "d3_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23107,
+          "id": "d4_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23141,
+          "id": "d4_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23174,
+          "id": "d4_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23207,
+          "id": "d4_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23241,
+          "id": "d4_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23274,
+          "id": "d4_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23307.000000000003638,
+          "id": "d4_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23341,
+          "id": "d4_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23374,
+          "id": "d5_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23407,
+          "id": "d5_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23441,
+          "id": "d5_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23474,
+          "id": "d5_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23507,
+          "id": "d5_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23541,
+          "id": "d5_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23574,
+          "id": "d5_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23607,
+          "id": "d5_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23641,
+          "id": "d6_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23674,
+          "id": "d6_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23707,
+          "id": "d6_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23741,
+          "id": "d6_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23774,
+          "id": "d6_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23807.000000000003638,
+          "id": "d6_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23841,
+          "id": "d6_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23874,
+          "id": "d6_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23907,
+          "id": "d7_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23941,
+          "id": "d7_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 23974,
+          "id": "d7_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 24007,
+          "id": "d7_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 24041,
+          "id": "d7_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 24074,
+          "id": "d7_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 24107,
+          "id": "d7_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 24141,
+          "id": "d7_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      }
+    },
+    "E-type": {
+      "1000": {
+        "typed": "1000",
+        "hostNorm": 0.5,
+        "expectNorm": 0.499999996960923,
+        "normErr": 3.039077101085752e-9,
+        "planExpectNorm": 0.5,
+        "normErrVsPlan": 0.0,
+        "hostHz": 999.9998779296875,
+        "hostText": "999.9998779",
+        "gestureBegin": 1,
+        "gestureEnd": 1,
+        "page": {
+          "type": "typeEntry",
+          "pnow": 21378,
+          "id": "t0",
+          "text": "1000",
+          "fieldOff": false,
+          "inputOpened": true,
+          "inputInitial": "10012",
+          "inputClosed": true,
+          "pageScaled": 999.9998779296875,
+          "pageNorm": 0.49999998443241,
+          "fieldText": "1.00kHz"
+        }
+      },
+      "42.7": {
+        "typed": "42.7",
+        "hostNorm": 0.250029683113098,
+        "expectNorm": 0.250029691580097,
+        "normErr": 8.466998435707751e-9,
+        "planExpectNorm": 0.25,
+        "normErrVsPlan": 0.000029683113098,
+        "hostHz": 42.699996948242188,
+        "hostText": "42.6999969",
+        "gestureBegin": 1,
+        "gestureEnd": 1,
+        "page": {
+          "type": "typeEntry",
+          "pnow": 21603,
+          "id": "t1",
+          "text": "42.7",
+          "fieldOff": false,
+          "inputOpened": true,
+          "inputInitial": "10012",
+          "inputClosed": true,
+          "pageScaled": 42.699996948242188,
+          "pageNorm": 0.250029686838238,
+          "fieldText": "42.7Hz"
+        }
+      },
+      "42.68090": {
+        "typed": "42.68090",
+        "hostNorm": 0.249999985098839,
+        "expectNorm": 0.25,
+        "normErr": 1.490116119384766e-8,
+        "planExpectNorm": 0.25,
+        "normErrVsPlan": 1.490116119384766e-8,
+        "hostHz": 42.680885314941406,
+        "hostText": "42.6808853",
+        "gestureBegin": 1,
+        "gestureEnd": 1,
+        "page": {
+          "type": "typeEntry",
+          "pnow": 21824,
+          "id": "t2",
+          "text": "42.68090",
+          "fieldOff": false,
+          "inputOpened": true,
+          "inputInitial": "10012",
+          "inputClosed": true,
+          "pageScaled": 42.680885314941406,
+          "pageNorm": 0.249999984032984,
+          "fieldText": "42.7Hz"
+        }
+      }
+    },
+    "E-ui": {
+      "getUiState-initial": {
+        "report": {
+          "type": "native",
+          "pnow": 24142,
+          "id": "ui0",
+          "name": "getUiState",
+          "result": {
+            "analyzerMode": 2,
+            "displayRange": 12,
+            "selectedBand": 1
+          }
+        },
+        "atomics": {
+          "analyzerMode": 2,
+          "displayRange": 12,
+          "selectedBand": 1,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "passCount": "14/14",
+      "ui-set0 analyzerMode=3": {
+        "report": {
+          "type": "native",
+          "pnow": 24144.000000000003638,
+          "id": "ui-set0",
+          "name": "setUiState",
+          "result": true
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 12,
+          "selectedBand": 1,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set1 displayRange=30": {
+        "report": {
+          "type": "native",
+          "pnow": 24147.000000000003638,
+          "id": "ui-set1",
+          "name": "setUiState",
+          "result": true
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 1,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set2 selectedBand=7": {
+        "report": {
+          "type": "native",
+          "pnow": 24149,
+          "id": "ui-set2",
+          "name": "setUiState",
+          "result": true
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set3 analyzerMode=4": {
+        "report": {
+          "type": "native",
+          "pnow": 24152,
+          "id": "ui-set3",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set4 analyzerMode=-1": {
+        "report": {
+          "type": "native",
+          "pnow": 24154,
+          "id": "ui-set4",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set5 displayRange=7": {
+        "report": {
+          "type": "native",
+          "pnow": 24160,
+          "id": "ui-set5",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set6 displayRange=0": {
+        "report": {
+          "type": "native",
+          "pnow": 24161,
+          "id": "ui-set6",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set7 selectedBand=25": {
+        "report": {
+          "type": "native",
+          "pnow": 24163,
+          "id": "ui-set7",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set8 selectedBand=-1": {
+        "report": {
+          "type": "native",
+          "pnow": 24166,
+          "id": "ui-set8",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set9 foo=1": {
+        "report": {
+          "type": "native",
+          "pnow": 24167,
+          "id": "ui-set9",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "getUiState-after": {
+        "report": {
+          "type": "native",
+          "pnow": 24170,
+          "id": "ui1",
+          "name": "getUiState",
+          "result": {
+            "analyzerMode": 3,
+            "displayRange": 30,
+            "selectedBand": 7
+          }
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "absentFromGetParameters": {
+        "report": {
+          "numParameters": 196,
+          "hits": []
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "unchangedByPresetLoad": {
+        "report": {
+          "loadOk": true,
+          "before": "{\"analyzerMode\": 3, \"displayRange\": 30, \"selectedBand\": 7, \"uiLanguage\": 0, \"editorWidth\": 960, \"editorHeight\": 600}",
+          "after": "{\"analyzerMode\": 3, \"displayRange\": 30, \"selectedBand\": 7, \"uiLanguage\": 0, \"editorWidth\": 960, \"editorHeight\": 600}",
+          "listenBand": -1
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      }
+    },
+    "E-listen": {
+      "ls0": {
+        "arg": 5,
+        "listenBand": 4,
+        "expect": 4,
+        "report": {
+          "type": "native",
+          "pnow": 24187,
+          "id": "ls0",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls1": {
+        "arg": 0,
+        "listenBand": -1,
+        "expect": -1,
+        "report": {
+          "type": "native",
+          "pnow": 24190,
+          "id": "ls1",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls2": {
+        "arg": 5,
+        "listenBand": 4,
+        "expect": 4,
+        "report": {
+          "type": "native",
+          "pnow": 24193,
+          "id": "ls2",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls3": {
+        "arg": 25,
+        "listenBand": -1,
+        "expect": -1,
+        "report": {
+          "type": "native",
+          "pnow": 24195,
+          "id": "ls3",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls4": {
+        "arg": 5,
+        "listenBand": 4,
+        "expect": 4,
+        "report": {
+          "type": "native",
+          "pnow": 24197,
+          "id": "ls4",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls5": {
+        "arg": -3,
+        "listenBand": -1,
+        "expect": -1,
+        "report": {
+          "type": "native",
+          "pnow": 24200,
+          "id": "ls5",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls6": {
+        "arg": 1,
+        "listenBand": 0,
+        "expect": 0,
+        "report": {
+          "type": "native",
+          "pnow": 24202,
+          "id": "ls6",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls7": {
+        "arg": 24,
+        "listenBand": 23,
+        "expect": 23,
+        "report": {
+          "type": "native",
+          "pnow": 24205.000000000003638,
+          "id": "ls7",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls8": {
+        "arg": 7,
+        "listenBand": 6,
+        "expect": 6,
+        "report": {
+          "type": "native",
+          "pnow": 24208.000000000003638,
+          "id": "ls8",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "listenBeforeClose": true,
+      "listenAfterClose": -1
+    },
+    "consoleAfterTests": {
+      "type": "console",
+      "pnow": 24210,
+      "nWarn": 0,
+      "nErr": 0,
+      "unknownWarn": 0,
+      "warns": [],
+      "natives": {
+        "getUiState": 3,
+        "requestEqSections": 1,
+        "getParameterDefaults": 1,
+        "getUiLanguage": 1,
+        "getCurrentPreset": 1,
+        "getPresetList": 1,
+        "pageReady": 1,
+        "setUiState": 14,
+        "setListenBand": 9
+      }
+    },
+    "E-size": {
+      "firstOpenCycle0": {
+        "editor": "960x600",
+        "expect": "960x600",
+        "atomics": "960x600",
+        "pass": true
+      },
+      "open": {
+        "editor": "960x600",
+        "expect": "960x600",
+        "atomics": "960x600",
+        "pass": true
+      },
+      "resize700x400": {
+        "editor": "800x500",
+        "expect": "800x500",
+        "atomics": "800x500",
+        "pass": true
+      },
+      "resize2000x2000": {
+        "editor": "1600x1000",
+        "expect": "1600x1000",
+        "atomics": "1600x1000",
+        "pass": true
+      },
+      "resize1234x777": {
+        "editor": "1234x777",
+        "expect": "1234x777",
+        "atomics": "1234x777",
+        "pass": true
+      },
+      "reopenRestores": {
+        "editor": "1234x777",
+        "expect": "1234x777",
+        "atomics": "1234x777",
+        "pass": true
+      },
+      "backTo960x600": {
+        "editor": "960x600",
+        "expect": "960x600",
+        "atomics": "960x600",
+        "pass": true
+      }
+    }
+  },
+  "raf": {
+    "type": "raf",
+    "pnow": 2479,
+    "median": 17,
+    "mean": 16.666666666666668,
+    "max": 18
+  },
+  "timeouts": [],
+  "home": "/var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/opeq-editor-bench-home | presets /var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/opeq-editor-bench-home/Library/O-ParametricEQ/Presets",
+  "presetsSaved": true,
+  "listenBandAtEnd": -1,
+  "build": "Release"
+}

@@ -1,0 +1,200 @@
+# plugin	O-ParametricEQ-dev
+# params	196
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+bypass	Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+output_gain	Output Gain		2147483647	-36.0000000	36.0000000	0.500000	0.0000000	automatable
+gain_scale	Gain Scale		2147483647	0.0000000	200.0000000	0.500000	100.0000000	automatable
+auto_gain	Auto Gain		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b01_enabled	B1 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b01_bypass	B1 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b01_type	B1 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b01_freq	B1 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b01_gain	B1 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b01_q	B1 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b01_slope	B1 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b01_placement	B1 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b02_enabled	B2 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b02_bypass	B2 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b02_type	B2 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b02_freq	B2 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b02_gain	B2 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b02_q	B2 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b02_slope	B2 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b02_placement	B2 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b03_enabled	B3 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b03_bypass	B3 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b03_type	B3 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b03_freq	B3 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b03_gain	B3 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b03_q	B3 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b03_slope	B3 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b03_placement	B3 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b04_enabled	B4 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b04_bypass	B4 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b04_type	B4 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b04_freq	B4 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b04_gain	B4 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b04_q	B4 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b04_slope	B4 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b04_placement	B4 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b05_enabled	B5 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b05_bypass	B5 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b05_type	B5 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b05_freq	B5 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b05_gain	B5 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b05_q	B5 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b05_slope	B5 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b05_placement	B5 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b06_enabled	B6 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b06_bypass	B6 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b06_type	B6 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b06_freq	B6 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b06_gain	B6 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b06_q	B6 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b06_slope	B6 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b06_placement	B6 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b07_enabled	B7 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b07_bypass	B7 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b07_type	B7 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b07_freq	B7 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b07_gain	B7 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b07_q	B7 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b07_slope	B7 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b07_placement	B7 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b08_enabled	B8 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b08_bypass	B8 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b08_type	B8 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b08_freq	B8 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b08_gain	B8 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b08_q	B8 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b08_slope	B8 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b08_placement	B8 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b09_enabled	B9 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b09_bypass	B9 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b09_type	B9 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b09_freq	B9 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b09_gain	B9 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b09_q	B9 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b09_slope	B9 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b09_placement	B9 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b10_enabled	B10 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b10_bypass	B10 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b10_type	B10 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b10_freq	B10 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b10_gain	B10 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b10_q	B10 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b10_slope	B10 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b10_placement	B10 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b11_enabled	B11 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b11_bypass	B11 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b11_type	B11 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b11_freq	B11 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b11_gain	B11 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b11_q	B11 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b11_slope	B11 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b11_placement	B11 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b12_enabled	B12 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b12_bypass	B12 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b12_type	B12 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b12_freq	B12 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b12_gain	B12 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b12_q	B12 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b12_slope	B12 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b12_placement	B12 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b13_enabled	B13 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b13_bypass	B13 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b13_type	B13 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b13_freq	B13 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b13_gain	B13 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b13_q	B13 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b13_slope	B13 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b13_placement	B13 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b14_enabled	B14 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b14_bypass	B14 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b14_type	B14 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b14_freq	B14 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b14_gain	B14 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b14_q	B14 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b14_slope	B14 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b14_placement	B14 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b15_enabled	B15 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b15_bypass	B15 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b15_type	B15 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b15_freq	B15 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b15_gain	B15 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b15_q	B15 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b15_slope	B15 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b15_placement	B15 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b16_enabled	B16 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b16_bypass	B16 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b16_type	B16 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b16_freq	B16 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b16_gain	B16 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b16_q	B16 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b16_slope	B16 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b16_placement	B16 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b17_enabled	B17 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b17_bypass	B17 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b17_type	B17 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b17_freq	B17 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b17_gain	B17 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b17_q	B17 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b17_slope	B17 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b17_placement	B17 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b18_enabled	B18 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b18_bypass	B18 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b18_type	B18 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b18_freq	B18 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b18_gain	B18 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b18_q	B18 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b18_slope	B18 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b18_placement	B18 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b19_enabled	B19 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b19_bypass	B19 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b19_type	B19 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b19_freq	B19 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b19_gain	B19 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b19_q	B19 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b19_slope	B19 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b19_placement	B19 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b20_enabled	B20 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b20_bypass	B20 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b20_type	B20 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b20_freq	B20 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b20_gain	B20 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b20_q	B20 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b20_slope	B20 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b20_placement	B20 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b21_enabled	B21 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b21_bypass	B21 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b21_type	B21 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b21_freq	B21 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b21_gain	B21 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b21_q	B21 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b21_slope	B21 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b21_placement	B21 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b22_enabled	B22 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b22_bypass	B22 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b22_type	B22 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b22_freq	B22 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b22_gain	B22 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b22_q	B22 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b22_slope	B22 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b22_placement	B22 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b23_enabled	B23 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b23_bypass	B23 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b23_type	B23 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b23_freq	B23 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b23_gain	B23 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b23_q	B23 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b23_slope	B23 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b23_placement	B23 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete
+b24_enabled	B24 On		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b24_bypass	B24 Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+b24_type	B24 Type		8	Bell	Tilt Shelf	0.000000	Bell	automatable,discrete
+b24_freq	B24 Freq		2147483647	10.0000000	30000.0000000	0.500000	999.9998779	automatable
+b24_gain	B24 Gain		2147483647	-30.0000000	30.0000000	0.500000	0.0000000	automatable
+b24_q	B24 Q		2147483647	0.0250000	40.0000000	0.500000	0.9999998	automatable
+b24_slope	B24 Slope		8	6 dB/oct	96 dB/oct	0.142857	12 dB/oct	automatable,discrete
+b24_placement	B24 Placement		5	Stereo	Side	0.000000	Stereo	automatable,discrete

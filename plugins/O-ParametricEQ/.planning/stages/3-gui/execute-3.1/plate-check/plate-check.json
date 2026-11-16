@@ -1,0 +1,180 @@
+{
+ "rows": [
+  {
+   "size": "960x600",
+   "test": {
+    "parent": "display",
+    "disp": [
+     820,
+     440
+    ],
+    "svg": [
+     353.47,
+     14.13,
+     453.27,
+     411.72
+    ],
+    "ink": [
+     380.86,
+     48.84,
+     413.38,
+     369.75
+    ],
+    "opacity": "0.3",
+    "transform": "none",
+    "pe": "none",
+    "paths": 8,
+    "errs": []
+   },
+   "real": {
+    "parent": "display",
+    "disp": [
+     820,
+     440
+    ],
+    "svg": [
+     353.47,
+     14.13,
+     453.27,
+     411.72
+    ],
+    "ink": [
+     380.86,
+     48.84,
+     413.38,
+     369.75
+    ],
+    "opacity": "0.3",
+    "transform": "none",
+    "pe": "none",
+    "paths": 8,
+    "errs": []
+   },
+   "maxDiffPx": 0
+  },
+  {
+   "size": "800x500",
+   "test": {
+    "parent": "display",
+    "disp": [
+     660,
+     340
+    ],
+    "svg": [
+     299.36,
+     11.13,
+     349.78,
+     317.72
+    ],
+    "ink": [
+     320.49,
+     37.91,
+     319,
+     285.34
+    ],
+    "opacity": "0.3",
+    "transform": "none",
+    "pe": "none",
+    "paths": 8,
+    "errs": []
+   },
+   "real": {
+    "parent": "display",
+    "disp": [
+     660,
+     340
+    ],
+    "svg": [
+     299.36,
+     11.13,
+     349.78,
+     317.72
+    ],
+    "ink": [
+     320.49,
+     37.91,
+     319,
+     285.34
+    ],
+    "opacity": "0.3",
+    "transform": "none",
+    "pe": "none",
+    "paths": 8,
+    "errs": []
+   },
+   "maxDiffPx": 0
+  },
+  {
+   "size": "1600x1000",
+   "test": {
+    "parent": "display",
+    "disp": [
+     1460,
+     840
+    ],
+    "svg": [
+     569.94,
+     26.13,
+     867.2,
+     787.72
+    ],
+    "ink": [
+     622.33,
+     92.54,
+     790.9,
+     707.43
+    ],
+    "opacity": "0.3",
+    "transform": "none",
+    "pe": "none",
+    "paths": 8,
+    "errs": []
+   },
+   "real": {
+    "parent": "display",
+    "disp": [
+     1460,
+     840
+    ],
+    "svg": [
+     569.94,
+     26.13,
+     867.2,
+     787.72
+    ],
+    "ink": [
+     622.33,
+     92.54,
+     790.9,
+     707.43
+    ],
+    "opacity": "0.3",
+    "transform": "none",
+    "pe": "none",
+    "paths": 8,
+    "errs": []
+   },
+   "maxDiffPx": 0
+  }
+ ],
+ "worstPx": 0,
+ "verdict": "PASS",
+ "cost": [
+  {
+   "shown": true,
+   "idleTaskMsPerS": 0.05
+  },
+  {
+   "shown": false,
+   "idleTaskMsPerS": 0.04
+  },
+  {
+   "shown": true,
+   "idleTaskMsPerS": 0.05
+  },
+  {
+   "shown": false,
+   "idleTaskMsPerS": 0.04
+  }
+ ]
+}

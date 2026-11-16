@@ -1,0 +1,2381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-ParametricEQ</title>
+<!--
+   This file is part of O-ParametricEQ, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   Production page, generated from UI mockup v1 (v1-ui.yaml, finalized).
+   Copied to Source/ui/public/index.html during Stage 3.
+
+   Window: 960 x 600 default, resizable 800 x 500 to 1600 x 1000, aspect free.
+   The layout REFLOWS (header 40 px and strip 76 px keep their heights; the
+   response display takes the rest). Deviation from ui-design-rules Rule 4 by
+   user decision.
+
+   196 host parameters, all bound through the JUCE 8 relay-state API. The C++
+   NormalisableRange is the only range: this page holds no parameter ranges.
+
+   One documented placeholder remains for Stage 3:
+     #meter-mount - the vu-meter 1.0.0 module mount point (Phase 3.3)
+-->
+<!-- eb-garamond 1.0.0 (modules/ui/eb-garamond), served at /css/ and /fonts/ -->
+<link rel="stylesheet" href="css/eb-garamond.css">
+<style>
+/* CRITICAL: WebView constraints - no viewport units anywhere */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+:root {
+  --paper-light: #FAF0E6;
+  --paper: #F5E6D3;
+  --paper-mid: #EBD9C7;
+  --paper-deep: #E8D0B8;
+  --rule: #8B7355;        /* borders and decoration only, never text */
+  --frame: #5C4033;
+  --ink: #3C2F2F;
+  --ink-2: #5C4033;
+  --ink-3: #6A5641;
+  --sage-fill: #4E6839;
+  --sage-ink: #2C3E10;
+  --sage-border: #3C5C1A;
+  --green-mid: #6B8E4E;
+  --madder: #A23B2E;
+  --shadow-medium: rgba(0, 0, 0, 0.25);
+  --knob-ring:    #C9A27B;
+  --knob-seg-1:   #F5DEB3;
+  --knob-seg-2:   #E8D5B7;
+  --knob-divider: #8B7355;
+  --knob-core:    #FFF8DC;
+  --knob-border:  #8B7355;
+  /* The CJK tail goes BEFORE the generic serif. */
+  --serif: 'EB Garamond', 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  --header-h: 40px;
+  --strip-h: 76px;
+  --out-w: 124px;
+  --edge: 16px;
+}
+
+body {
+  position: relative;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 12px;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  background: var(--paper);
+}
+
+/* ---------- plugin frame: fills the editor, reflows on resize ---------- */
+#plugin {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--out-w);
+  grid-template-rows: var(--header-h) minmax(0, 1fr) var(--strip-h);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .36 0 0 0 0 .25 0 0 0 0 .2 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, #F5E6D3 0%, #EBD9C7 100%);
+}
+
+:focus-visible { outline: 1px dotted var(--sage-fill); outline-offset: 2px; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+.cap {
+  display: block;
+  height: 12px;
+  line-height: 12px;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* ---------- header ---------- */
+#header {
+  grid-column: 1 / 3;
+  position: relative;
+  z-index: 20;            /* the settings popover opens over the stage */
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 var(--edge);
+  border-bottom: 2px solid var(--rule);
+}
+#title {
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+}
+#title .fl { letter-spacing: 0; margin-right: 7px; color: var(--rule); font-size: 13px; }
+
+/* preset-manager 1.1.1 mount: the module drives these elements */
+#preset-bar {
+  flex: 1 1 200px;
+  min-width: 150px;
+  max-width: 330px;
+  margin: 0 auto;
+  height: 26px;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-light);
+  box-shadow: inset 0 1px 2px rgba(60, 47, 47, 0.12);
+}
+#preset-bar button { border: 0; background: transparent; width: 24px; padding: 0; font-size: 15px; line-height: 22px; color: var(--ink-2); }
+#preset-bar button:hover { background: rgba(139, 115, 85, 0.16); }
+#preset-name { flex: 1; min-width: 0; padding: 0 8px; line-height: 24px; font-size: 13px; font-style: italic; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 1px solid rgba(139, 115, 85, 0.5); border-right: 1px solid rgba(139, 115, 85, 0.5); }
+/* Width pinned at the widest language (fr ENREG.), so the bar does not move on a language change. */
+#preset-bar #preset-save { width: 60px; padding: 0; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; border-left: 1px solid rgba(139, 115, 85, 0.5); white-space: nowrap; }
+.hgroup { flex: none; display: flex; align-items: center; gap: 8px; }
+/* Content-sized header boxes are pinned at their widest language (fr), so
+   nothing in the header moves when the language changes. */
+.hgroup .cap { width: 64px; text-align: right; }
+#seg-analyzer button { padding: 0; }
+#seg-analyzer button:nth-child(1) { width: 44px; }
+#seg-analyzer button:nth-child(2) { width: 35px; }
+#seg-analyzer button:nth-child(3) { width: 39px; }
+#seg-analyzer button:nth-child(4) { width: 60px; }
+#toggle-bypass { flex: none; width: 82px; padding: 0; }
+
+/* segmented control */
+.seg { display: inline-flex; height: 26px; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; background: var(--paper-light); }
+.seg button { border: 0; border-right: 1px solid rgba(139, 115, 85, 0.5); background: transparent; padding: 0 9px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.seg button:last-child { border-right: 0; }
+.seg button:hover { background: rgba(139, 168, 112, 0.22); }
+.seg button.on { background: var(--sage-fill); color: var(--paper); }
+
+/* house toggle button (Bool parameters): state is aria-pressed */
+.tog {
+  height: 26px;
+  min-width: 76px;
+  padding: 0 10px;
+  border: 1px solid var(--sage-border);
+  border-radius: 3px;
+  background: rgba(139, 168, 112, 0.3);
+  color: var(--sage-ink);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: transform 0.12s;
+}
+.tog:hover { background: rgba(139, 168, 112, 0.48); transform: translateY(-1px); }
+.tog[aria-pressed="true"] { background: var(--sage-fill); border-color: var(--sage-ink); color: var(--paper); }
+.tog.warn[aria-pressed="true"] { background: var(--madder); border-color: #6E241B; color: var(--paper-light); }
+
+/* ---------- settings: gear + popover (language, hover help) ---------- */
+.settings-cluster { position: relative; flex: none; display: flex; align-items: center; }
+.gear-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--sage-ink);
+  background: rgba(139, 168, 112, 0.3);
+  border: 1px solid var(--sage-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.gear-btn:hover { background: rgba(139, 168, 112, 0.48); transform: translateY(-1px); }
+.gear-btn[aria-expanded="true"] { background: var(--sage-fill); border-color: var(--sage-ink); color: var(--paper); transform: none; }
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 30;
+  min-width: 196px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: linear-gradient(135deg, var(--paper-light) 0%, var(--paper-mid) 100%);
+  border: 2px solid var(--frame);
+  border-radius: 4px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35);
+}
+.settings-popover[hidden] { display: none; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+.settings-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.settings-select {
+  flex: 0 0 auto;
+  width: 92px;
+  padding: 5px 6px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.settings-toggle {
+  flex: 0 0 auto;
+  min-width: 42px;
+  padding: 5px 6px;
+  font-size: 11px;
+  /* Pinned: with line-height normal the zh-Hans 开 / 关 fallback face
+     makes a taller line box and the row grows 4 px (check-ui-labels [7]). */
+  line-height: 14px;
+  text-align: center;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.settings-toggle[aria-pressed="true"] { background: var(--sage-fill); border-color: var(--sage-ink); color: var(--paper-light); }
+
+/* ---------- stage: response display + band legend ---------- */
+#stage {
+  grid-column: 1; grid-row: 2;
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 0 6px var(--edge);
+}
+#display {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 120% at 50% 45%, rgba(250, 240, 230, 0) 55%, rgba(214, 190, 160, 0.34) 100%),
+    var(--paper-light);
+  box-shadow: inset 0 0 0 3px var(--paper-light), inset 0 0 0 4px rgba(139, 115, 85, 0.5), 0 1px 3px rgba(60, 47, 47, 0.18);
+}
+/* Dragonfly plate (Stage 3 U4): the mockup's procedural engraving, built by
+   buildPlate() into the inline SVG. Geometry from v1-ui-test.html; the -21 deg
+   rotation lives INSIDE the SVG only (rotating the box too would turn it
+   twice). Colours follow the page tokens through these classes. */
+#plate { position: absolute; right: 1.5%; top: 3%; height: 94%; width: auto; max-width: 62%; opacity: 0.3; pointer-events: none; }
+#plate .plate-ink   { stroke: var(--frame); }
+#plate .plate-solid { fill: var(--frame); }
+#plate .plate-wash  { fill: var(--paper-light); }
+#curve { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+
+#legend { flex: none; height: 24px; display: flex; align-items: stretch; gap: 10px; }
+#chips { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 3px; }
+.chip {
+  position: relative; padding: 0 0 3px; border: 1px dotted var(--rule); border-radius: 2px;
+  background: transparent; color: var(--ink-3); font-size: 11px; line-height: 19px; text-align: center;
+}
+.chip:hover { background: rgba(250, 240, 230, 0.8); }
+.chip::after { content: ''; position: absolute; left: 3px; right: 3px; bottom: 2px; height: 3px; border-radius: 1px; }
+.chip.on { border: 1px solid var(--rule); background: var(--paper-light); color: var(--ink); }
+.chip.on::after { background: var(--pig); }
+.chip.on.byp::after { background: transparent; box-shadow: inset 0 0 0 1px var(--pig); }
+.chip.on.byp { color: var(--ink-3); }
+.chip.sel { background: var(--pig); border-color: var(--ink); color: var(--paper-light); }
+.chip.sel::after { background: var(--paper-light); }
+.chip.sel.byp::after { background: transparent; box-shadow: inset 0 0 0 1px var(--paper-light); }
+.chip.sel:hover { background: var(--pig); }
+#range { flex: none; display: flex; align-items: center; gap: 6px; }
+#range .seg { height: 24px; }
+#range .seg button { padding: 0 7px; font-size: 11.5px; }
+#range .unit { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+
+/* ---------- output column ---------- */
+#output {
+  grid-column: 2; grid-row: 2;
+  min-height: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 8px var(--edge) 6px 12px;
+}
+#output .sec { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); height: 12px; line-height: 12px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+#output .sec::after { content: ''; flex: 1; height: 1px; background: rgba(139, 115, 85, 0.6); }
+/* vu-meter 1.0.0 mount point. The ruler belongs INSIDE this bordered box, in
+   the same element as the bars it measures. */
+#meter-mount { position: relative; flex: 1 1 auto; min-height: 60px; border: 1px solid var(--rule); border-radius: 2px; background: var(--paper-light); box-shadow: inset 0 1px 3px rgba(60, 47, 47, 0.16); overflow: hidden; }
+.knob-cell { flex: none; }
+.knob-cell .row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+
+/* Family A knob (seed cross-section). Ring, segments and lighting never move;
+   only .knob-stem rotates. 40 px here, stem scaled to match (17 px). */
+.knob {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--knob-border);
+  cursor: ns-resize;
+  touch-action: none;
+  transition: transform 0.1s ease;
+  background:
+    radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
+    conic-gradient(from 0deg,
+      var(--knob-seg-1) 0deg,   var(--knob-seg-1) 18deg,  var(--knob-divider) 18deg,  var(--knob-divider) 19deg,
+      var(--knob-seg-2) 19deg,  var(--knob-seg-2) 36deg,  var(--knob-divider) 36deg,  var(--knob-divider) 37deg,
+      var(--knob-seg-1) 37deg,  var(--knob-seg-1) 54deg,  var(--knob-divider) 54deg,  var(--knob-divider) 55deg,
+      var(--knob-seg-2) 55deg,  var(--knob-seg-2) 72deg,  var(--knob-divider) 72deg,  var(--knob-divider) 73deg,
+      var(--knob-seg-1) 73deg,  var(--knob-seg-1) 90deg,  var(--knob-divider) 90deg,  var(--knob-divider) 91deg,
+      var(--knob-seg-2) 91deg,  var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+      var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+      var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+      var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+      var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+      var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+      var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+      var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+      var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+      var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+      var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+      var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+      var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+      var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+      var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+    radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
+  box-shadow:
+    inset 1px 1px 3px rgba(0, 0, 0, 0.3),
+    inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+    2px 2px 6px var(--shadow-medium);
+}
+.knob:hover  { transform: scale(1.05); }
+.knob:active { transform: scale(0.98); }
+.knob:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 3px; }
+.knob-stem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 17px;
+  border-radius: 1px;
+  background: var(--frame);
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(0deg);
+  pointer-events: none;
+}
+#toggle-auto_gain { width: 100%; flex: none; }
+
+/* ---------- value fields ---------- */
+.field {
+  position: relative; height: 28px; line-height: 26px; padding: 0 6px;
+  border: 1px solid var(--rule); border-radius: 3px;
+  background: var(--paper-light);
+  box-shadow: inset 0 1px 2px rgba(60, 47, 47, 0.14);
+  font-size: 13.5px; color: var(--ink); text-align: center; white-space: nowrap; overflow: hidden;
+  cursor: ns-resize; touch-action: none;
+}
+.field .u { font-size: 10.5px; color: var(--ink-3); margin-left: 3px; }
+/* knob readout: .knob-value is reserved for knob readouts (gates census it) */
+.knob-value.field { flex: 1; min-width: 0; height: 24px; line-height: 22px; font-size: 12px; padding: 0 2px; cursor: text; }
+.field.off, .sel-wrap.off select {
+  cursor: default; color: var(--ink-3); border-style: dashed; box-shadow: none;
+  background: repeating-linear-gradient(135deg, rgba(139, 115, 85, 0.13) 0 2px, transparent 2px 6px), var(--paper-mid);
+}
+.field input {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%; border: 0; outline: 1px solid var(--sage-fill); outline-offset: -2px;
+  background: #FFFBF3; color: var(--ink); text-align: center; font-size: inherit; padding: 0 2px;
+  font-feature-settings: "lnum" 1, "tnum" 1; -webkit-user-select: text; user-select: text; cursor: text;
+}
+
+/* ---------- selected-band strip ---------- */
+#strip {
+  grid-column: 1 / 3; grid-row: 3;
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 var(--edge);
+  border-top: 1px solid var(--rule);
+  background: linear-gradient(180deg, rgba(235, 217, 199, 0.72), rgba(232, 208, 184, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 235, 0.7);
+}
+.cell { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+#cell-type { flex: 0 1 132px; min-width: 124px; }
+#cell-slope { flex: 0 1 100px; min-width: 88px; }
+.cell.num { flex: 1 1 96px; max-width: 96px; }
+#cell-freq { min-width: 72px; } #cell-gain { min-width: 60px; } #cell-q { min-width: 48px; }
+.vr { flex: none; width: 1px; height: 40px; background: rgba(139, 115, 85, 0.55); margin: 0 3px; }
+#band-loz { width: 44px; height: 28px; line-height: 28px; border-radius: 14px; text-align: center; font-size: 15px; color: var(--paper-light); background: var(--pig, #8B7355); border: 1px solid rgba(60, 47, 47, 0.55); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(60, 47, 47, 0.25); }
+.sel-wrap { position: relative; height: 28px; }
+.sel-wrap select {
+  appearance: none; -webkit-appearance: none;
+  width: 100%;
+  height: 28px; border: 1px solid var(--rule); border-radius: 3px; outline-offset: 2px;
+  background: var(--paper-light); box-shadow: inset 0 1px 2px rgba(60, 47, 47, 0.14);
+  font-size: 13px; color: var(--ink); padding: 0 20px 0 8px; cursor: pointer;
+}
+.sel-wrap::after { content: ''; position: absolute; right: 8px; top: 12px; border: 4px solid transparent; border-top: 5px solid var(--ink-2); border-bottom: 0; pointer-events: none; }
+#combo-type { padding-left: 34px; }
+#type-icon { position: absolute; left: 8px; top: 8px; width: 20px; height: 12px; pointer-events: none; }
+#type-icon path { fill: none; stroke: var(--pig, var(--ink)); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#seg-placement { height: 28px; }
+#seg-placement button { width: 26px; padding: 0; font-size: 12.5px; }
+#seg-placement button:first-child { width: 30px; }
+#actions { margin-left: auto; }
+#actions .row { display: flex; gap: 6px; }
+.ibtn {
+  width: 30px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--sage-border); border-radius: 3px; background: rgba(139, 168, 112, 0.3); color: var(--sage-ink);
+  transition: transform 0.12s;
+}
+.ibtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.ibtn:hover { background: rgba(139, 168, 112, 0.5); transform: translateY(-1px); }
+.ibtn[aria-pressed="true"] { background: var(--sage-fill); border-color: var(--sage-ink); color: var(--paper); }
+.ibtn.warn[aria-pressed="true"] { background: var(--madder); border-color: #6E241B; color: var(--paper-light); }
+.ibtn.del { border-color: var(--rule); background: var(--paper-light); color: var(--ink-2); }
+.ibtn.del:hover { background: var(--madder); border-color: #6E241B; color: var(--paper-light); }
+#strip.empty .cell, #strip.empty .vr { visibility: hidden; }
+#strip-hint { display: none; position: absolute; left: var(--edge); right: var(--edge); top: 0; bottom: 0; align-items: center; justify-content: center; font-size: 14px; font-style: italic; color: var(--ink-2); pointer-events: none; }
+#strip.empty #strip-hint { display: flex; }
+#grip { position: absolute; right: 2px; bottom: 2px; width: 13px; height: 13px; cursor: nwse-resize; touch-action: none;
+  background: linear-gradient(135deg, transparent 0 46%, var(--rule) 46% 54%, transparent 54% 66%, var(--rule) 66% 74%, transparent 74% 86%, var(--rule) 86% 94%, transparent 94%); }
+
+/* ---------- tooltip: outside #plugin, position fixed, clamped to the window ---------- */
+.tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  max-width: 240px;
+  padding: 7px 10px;
+  background: linear-gradient(135deg, var(--paper-light) 0%, var(--paper-mid) 100%);
+  border: 1px solid var(--frame);
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-family: var(--serif);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
+}
+.tooltip.visible { opacity: 1; }
+.tooltip-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sage-border); margin-bottom: 3px; }
+.tooltip-body { font-size: 11.5px; line-height: 1.35; color: var(--ink); }
+.tooltip::after { content: ''; position: absolute; left: var(--arrow-x, 50%); transform: translateX(-50%); border: 5px solid transparent; }
+.tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--frame); }
+.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--frame); }
+
+/* One counterpart per transition / animation above. The listen halo on the
+   canvas is the page's only animation; the script draws it static under the
+   same media query (see listenPulse). */
+@media (prefers-reduced-motion: reduce) {
+  .knob { transition: none; }
+  .knob:hover, .knob:active { transform: none; }
+  .tog { transition: none; }
+  .tog:hover { transform: none; }
+  .ibtn { transition: none; }
+  .ibtn:hover { transform: none; }
+  .gear-btn { transition: none; }
+  .gear-btn:hover { transform: none; }
+  .settings-toggle { transition: none; }
+  .tooltip { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="plugin">
+  <header id="header">
+    <!-- Product name: an I18N_EXEMPT entry, not a key -->
+    <div id="title"><span class="fl" aria-hidden="true">&#10086;</span>O-Parametric EQ</div>
+
+    <!-- MODULE MOUNT: preset-manager 1.1.1 (modules/preset-manager.js drives these four elements) -->
+    <div id="preset-bar">
+      <button type="button" id="preset-prev" data-i18n-aria="aria.prevPreset" aria-label="Previous preset">&lsaquo;</button>
+      <div id="preset-name">Default</div>
+      <button type="button" id="preset-next" data-i18n-aria="aria.nextPreset" aria-label="Next preset">&rsaquo;</button>
+      <button type="button" id="preset-save" data-i18n-aria="aria.savePreset" aria-label="Save preset to file" data-i18n="label.save">Save</button>
+    </div>
+
+    <!-- Analyzer mode: session UI state, NOT a host parameter -->
+    <div class="hgroup">
+      <span class="cap" data-i18n="analyzer">Analyzer</span>
+      <div class="seg" id="seg-analyzer" role="radiogroup" data-i18n-aria="analyzer" aria-label="Analyzer">
+        <button type="button" role="radio" data-v="0" data-i18n="ui.off">Off</button><button type="button" role="radio" data-v="1" data-i18n="opt.analyzer.pre">Pre</button><button type="button" role="radio" data-v="2" data-i18n="opt.analyzer.post">Post</button><button type="button" role="radio" data-v="3" data-i18n="opt.analyzer.prePost">Pre+Post</button>
+      </div>
+    </div>
+
+    <button type="button" class="tog warn" id="toggle-bypass" aria-pressed="false" data-i18n="toggle-bypass">Bypass</button>
+
+    <!-- Added by finalization: the mockup had no settings popover -->
+    <div class="settings-cluster">
+      <button type="button" class="gear-btn" id="gear-btn"
+              aria-haspopup="dialog" aria-expanded="false"
+              data-i18n-aria="settings" aria-label="Settings" data-tip-always>&#9881;</button>
+
+      <div class="settings-popover" id="settings-popover"
+           role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
+        <label class="settings-row" for="lang-select">
+          <span class="settings-label" data-i18n="lang-select">Language</span>
+          <!-- Endonyms: never localized -->
+          <select class="settings-select" id="lang-select"
+                  data-i18n-aria="aria.langSelect" aria-label="Interface language">
+            <option value="en">English</option>
+            <option value="fr">Fran&ccedil;ais</option>
+            <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
+          </select>
+        </label>
+        <!-- A div, NEVER a label for tips-toggle: a label re-dispatches the
+             click to the button and the switch toggles twice. -->
+        <div class="settings-row">
+          <span class="settings-label" data-i18n="label.hoverHelp">Hover help</span>
+          <button type="button" class="settings-toggle" id="tips-toggle"
+                  aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                  aria-label="Toggle hover help"
+                  data-i18n="ui.on" data-tip-always>On</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="stage">
+    <div id="display">
+      <svg id="plate" viewBox="-300 -205 600 545" aria-hidden="true"></svg>
+      <canvas id="curve" tabindex="0" data-i18n-aria="aria.response"
+              aria-label="Frequency response. Click to add a band, drag a node for frequency and gain, scroll on a node for Q."></canvas>
+    </div>
+    <div id="legend">
+      <!-- 24 chips, built by the script -->
+      <div id="chips" role="group" data-i18n-aria="bands" aria-label="Bands"></div>
+      <!-- Display range: session UI state, NOT a host parameter -->
+      <div id="range">
+        <div class="seg" id="seg-range" role="radiogroup" data-i18n-aria="display-range" aria-label="Display range">
+          <button type="button" role="radio" data-v="6">&plusmn;6</button><button type="button" role="radio" data-v="12">&plusmn;12</button><button type="button" role="radio" data-v="30">&plusmn;30</button>
+        </div>
+        <span class="unit">dB</span>
+      </div>
+    </div>
+  </section>
+
+  <aside id="output">
+    <div class="sec" data-i18n="label.output">Output</div>
+    <!-- MODULE MOUNT: vu-meter 1.0.0. Vertical, -60 to +6 dB, ruler inside this box. -->
+    <div id="meter-mount" role="img" data-i18n-aria="meter" aria-label="Output level"></div>
+    <div class="knob-cell">
+      <span class="cap knob-label" data-i18n="knob-output_gain">Output gain</span>
+      <div class="row">
+        <div class="knob" id="knob-output_gain" data-param="output_gain" data-i18n-aria="knob-output_gain" aria-label="Output gain"><div class="knob-stem"></div></div>
+        <div class="knob-value field" id="val-output_gain">&#8212;</div>
+      </div>
+    </div>
+    <div class="knob-cell">
+      <span class="cap knob-label" data-i18n="knob-gain_scale">Gain scale</span>
+      <div class="row">
+        <div class="knob" id="knob-gain_scale" data-param="gain_scale" data-i18n-aria="knob-gain_scale" aria-label="Gain scale"><div class="knob-stem"></div></div>
+        <div class="knob-value field" id="val-gain_scale">&#8212;</div>
+      </div>
+    </div>
+    <button type="button" class="tog" id="toggle-auto_gain" aria-pressed="false" data-i18n="toggle-auto_gain">Auto gain</button>
+  </aside>
+
+  <!-- Selected-band strip: one set of controls, re-pointed at bNN_ of the selected band -->
+  <section id="strip" class="empty">
+    <div class="cell"><span class="cap" data-i18n="label.band">Band</span><div id="band-loz">&#8212;</div></div>
+    <i class="vr"></i>
+    <div class="cell" id="cell-type"><span class="cap" data-i18n="band-type">Type</span>
+      <div class="sel-wrap"><svg id="type-icon" viewBox="0 0 20 12" aria-hidden="true"><path d=""/></svg><select id="combo-type" data-i18n-aria="band-type" aria-label="Type"></select></div></div>
+    <div class="cell num" id="cell-freq"><span class="cap" data-i18n="band-freq">Frequency</span>
+      <div class="field" id="field-freq" tabindex="0" role="slider" data-i18n-aria="band-freq" aria-label="Frequency"><span class="fv">&#8212;</span><span class="u"></span></div></div>
+    <div class="cell num" id="cell-gain"><span class="cap" data-i18n="band-gain">Gain</span>
+      <div class="field" id="field-gain" tabindex="0" role="slider" data-i18n-aria="band-gain" aria-label="Gain"><span class="fv">&#8212;</span><span class="u"></span></div></div>
+    <div class="cell num" id="cell-q"><span class="cap" data-i18n="band-q">Q</span>
+      <div class="field" id="field-q" tabindex="0" role="slider" data-i18n-aria="band-q" aria-label="Q"><span class="fv">&#8212;</span><span class="u"></span></div></div>
+    <div class="cell" id="cell-slope"><span class="cap" data-i18n="band-slope">Slope</span>
+      <div class="sel-wrap" id="wrap-slope"><select id="combo-slope" data-i18n-aria="band-slope" aria-label="Slope"></select></div></div>
+    <i class="vr"></i>
+    <div class="cell"><span class="cap" data-i18n="band-placement">Placement</span>
+      <div class="seg" id="seg-placement" role="radiogroup" data-i18n-aria="band-placement" aria-label="Placement">
+        <button type="button" role="radio" data-v="0" data-i18n-aria="aria.placement.stereo" aria-label="Stereo">LR</button><button type="button" role="radio" data-v="1" data-i18n-aria="aria.placement.left" aria-label="Left channel">L</button><button type="button" role="radio" data-v="2" data-i18n-aria="aria.placement.right" aria-label="Right channel">R</button><button type="button" role="radio" data-v="3" data-i18n-aria="aria.placement.mid" aria-label="Mid signal">M</button><button type="button" role="radio" data-v="4" data-i18n-aria="aria.placement.side" aria-label="Side signal">S</button>
+      </div></div>
+    <div class="cell" id="actions"><span class="cap">&nbsp;</span>
+      <div class="row">
+        <button type="button" class="ibtn warn" id="btn-band-bypass" aria-pressed="false" data-i18n-aria="band-bypass" aria-label="Bypass band"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v6M4.7 4.3a5 5 0 1 0 6.6 0"/></svg></button>
+        <button type="button" class="ibtn" id="btn-listen" aria-pressed="false" data-i18n-aria="band-listen" aria-label="Listen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 10.5V8a5 5 0 0 1 10 0v2.5"/><rect x="2" y="9.5" width="3" height="4.5" rx="1"/><rect x="11" y="9.5" width="3" height="4.5" rx="1"/></svg></button>
+        <button type="button" class="ibtn del" id="btn-delete" data-i18n-aria="band-delete" aria-label="Delete band"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+      </div>
+    </div>
+    <div id="strip-hint" data-i18n="label.stripHint">Click the display to add a band</div>
+    <div id="grip" role="separator" data-i18n-aria="resize" aria-label="Resize"></div>
+  </section>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script type="module">
+import * as Juce from './js/juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+// ════════════════════════════════════════════════════════════════════════════
+// MODULE STATE — every module-level const / let lives in this block.
+// Everything after it is a hoisted function declaration, then the i18n canon,
+// then ONE init() call as the last statement. A module-level statement that
+// reaches a binding declared further down throws (temporal dead zone) and
+// kills the whole UI silently.
+// ════════════════════════════════════════════════════════════════════════════
+
+const NB = 24;                                    // bands; IDs b01_ ... b24_
+const KNOB_IDS = ['output_gain', 'gain_scale'];   // Family A knobs
+const BAND_SLIDERS = ['freq', 'gain', 'q'];       // WebSliderRelay per band
+const BAND_TOGGLES = ['enabled', 'bypass'];       // WebToggleButtonRelay per band
+const BAND_COMBOS  = ['type', 'slope', 'placement'];   // WebComboBoxRelay per band
+
+const MINUS = '−';
+
+// Units and decimals ONLY. Applied to st.getScaledValue(). No ranges here.
+const FORMAT = {
+    output_gain: (v) => `${signed(v, 1)} dB`,
+    gain_scale:  (v) => `${v.toFixed(0)} %`,
+};
+// Strip fields: [number, unit] so the unit can sit in its own span.
+const FIELD_FORMAT = { freq: fmtHz, gain: fmtDb, q: fmtQ };
+
+// Which bNN_type choices use gain / slope (parameter-spec.md, choice order:
+// Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch, Band Pass, Tilt Shelf).
+const TYPE_HAS_GAIN  = [1, 1, 1, 0, 0, 0, 0, 1];
+const TYPE_HAS_SLOPE = [0, 1, 1, 1, 1, 0, 0, 1];
+const TYPE_ICON = [
+    'M1 9.5C6 9.5 7 2 10 2S14 9.5 19 9.5', 'M1 3H6C10 3 10 9.5 14 9.5H19', 'M1 9.5H6C10 9.5 10 3 14 3H19',
+    'M1 11.5C5 11.5 5.5 4 9 4H19', 'M1 4H11C14.5 4 15 11.5 19 11.5', 'M1 4H7C9 4 9.5 11.5 10 11.5S11 4 13 4H19',
+    'M1 11C6 11 7 2.5 10 2.5S14 11 19 11', 'M1 10C8 10 12 2.5 19 2.5'];
+const PLACE_GLYPH = ['LR', 'L', 'R', 'M', 'S'];   // canvas badge; Stereo carries none
+// Naturalist pigment cycle, by band index (repeats x3). Paper text on each clears 4.5:1.
+const PIGMENTS = ['#8F6212', '#A23B2E', '#2C7265', '#34406E', '#8A4B22', '#55703E', '#7A3F6A', '#1F5673'];
+
+// The PLOT AXIS (what the grid draws), not a parameter range. Writes are
+// clamped by the live relay properties, never by these.
+const AXIS_FMIN = 10;
+const AXIS_FMAX = 30000;
+const AXIS_LOG_MIN  = Math.log(AXIS_FMIN);
+const AXIS_LOG_SPAN = Math.log(AXIS_FMAX / AXIS_FMIN);
+const PLOT_MARGIN = { l: 38, r: 14, t: 12, b: 22 };   // axis gutters, inside the bordered box
+const ANALYZER_FLOOR_DB = -96;                    // analyzer scale: 0 dBFS top, floor at the bottom
+const NODE_HIT_PX = 14;
+
+const KNOB_MIN_DEG       = -135;  // normalised 0.0
+const KNOB_MAX_DEG       = 135;   // normalised 1.0
+const DRAG_TRAVEL_PX     = 220;   // vertical px for a full 0 to 1 sweep
+const FINE_DRAG_RATE     = 0.2;   // Shift-drag speed
+const NUDGE_STEP         = 0.02;  // wheel / arrow-key step (floored at one param interval)
+const WHEEL_PX_PER_NUDGE = 100;
+const WHEEL_LINE_PX      = 33;    // deltaMode 1 (lines) to px
+const WHEEL_PAGE_PX      = 400;   // deltaMode 2 (pages) to px
+const WHEEL_MAX_NUDGES   = 4;     // per-event clamp
+const WHEEL_GESTURE_MS   = 250;   // one wheel burst = one automation gesture
+
+const FIELD_LOG_TRAVEL   = 320;   // px for a full sweep of a skewed field (frequency, Q)
+const FIELD_LIN_TRAVEL   = 240;   // px for a full sweep of a linear field (gain)
+const FIELD_FINE_RATE    = 0.15;  // Shift-drag speed on a field
+const DRAG_THRESHOLD_PX  = 3;     // movement before a press becomes a drag
+const ENTRY_CLICK_MS     = 240;   // single click opens typed entry after the double-click window
+const CREATE_DBLCLICK_MS = 450;   // a double-click that just created a node does not reset it
+
+const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the window edge
+const TOOLTIP_DELAY_MS   = 350;   // hover dwell before a tip appears
+const TIPS_STORAGE_KEY   = 'opeq.tipsEnabled';
+
+const WIN_MIN_W = 800, WIN_MIN_H = 500, WIN_MAX_W = 1600, WIN_MAX_H = 1000;   // editor limits (C++ clamps too)
+
+const sliderState = {};           // id -> Juce SliderState   (74)
+const toggleState = {};           // id -> Juce ToggleState   (50)
+const comboState  = {};           // id -> Juce ComboBoxState (72)
+let paramDefaults = null;         // { id: engineeringDefault } from getParameterDefaults
+
+// Session UI state (NOT host parameters). Persisted by C++ through setUiState,
+// except listen, which is transient.
+const ui = { analyzer: 2, range: 12, selected: 0, listen: 0, hover: 0, drag: null, createdAt: 0 };
+let setUiStateNative  = null;
+let setListenNative   = null;
+let resizeNative      = null;
+
+// Response display
+let curveEl = null, curveCtx = null;
+let plotW = 0, plotH = 0, canvasW = 0, canvasH = 0;
+const bandPackets = new Array(NB + 1).fill(null);   // [band] -> { sections, onePoles, active } from eqSections
+let displaySampleRate = 0;        // from eqSections; 0 = no curve data yet
+let analyzerPre = null, analyzerPost = null;         // arrays of dBFS, log-spaced over the plot axis
+let renderQueued = false;
+let pulseRaf = 0;
+let reducedMotion = false;
+const wheelTimers = new Map();    // SliderState -> timer id (one open wheel gesture per state)
+
+let editing = null;               // { input, close } while a typed entry is open
+let presetManager = null;
+
+let tooltipEl         = null;
+let tooltipTimer      = null;
+let tooltipTarget     = null;
+let tooltipSuppressed = false;
+let tipsEnabled       = true;
+
+// ════════════════════════════════════════════════════════════════════════════
+// FUNCTION DECLARATIONS (hoisted — safe to call from init())
+// ════════════════════════════════════════════════════════════════════════════
+
+function $(id) { return document.getElementById(id); }
+function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+function bid(b, key) { return 'b' + String(b).padStart(2, '0') + '_' + key; }
+function pigment(b) { return PIGMENTS[(b - 1) % PIGMENTS.length]; }
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
+function canvasFont(px, italic) { return `${italic ? 'italic ' : ''}${px}px "EB Garamond", Garamond, "Times New Roman", serif`; }
+
+// ── Formatting: units and decimals only ─────────────────────────────────────
+function signed(v, d) {
+    const s = Math.abs(v).toFixed(d);
+    return (v > 0 && +s !== 0 ? '+' : v < 0 && +s !== 0 ? MINUS : '') + s;
+}
+function fmtDb(v) { return [signed(v, 1), 'dB']; }
+function fmtHz(v) {
+    return v >= 9995 ? [(v / 1000).toFixed(1), 'kHz'] : v >= 999.5 ? [(v / 1000).toFixed(2), 'kHz']
+         : v >= 99.95 ? [v.toFixed(0), 'Hz'] : [v.toFixed(1), 'Hz'];
+}
+function fmtQ(v) { return [v >= 9.995 ? v.toFixed(1) : v >= 0.0995 ? v.toFixed(2) : v.toFixed(3), '']; }
+function joinUnit(a) { return a[1] ? a[0] + ' ' + a[1] : a[0]; }
+
+// ── Parameter access ────────────────────────────────────────────────────────
+function normToDeg(n) {
+    return KNOB_MIN_DEG + n * (KNOB_MAX_DEG - KNOB_MIN_DEG);
+}
+
+// Inverse of getNormalisedValue(), from the LIVE properties the C++ range pushes.
+// For frequency this is ((hz - start) / (end - start)) ^ skew: the pow skew of
+// setSkewForCentre, which reaches the frontend (a lambda range would not).
+function scaledToNorm(st, scaled) {
+    const p = st.properties;
+    const span = p.end - p.start;
+    if (!isFinite(span) || span === 0) return 0;
+    const proportion = Math.min(1, Math.max(0, (scaled - p.start) / span));
+    return Math.pow(proportion, p.skew);
+}
+
+function setScaled(st, scaled) { st.setNormalisedValue(scaledToNorm(st, scaled)); }
+
+function bandOn(b)        { const st = toggleState[bid(b, 'enabled')]; return !!(st && st.getValue()); }
+function bandBool(b, k)   { const st = toggleState[bid(b, k)]; return !!(st && st.getValue()); }
+function bandChoice(b, k) { const st = comboState[bid(b, k)]; return st ? Math.max(0, st.getChoiceIndex()) : 0; }
+function bandValue(b, k)  { const st = sliderState[bid(b, k)]; return st ? st.getScaledValue() : 0; }
+function gainScale()      { const st = sliderState.gain_scale; return st ? st.getScaledValue() / 100 : 1; }
+function selectedBand()   { return ui.selected > 0 && bandOn(ui.selected) ? ui.selected : 0; }
+
+// One wheel burst = one automation gesture, per SliderState.
+function wheelEnd(st) {
+    const t = wheelTimers.get(st);
+    if (t === undefined) return;
+    clearTimeout(t);
+    wheelTimers.delete(st);
+    st.sliderDragEnded();
+}
+function wheelTouch(st) {
+    const t = wheelTimers.get(st);
+    if (t === undefined) st.sliderDragStarted();
+    else clearTimeout(t);
+    wheelTimers.set(st, setTimeout(() => wheelEnd(st), WHEEL_GESTURE_MS));
+}
+
+// One bracketed write: a single host automation gesture.
+function writeScaled(st, scaled) {
+    wheelEnd(st);
+    st.sliderDragStarted();
+    setScaled(st, scaled);
+    st.sliderDragEnded();
+}
+
+async function loadParameterDefaults(juce) {
+    try {
+        const raw = await juce.getNativeFunction('getParameterDefaults')();
+        paramDefaults = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (e) {
+        console.error('getParameterDefaults failed:', e);
+        paramDefaults = null;   // dblclick becomes a no-op; nothing else is affected
+    }
+}
+
+function defaultOf(id) {
+    return paramDefaults && (id in paramDefaults) ? Number(paramDefaults[id]) : null;
+}
+
+// ── Family A knob (html-generation.md "Knob Interaction") ───────────────────
+function updateKnobVisual(id) {
+    const st = sliderState[id];
+    if (!st) return;
+    const text = FORMAT[id](st.getScaledValue());          // never a JS range map
+    const knob = document.getElementById(`knob-${id}`);
+    if (knob) {
+        const stem = knob.querySelector('.knob-stem');
+        if (stem) stem.style.transform =
+            `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
+        knob.setAttribute('aria-valuetext', text);         // same text as the readout
+    }
+    const valEl = document.getElementById(`val-${id}`);
+    if (valEl && valEl.dataset.editing !== '1') valEl.textContent = text;
+}
+
+function nudgeStep(st) {
+    const p = st.properties;
+    const span = p.end - p.start;
+    if (!(p.interval > 0) || !isFinite(span) || span <= 0) return NUDGE_STEP;
+    return Math.max(NUDGE_STEP, p.interval / span);
+}
+
+function stepBy(st, nudges, id) {
+    const n = Math.min(1, Math.max(0, st.getNormalisedValue() + nudges * nudgeStep(st)));
+    st.setNormalisedValue(n);
+    updateKnobVisual(id);
+}
+
+function nudge(st, dir, id) {
+    st.sliderDragStarted();
+    stepBy(st, dir, id);
+    st.sliderDragEnded();
+}
+
+function resetToDefault(st, id) {
+    if (!paramDefaults || !(id in paramDefaults)) return;
+    const norm = scaledToNorm(st, Number(paramDefaults[id]));
+    st.sliderDragStarted();
+    st.setNormalisedValue(norm);
+    st.sliderDragEnded();
+    updateKnobVisual(id);
+}
+
+function bindKnob(juce, id) {
+    const st = juce.getSliderState(id);
+    sliderState[id] = st;
+
+    st.valueChangedEvent.addListener(() => { updateKnobVisual(id); requestRender(); });
+    st.propertiesChangedEvent.addListener(() => { updateKnobVisual(id); requestRender(); });
+    updateKnobVisual(id);
+
+    const knob = document.getElementById(`knob-${id}`);
+    if (!knob) { console.error(`Missing knob element: knob-${id}`); return; }
+
+    knob.setAttribute('tabindex', '0');
+    knob.setAttribute('role', 'slider');
+    knob.addEventListener('keydown', (e) => {
+        let dir = 0;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+        else return;
+        endWheelGesture();
+        nudge(st, dir, id);
+        e.preventDefault();
+    });
+
+    let dragging = false, startY = 0, startNorm = 0, lastY = 0, fine = false;
+
+    let wheelTimer = null;
+    const endWheelGesture = () => {
+        if (wheelTimer === null) return;
+        clearTimeout(wheelTimer);
+        wheelTimer = null;
+        st.sliderDragEnded();
+    };
+
+    const onMove = (e) => {
+        if (!dragging) return;
+        if (e.shiftKey !== fine) {              // re-base on a modifier flip
+            fine = e.shiftKey;
+            startY = lastY;
+            startNorm = st.getNormalisedValue();
+        }
+        lastY = e.clientY;
+        const travel = fine ? DRAG_TRAVEL_PX / FINE_DRAG_RATE : DRAG_TRAVEL_PX;
+        const n = Math.min(1, Math.max(0, startNorm + (startY - e.clientY) / travel));
+        st.setNormalisedValue(n);
+        updateKnobVisual(id);
+        e.preventDefault();
+    };
+
+    // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
+    const onUp = (e) => {
+        if (!dragging) return;
+        dragging = false;
+        st.sliderDragEnded();
+        knob.removeEventListener('pointermove', onMove);
+        knob.removeEventListener('pointerup', onUp);
+        knob.removeEventListener('pointercancel', onUp);
+        knob.removeEventListener('lostpointercapture', onUp);
+        if (e && e.pointerId !== undefined) {
+            try { knob.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+        }
+    };
+
+    knob.addEventListener('pointerdown', (e) => {
+        endWheelGesture();
+        dragging = true;
+        startY = lastY = e.clientY;
+        fine = e.shiftKey;
+        startNorm = st.getNormalisedValue();
+        st.sliderDragStarted();
+        try { knob.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+        knob.addEventListener('pointermove', onMove);
+        knob.addEventListener('pointerup', onUp);
+        knob.addEventListener('pointercancel', onUp);
+        knob.addEventListener('lostpointercapture', onUp);
+        e.preventDefault();
+    });
+
+    knob.addEventListener('wheel', (e) => {
+        if (dragging) { e.preventDefault(); return; }
+        if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours; no preventDefault
+        e.preventDefault();
+        const px = Math.abs(e.deltaY) *
+            (e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? WHEEL_PAGE_PX : 1);
+        const nudges = Math.min(WHEEL_MAX_NUDGES, Math.max(1, px / WHEEL_PX_PER_NUDGE));
+        if (wheelTimer === null) st.sliderDragStarted();
+        else clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(endWheelGesture, WHEEL_GESTURE_MS);
+        stepBy(st, e.deltaY < 0 ? nudges : -nudges, id);
+    }, { passive: false });
+
+    knob.addEventListener('dblclick', (e) => {
+        endWheelGesture();
+        resetToDefault(st, id);
+        e.preventDefault();
+    });
+
+    // The readout beside the knob takes typed entry on click, reset on double-click.
+    const valEl = document.getElementById(`val-${id}`);
+    if (valEl) {
+        valEl.addEventListener('click', () => beginEdit(valEl, st, () => updateKnobVisual(id), `knob-${id}`));
+        valEl.addEventListener('dblclick', () => resetToDefault(st, id));
+    }
+}
+
+// ── Toggles (Bool parameters) ───────────────────────────────────────────────
+function bindToggle(juce, id) {
+    const st = juce.getToggleState(id);
+    toggleState[id] = st;
+    const btn = document.getElementById(`toggle-${id}`);
+    if (!btn) { console.error(`Missing toggle element: toggle-${id}`); return; }
+    const paint = () => { btn.setAttribute('aria-pressed', st.getValue() ? 'true' : 'false'); requestRender(); };
+    st.valueChangedEvent.addListener(paint);
+    st.propertiesChangedEvent.addListener(paint);
+    paint();
+    btn.addEventListener('click', () => st.setValue(!st.getValue()));
+}
+
+// ── The 192 band parameters ─────────────────────────────────────────────────
+// One state per parameter, each listening to BOTH events. The strip, the chips
+// and the display repaint from the states; nothing is cached in between.
+function bindBandStates(juce) {
+    for (let b = 1; b <= NB; b++) {
+        for (const k of BAND_SLIDERS) {
+            const st = juce.getSliderState(bid(b, k));
+            sliderState[bid(b, k)] = st;
+            st.valueChangedEvent.addListener(requestRender);
+            st.propertiesChangedEvent.addListener(requestRender);
+        }
+        for (const k of BAND_TOGGLES) {
+            const st = juce.getToggleState(bid(b, k));
+            toggleState[bid(b, k)] = st;
+            st.valueChangedEvent.addListener(requestRender);
+            st.propertiesChangedEvent.addListener(requestRender);
+        }
+        for (const k of BAND_COMBOS) {
+            const st = juce.getComboBoxState(bid(b, k));
+            comboState[bid(b, k)] = st;
+            st.valueChangedEvent.addListener(requestRender);
+            st.propertiesChangedEvent.addListener(requestRender);
+        }
+    }
+}
+
+// ── Typed value entry ───────────────────────────────────────────────────────
+// Accepts "2500", "2.5k", "2,5 k", a typographic minus. Clamped by the live
+// relay properties.
+function parseEntry(st, text) {
+    const s = String(text).trim().toLowerCase().replace(/−/g, '-').replace(',', '.');
+    const m = s.match(/^([+-]?\d*\.?\d+)\s*(k)?/);
+    if (!m) return null;
+    let v = parseFloat(m[1]);
+    if (m[2]) v *= 1000;
+    if (!Number.isFinite(v)) return null;
+    const p = st.properties;
+    return clamp(v, p.start, p.end);
+}
+
+// labelId: the element whose accessible name also names the entry field.
+function beginEdit(el, st, repaint, labelId) {
+    if (editing || !el || !st || el.classList.contains('off')) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.value = String(+st.getScaledValue().toPrecision(5));
+    input.setAttribute('aria-labelledby', labelId || el.id);
+    el.dataset.editing = '1';
+    el.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    // Controls that preventDefault their own pointerdown (knobs, fields, the
+    // grip) suppress the focus change that would blur this input, so a press on
+    // one of them would leave the entry open. Capture phase on document, so the
+    // entry commits before any drag starts.
+    const onOutsidePointer = (e) => { if (e.target !== input) input.blur(); };
+    document.addEventListener('pointerdown', onOutsidePointer, true);
+
+    const close = (commit) => {
+        if (closed) return;
+        closed = true;
+        editing = null;
+        document.removeEventListener('pointerdown', onOutsidePointer, true);
+        if (commit) {
+            const v = parseEntry(st, input.value);
+            if (v !== null) writeScaled(st, v);
+        }
+        delete el.dataset.editing;
+        input.remove();
+        if (repaint) repaint();
+        requestRender();
+    };
+
+    editing = { input, close };
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();   // keep digits and Delete away from the page handlers
+        if (e.key === 'Enter') { e.preventDefault(); close(true); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(false); }
+    });
+    input.addEventListener('blur', () => close(true));
+    const stop = (e) => e.stopPropagation();
+    input.addEventListener('pointerdown', stop);
+    input.addEventListener('mousedown', stop);
+    input.addEventListener('click', stop);
+    input.addEventListener('dblclick', stop);
+    input.addEventListener('wheel', stop);
+}
+
+// ── Strip value fields (frequency, gain, Q of the selected band) ────────────
+// A skewed parameter (frequency, Q) moves in the log domain, a linear one
+// (gain) linearly. Start and end come from the live relay properties.
+function fieldNudge(st, steps) {
+    const p = st.properties;
+    const v = st.getScaledValue();
+    let next;
+    if (p.skew !== 1 && p.start > 0 && p.end > p.start)
+        next = Math.exp(clamp(Math.log(v) + steps * Math.log(p.end / p.start) / FIELD_LOG_TRAVEL,
+                              Math.log(p.start), Math.log(p.end)));
+    else
+        next = clamp(v + steps * (p.end - p.start) / FIELD_LIN_TRAVEL, p.start, p.end);
+    setScaled(st, next);
+}
+
+function bindField(key) {
+    const el = $(`field-${key}`);
+    if (!el) { console.error(`Missing field element: field-${key}`); return; }
+
+    const state = () => {
+        const b = selectedBand();
+        return b && !el.classList.contains('off') ? sliderState[bid(b, key)] : null;
+    };
+
+    let drag = null, clickTimer = 0;
+
+    const onMove = (e) => {
+        if (!drag) return;
+        const dy = drag.y - e.clientY;
+        if (!drag.moved) {
+            if (Math.abs(dy) < DRAG_THRESHOLD_PX) return;
+            drag.moved = true;
+            drag.st.sliderDragStarted();
+        }
+        fieldNudge(drag.st, dy * (e.shiftKey ? FIELD_FINE_RATE : 1));
+        drag.y = e.clientY;
+        e.preventDefault();
+    };
+
+    // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
+    const onUp = (e) => {
+        if (!drag) return;
+        const d = drag;
+        drag = null;
+        el.removeEventListener('pointermove', onMove);
+        el.removeEventListener('pointerup', onUp);
+        el.removeEventListener('pointercancel', onUp);
+        el.removeEventListener('lostpointercapture', onUp);
+        if (e && e.pointerId !== undefined) {
+            try { el.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+        }
+        if (d.moved) { d.st.sliderDragEnded(); return; }
+        // A plain click opens typed entry, after the double-click window so
+        // that a double-click can reset instead (v1-ui.yaml open question).
+        if (e && e.type === 'pointerup') {
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => beginEdit(el, d.st, null), ENTRY_CLICK_MS);
+        }
+    };
+
+    el.addEventListener('pointerdown', (e) => {
+        const st = state();
+        if (e.button !== 0 || !st || e.target.tagName === 'INPUT') return;
+        e.preventDefault();
+        el.focus({ preventScroll: true });
+        wheelEnd(st);
+        drag = { st, y: e.clientY, moved: false };
+        try { el.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+        el.addEventListener('pointermove', onMove);
+        el.addEventListener('pointerup', onUp);
+        el.addEventListener('pointercancel', onUp);
+        el.addEventListener('lostpointercapture', onUp);
+    });
+
+    el.addEventListener('dblclick', () => {
+        clearTimeout(clickTimer);
+        const st = state(), b = selectedBand();
+        if (!st || !b) return;
+        const def = defaultOf(bid(b, key));
+        if (def !== null) writeScaled(st, def);
+    });
+
+    el.addEventListener('wheel', (e) => {
+        const st = state();
+        if (!st || drag) return;
+        if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours; no preventDefault
+        e.preventDefault();
+        wheelTouch(st);
+        fieldNudge(st, -Math.sign(e.deltaY) * (e.shiftKey ? 0.5 : 3));
+    }, { passive: false });
+
+    el.addEventListener('keydown', (e) => {
+        const st = state();
+        if (!st || e.target !== el) return;
+        let dir = 0;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+        else if (e.key === 'Enter') { e.preventDefault(); beginEdit(el, st, null); return; }
+        else return;
+        e.preventDefault();
+        wheelEnd(st);
+        st.sliderDragStarted();
+        fieldNudge(st, dir * (e.shiftKey ? 0.6 : 3));
+        st.sliderDragEnded();
+    });
+}
+
+function paintField(key, st, enabled) {
+    const el = $(`field-${key}`);
+    if (!el) return;
+    el.classList.toggle('off', !enabled);
+    el.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    if (el.dataset.editing === '1') return;
+    const fv = el.querySelector('.fv'), u = el.querySelector('.u');
+    if (!enabled || !st) {
+        if (fv) fv.textContent = '—';
+        if (u) u.textContent = '';
+        el.removeAttribute('aria-valuetext');
+        return;
+    }
+    const parts = FIELD_FORMAT[key](st.getScaledValue());
+    if (fv) fv.textContent = parts[0];
+    if (u) u.textContent = parts[1];
+    el.setAttribute('aria-valuetext', joinUnit(parts));
+}
+
+// ── Strip selects, segments, buttons ────────────────────────────────────────
+// Options come from properties.choices, never from a JS list. Type names are
+// words, so each option is labelled through setLabel with a literal key, in
+// choice order. Slope options ("12 dB/oct") are units and show the C++ string.
+function buildOptions(sel, st, labelers) {
+    const choices = (st && st.properties && st.properties.choices) || [];
+    if (choices.length === 0 || sel.options.length === choices.length) return;
+    sel.textContent = '';
+    choices.forEach((c, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = c;
+        sel.appendChild(opt);
+        if (labelers && labelers[i]) labelers[i](opt);
+    });
+}
+
+function typeLabelers() {
+    return [
+        (o) => setLabel(o, 'opt.type.bell'),
+        (o) => setLabel(o, 'opt.type.lowShelf'),
+        (o) => setLabel(o, 'opt.type.highShelf'),
+        (o) => setLabel(o, 'opt.type.lowCut'),
+        (o) => setLabel(o, 'opt.type.highCut'),
+        (o) => setLabel(o, 'opt.type.notch'),
+        (o) => setLabel(o, 'opt.type.bandPass'),
+        (o) => setLabel(o, 'opt.type.tiltShelf'),
+    ];
+}
+
+function initStrip() {
+    BAND_SLIDERS.forEach(bindField);
+
+    $('combo-type').addEventListener('change', (e) => {
+        const b = selectedBand();
+        if (b) comboState[bid(b, 'type')].setChoiceIndex(e.target.selectedIndex);
+    });
+    $('combo-slope').addEventListener('change', (e) => {
+        const b = selectedBand();
+        if (b) comboState[bid(b, 'slope')].setChoiceIndex(e.target.selectedIndex);
+    });
+    $('seg-placement').addEventListener('click', (e) => {
+        const btn = e.target.closest('button'), b = selectedBand();
+        if (btn && b) comboState[bid(b, 'placement')].setChoiceIndex(+btn.dataset.v);
+    });
+    $('btn-band-bypass').addEventListener('click', () => {
+        const b = selectedBand();
+        if (b) { const st = toggleState[bid(b, 'bypass')]; st.setValue(!st.getValue()); }
+    });
+    $('btn-listen').addEventListener('click', () => {
+        const b = selectedBand();
+        if (b) setListen(ui.listen === b ? 0 : b);
+    });
+    $('btn-delete').addEventListener('click', () => deleteBand(selectedBand()));
+
+    // 24 chips. The numeral is the accessible name.
+    const chips = $('chips');
+    for (let b = 1; b <= NB; b++) {
+        const c = document.createElement('button');
+        c.type = 'button';
+        c.className = 'chip';
+        c.textContent = String(b);
+        c.dataset.b = String(b);
+        c.style.setProperty('--pig', pigment(b));
+        chips.appendChild(c);
+    }
+    chips.addEventListener('click', (e) => {
+        const c = e.target.closest('.chip');
+        if (!c) return;
+        const b = +c.dataset.b;
+        if (bandOn(b)) selectBand(b);
+        else createBand(b, null, null);     // empty chip: enable at the stored values
+    });
+
+    // Session UI state segments
+    $('seg-analyzer').addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (btn) setUi('analyzer', 'analyzerMode', +btn.dataset.v);
+    });
+    $('seg-range').addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (btn) setUi('range', 'displayRange', +btn.dataset.v);
+    });
+
+    // Delete / Backspace removes the selected band.
+    document.addEventListener('keydown', (e) => {
+        const tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' || tag === 'SELECT') return;
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBand()) {
+            e.preventDefault();
+            deleteBand(selectedBand());
+        }
+    });
+}
+
+// ── Band lifecycle and selection ────────────────────────────────────────────
+function setUi(field, key, value) {
+    if (ui[field] === value) return;
+    ui[field] = value;
+    if (setUiStateNative) setUiStateNative(key, value).catch(() => {});
+    requestRender();
+}
+
+function selectBand(b) {
+    setUi('selected', 'selectedBand', b);
+}
+
+function setListen(b) {
+    if (ui.listen === b) return;
+    ui.listen = b;
+    if (setListenNative) setListenNative(b).catch(() => {});   // 1 ... 24, 0 = off; never saved
+    requestRender();
+}
+
+// b: band index, or 0 for the next free one. freq / gain: null keeps the stored
+// values (empty-chip click); numbers place a fresh bell there (plot click).
+function createBand(b, freq, gain) {
+    if (!b) for (let i = 1; i <= NB && !b; i++) if (!bandOn(i)) b = i;
+    if (!b) return 0;                       // all 24 bands are in use
+    if (freq !== null) {
+        comboState[bid(b, 'type')].setChoiceIndex(0);        // Bell
+        comboState[bid(b, 'placement')].setChoiceIndex(0);   // Stereo
+        toggleState[bid(b, 'bypass')].setValue(false);
+        const qDef = defaultOf(bid(b, 'q'));
+        if (qDef !== null) writeScaled(sliderState[bid(b, 'q')], qDef);
+        writeScaled(sliderState[bid(b, 'freq')], freq);
+        writeScaled(sliderState[bid(b, 'gain')], gain);
+    }
+    toggleState[bid(b, 'enabled')].setValue(true);
+    ui.createdAt = performance.now();
+    selectBand(b);
+    requestRender();
+    return b;
+}
+
+function deleteBand(b) {
+    if (!b || !bandOn(b)) return;
+    toggleState[bid(b, 'enabled')].setValue(false);
+    if (ui.listen === b) setListen(0);
+    let next = 0;
+    for (let i = b - 1; i >= 1 && !next; i--) if (bandOn(i)) next = i;
+    for (let i = b + 1; i <= NB && !next; i++) if (bandOn(i)) next = i;
+    selectBand(next);
+    requestRender();
+}
+
+// ── DOM paint (strip, chips, segments) ──────────────────────────────────────
+function requestRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+        renderQueued = false;
+        try { render(); } catch (e) { console.error('render failed:', e); }
+        try { draw(); }   catch (e) { console.error('draw failed:', e); }
+    });
+}
+
+function paintSegment(segId, value) {
+    const seg = $(segId);
+    if (!seg) return;
+    for (const btn of seg.children) {
+        const on = +btn.dataset.v === value;
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+}
+
+function render() {
+    const s = selectedBand();
+    const strip = $('strip');
+    strip.classList.toggle('empty', !s);
+
+    const typeSel = $('combo-type'), slopeSel = $('combo-slope');
+    buildOptions(typeSel, comboState[bid(1, 'type')], typeLabelers());
+    buildOptions(slopeSel, comboState[bid(1, 'slope')], null);
+
+    if (s) {
+        const type = bandChoice(s, 'type'), slope = bandChoice(s, 'slope');
+        const hasGain = !!TYPE_HAS_GAIN[type], hasSlope = !!TYPE_HAS_SLOPE[type];
+        // Q is inert at 6 dB/oct on the types that honour slope (ARCHITECTURE.md).
+        const hasQ = !(hasSlope && slope === 0);
+
+        strip.style.setProperty('--pig', pigment(s));
+        $('band-loz').textContent = String(s).padStart(2, '0');
+        if (type < typeSel.options.length) typeSel.selectedIndex = type;
+        $('type-icon').firstElementChild.setAttribute('d', TYPE_ICON[type] || '');
+        if (slope < slopeSel.options.length) slopeSel.selectedIndex = slope;
+        slopeSel.disabled = !hasSlope;
+        $('wrap-slope').classList.toggle('off', !hasSlope);
+
+        paintField('freq', sliderState[bid(s, 'freq')], true);
+        paintField('gain', sliderState[bid(s, 'gain')], hasGain);
+        paintField('q',    sliderState[bid(s, 'q')],    hasQ);
+
+        paintSegment('seg-placement', bandChoice(s, 'placement'));
+        $('btn-band-bypass').setAttribute('aria-pressed', bandBool(s, 'bypass') ? 'true' : 'false');
+        $('btn-listen').setAttribute('aria-pressed', ui.listen === s ? 'true' : 'false');
+    }
+
+    const chips = $('chips').children;
+    for (let i = 0; i < chips.length; i++) {
+        const b = i + 1, on = bandOn(b), byp = bandBool(b, 'bypass');
+        chips[i].className = 'chip' + (on ? ' on' : '') + (on && byp ? ' byp' : '') + (on && b === s ? ' sel' : '');
+        chips[i].setAttribute('aria-pressed', on && b === s ? 'true' : 'false');
+    }
+
+    paintSegment('seg-analyzer', ui.analyzer);
+    paintSegment('seg-range', ui.range);
+    listenPulse();
+}
+
+// ── Response display: geometry ──────────────────────────────────────────────
+// A TRUE log axis, drawn from getScaledValue(). (The parameter's own pow skew
+// puts normalised 0.25 at 42.7 Hz; a log axis puts 74 Hz there. The page never
+// maps normalised values to x.)
+function fx(f) { return PLOT_MARGIN.l + (Math.log(f) - AXIS_LOG_MIN) / AXIS_LOG_SPAN * plotW; }
+function xf(x) { return Math.exp(AXIS_LOG_MIN + clamp((x - PLOT_MARGIN.l) / plotW, 0, 1) * AXIS_LOG_SPAN); }
+function gy(db) { return PLOT_MARGIN.t + (ui.range - db) / (2 * ui.range) * plotH; }
+function yg(y) { return ui.range - clamp((y - PLOT_MARGIN.t) / plotH, 0, 1) * 2 * ui.range; }
+function ay(dbfs) { return PLOT_MARGIN.t + clamp(dbfs / ANALYZER_FLOOR_DB, 0, 1) * plotH; }
+
+function sizeCanvas() {
+    const r = curveEl.getBoundingClientRect();
+    const d = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+    if (curveEl.width !== Math.round(w * d) || curveEl.height !== Math.round(h * d)) {
+        curveEl.width = Math.round(w * d);
+        curveEl.height = Math.round(h * d);
+    }
+    curveCtx.setTransform(d, 0, 0, d, 0, 0);
+    canvasW = w; canvasH = h;
+    plotW = w - PLOT_MARGIN.l - PLOT_MARGIN.r;
+    plotH = h - PLOT_MARGIN.t - PLOT_MARGIN.b;
+}
+
+function activeBands() {
+    const a = [];
+    for (let b = 1; b <= NB; b++) if (bandOn(b)) a.push(b);
+    return a;
+}
+
+function nodePos(b) {
+    const type = bandChoice(b, 'type');
+    const x = fx(clamp(bandValue(b, 'freq'), AXIS_FMIN, AXIS_FMAX));
+    const y = TYPE_HAS_GAIN[type]
+        ? clamp(gy(bandValue(b, 'gain') * gainScale()), PLOT_MARGIN.t, PLOT_MARGIN.t + plotH)
+        : gy(0);
+    return [x, y];
+}
+
+function hitNode(x, y) {
+    let best = 0, bd = NODE_HIT_PX * NODE_HIT_PX;
+    for (const b of activeBands()) {
+        const [nx, ny] = nodePos(b);
+        const dd = (x - nx) * (x - nx) + (y - ny) * (y - ny);
+        if (dd < bd || (dd === bd && b === ui.selected)) { bd = dd; best = b; }
+    }
+    return best;
+}
+
+// ── Response display: the closed forms (ARCHITECTURE.md "SVF section and
+// one-pole"). C++ runs the designer and pushes section parameters; the page
+// holds only these two response formulas (gate G9 covers them). There is NO
+// second design implementation here: without eqSections data no curve is drawn.
+//
+//   SVF       H = (mL + mB s + mH s^2) / (1 + k s + s^2),  s = j tan(w/2) / g
+//   one-pole  H = (cL + cH s) / (1 + s),                   s = j tan(w/2) / G
+//
+// Writes the complex response of one band at each frequency into re / im.
+function evalBand(packet, freqs, re, im) {
+    const sections = packet.sections || [], onePoles = packet.onePoles || [];
+    const wScale = 2 * Math.PI / displaySampleRate;
+    for (let i = 0; i < freqs.length; i++) {
+        const w = freqs[i] * wScale;
+        if (w >= Math.PI) { re[i] = NaN; im[i] = NaN; continue; }   // above Nyquist: not drawn
+        const t0 = Math.tan(w / 2);
+        let hr = 1, hi = 0;
+        for (let s = 0; s < sections.length; s++) {
+            const [g, k, mL, mB, mH] = sections[s];
+            const t = t0 / g;
+            const nr = mL - mH * t * t, ni = mB * t, dr = 1 - t * t, di = k * t;
+            const den = dr * dr + di * di;
+            const qr = (nr * dr + ni * di) / den, qi = (ni * dr - nr * di) / den;
+            const r = hr * qr - hi * qi; hi = hr * qi + hi * qr; hr = r;
+        }
+        for (let s = 0; s < onePoles.length; s++) {
+            const [G, cL, cH] = onePoles[s];
+            const t = t0 / G;
+            const den = 1 + t * t;
+            const qr = (cL + cH * t * t) / den, qi = (cH * t - cL * t) / den;
+            const r = hr * qr - hi * qi; hi = hr * qi + hi * qr; hr = r;
+        }
+        re[i] = hr; im[i] = hi;
+    }
+}
+
+function magDb(re, im) {
+    const m2 = re * re + im * im;
+    if (Number.isNaN(m2)) return NaN;                 // above Nyquist: not drawn
+    return m2 > 1e-20 ? 10 * Math.log10(m2) : -200;
+}
+
+// Composes the audible bands, in index order, as 2x2 complex matrices in L/R
+// and returns the dB of one diagonal term. view: 0 LL, 1 RR, 2 MM, 3 SS.
+//   Stereo F.I   Left diag(F, 1)   Right diag(1, F)
+//   Mid  I + (F - 1)/2 [[1, 1], [1, 1]]     Side I + (F - 1)/2 [[1, -1], [-1, 1]]
+function composeSum(bands, responses, n, view) {
+    const out = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+        // A = [[a, b], [c, d]], complex; starts as identity
+        let ar = 1, ai = 0, br = 0, bi = 0, cr = 0, ci = 0, dr = 1, di = 0, valid = true;
+        for (const b of bands) {
+            const R = responses.get(b);
+            if (!R) continue;
+            const fr = R.re[i], fi = R.im[i];
+            if (Number.isNaN(fr)) { valid = false; break; }
+            // band matrix B = [[p, q], [r, s]]
+            let pr, pi, qr, qi, rr, ri, sr, si;
+            const hr = (fr - 1) / 2, hi = fi / 2;
+            switch (bandChoice(b, 'placement')) {
+                case 1:  pr = fr; pi = fi; qr = 0; qi = 0; rr = 0; ri = 0; sr = 1; si = 0; break;
+                case 2:  pr = 1; pi = 0; qr = 0; qi = 0; rr = 0; ri = 0; sr = fr; si = fi; break;
+                case 3:  pr = 1 + hr; pi = hi; qr = hr; qi = hi; rr = hr; ri = hi; sr = 1 + hr; si = hi; break;
+                case 4:  pr = 1 + hr; pi = hi; qr = -hr; qi = -hi; rr = -hr; ri = -hi; sr = 1 + hr; si = hi; break;
+                default: pr = fr; pi = fi; qr = 0; qi = 0; rr = 0; ri = 0; sr = fr; si = fi;
+            }
+            // A = B . A
+            const nar = pr * ar - pi * ai + qr * cr - qi * ci, nai = pr * ai + pi * ar + qr * ci + qi * cr;
+            const nbr = pr * br - pi * bi + qr * dr - qi * di, nbi = pr * bi + pi * br + qr * di + qi * dr;
+            const ncr = rr * ar - ri * ai + sr * cr - si * ci, nci = rr * ai + ri * ar + sr * ci + si * cr;
+            const ndr = rr * br - ri * bi + sr * dr - si * di, ndi = rr * bi + ri * br + sr * di + si * dr;
+            ar = nar; ai = nai; br = nbr; bi = nbi; cr = ncr; ci = nci; dr = ndr; di = ndi;
+        }
+        if (!valid) { out[i] = NaN; continue; }
+        let zr, zi;
+        if (view === 1)      { zr = dr; zi = di; }
+        else if (view === 2) { zr = (ar + br + cr + dr) / 2; zi = (ai + bi + ci + di) / 2; }
+        else if (view === 3) { zr = (ar - br - cr + dr) / 2; zi = (ai - bi - ci + di) / 2; }
+        else                 { zr = ar; zi = ai; }
+        out[i] = magDb(zr, zi);
+    }
+    return out;
+}
+
+// STAGE 3 DECISION (v1-ui.yaml open question): which summed curve the single
+// ink line shows when L / R / M / S bands are mixed. Here: the diagonal term
+// that matches the selected band's placement (Stereo and Left show LL, Right
+// RR, Mid MM, Side SS). With Stereo-only bands all four coincide.
+function sumView() {
+    const s = selectedBand();
+    return s ? [0, 0, 1, 2, 3][bandChoice(s, 'placement')] : 0;
+}
+
+// ── Response display: drawing ───────────────────────────────────────────────
+function drawGrid(cx) {
+    const R = ui.range, step = R === 30 ? 6 : R === 12 ? 3 : 1, lab = R === 30 ? 12 : R === 12 ? 6 : 2;
+    const M = PLOT_MARGIN;
+    cx.lineWidth = 1;
+    for (let dec = 10; dec <= 10000; dec *= 10) for (let m = 1; m <= 9; m++) {
+        const f = dec * m;
+        if (f > AXIS_FMAX) break;
+        const x = Math.round(fx(f)) + 0.5;
+        cx.strokeStyle = m === 1 ? 'rgba(139,115,85,0.62)' : 'rgba(139,115,85,0.24)';
+        cx.beginPath(); cx.moveTo(x, M.t); cx.lineTo(x, M.t + plotH); cx.stroke();
+    }
+    for (let db = -R; db <= R + 1e-9; db += step) {
+        const y = Math.round(gy(db)) + 0.5, major = Math.abs(db % lab) < 1e-9;
+        cx.strokeStyle = db === 0 ? 'rgba(92,64,51,0.85)' : major ? 'rgba(139,115,85,0.5)' : 'rgba(139,115,85,0.22)';
+        cx.beginPath(); cx.moveTo(M.l, y); cx.lineTo(M.l + plotW, y); cx.stroke();
+    }
+    cx.strokeStyle = 'rgba(139,115,85,0.75)';
+    cx.strokeRect(M.l + 0.5, M.t + 0.5, plotW - 1, plotH - 1);
+
+    // Axis labels: walnut ink at full opacity on the paper ground.
+    cx.fillStyle = '#6A5641'; cx.font = canvasFont(10.5); cx.textBaseline = 'middle'; cx.textAlign = 'right';
+    for (let db = -Math.floor(R / lab) * lab; db <= R + 1e-9; db += lab) cx.fillText(signed(db, 0), M.l - 6, gy(db) + 0.5);
+    cx.textAlign = 'center'; cx.textBaseline = 'alphabetic';
+    const labels = [[10, '10'], [20, '20'], [50, '50'], [100, '100'], [200, '200'], [500, '500'],
+                    [1000, '1k'], [2000, '2k'], [5000, '5k'], [10000, '10k'], [20000, '20k']];
+    const dense = plotW > 520;
+    for (const [f, s] of labels) {
+        const major = Math.log10(f) % 1 === 0;
+        if (!major && !dense) continue;
+        cx.fillStyle = major ? '#3C2F2F' : '#6A5641';
+        cx.fillText(s, fx(f), M.t + plotH + 15);
+    }
+    cx.fillStyle = '#6A5641'; cx.textAlign = 'right'; cx.font = canvasFont(10, true);
+    cx.fillText('Hz', M.l - 12, M.t + plotH + 15);
+}
+
+function tracePath(cx, xs, ys, closeY) {
+    cx.beginPath();
+    let open = false, firstX = 0, lastX = 0;
+    for (let i = 0; i < xs.length; i++) {
+        if (Number.isNaN(ys[i])) continue;
+        if (!open) { cx.moveTo(xs[i], ys[i]); open = true; firstX = xs[i]; }
+        else cx.lineTo(xs[i], ys[i]);
+        lastX = xs[i];
+    }
+    if (open && closeY !== undefined) { cx.lineTo(lastX, closeY); cx.lineTo(firstX, closeY); cx.closePath(); }
+    return open;
+}
+
+function drawAnalyzerTrace(cx, data, fillTop, lineAlpha, dashed) {
+    if (!data || data.length < 2) return;
+    const n = data.length, xs = new Array(n), ys = new Array(n), bottom = PLOT_MARGIN.t + plotH;
+    for (let i = 0; i < n; i++) { xs[i] = PLOT_MARGIN.l + i / (n - 1) * plotW; ys[i] = ay(data[i]); }
+    const g = cx.createLinearGradient(0, PLOT_MARGIN.t, 0, bottom);
+    g.addColorStop(0, `rgba(72,66,62,${fillTop})`); g.addColorStop(1, 'rgba(72,66,62,0.03)');
+    tracePath(cx, xs, ys, bottom); cx.fillStyle = g; cx.fill();
+    tracePath(cx, xs, ys); cx.strokeStyle = `rgba(72,66,62,${lineAlpha})`; cx.lineWidth = 0.8;
+    if (dashed) cx.setLineDash([3, 3]);
+    cx.stroke(); cx.setLineDash([]);
+}
+
+function drawAnalyzer(cx) {
+    if (!ui.analyzer) return;
+    const both = ui.analyzer === 3;
+    // Pre: pale graphite, lighter and dashed when Post is also shown.
+    if (ui.analyzer === 1 || both) drawAnalyzerTrace(cx, analyzerPre, both ? 0.10 : 0.26, both ? 0.34 : 0.42, both);
+    // Post: the soft graphite wash.
+    if (ui.analyzer >= 2) drawAnalyzerTrace(cx, analyzerPost, 0.28, 0.40, false);
+}
+
+function drawNode(cx, b, t) {
+    const [x, y] = nodePos(b), c = pigment(b);
+    const sel = b === ui.selected, hov = b === ui.hover, byp = bandBool(b, 'bypass'), r = sel ? 11.5 : 10;
+    if (ui.listen === b) {                      // listening: halo (static under reduced motion)
+        cx.strokeStyle = rgba(c, 0.55); cx.lineWidth = 1.2;
+        const pr = r + 5 + (reducedMotion ? 0 : 2 * Math.sin(t * 5));
+        cx.beginPath(); cx.arc(x, y, pr, 0, 6.2832);
+        if (reducedMotion) cx.setLineDash([2, 2]);
+        cx.stroke(); cx.setLineDash([]);
+    }
+    if (sel) { cx.strokeStyle = '#3C2F2F'; cx.lineWidth = 1.2; cx.beginPath(); cx.arc(x, y, r + 3, 0, 6.2832); cx.stroke(); }
+    cx.beginPath(); cx.arc(x, y, r, 0, 6.2832);
+    if (byp) {
+        cx.fillStyle = '#FAF0E6'; cx.fill();
+        cx.setLineDash([3, 2.5]); cx.strokeStyle = c; cx.lineWidth = 1.5; cx.stroke(); cx.setLineDash([]);
+    } else {
+        cx.shadowColor = 'rgba(60,47,47,0.35)'; cx.shadowBlur = hov ? 6 : 3; cx.shadowOffsetY = 1;
+        cx.fillStyle = c; cx.fill();
+        cx.shadowColor = 'transparent'; cx.shadowBlur = 0; cx.shadowOffsetY = 0;
+        cx.strokeStyle = '#FAF0E6'; cx.lineWidth = 1.5; cx.stroke();
+    }
+    cx.fillStyle = byp ? c : '#FAF0E6'; cx.font = canvasFont(b > 9 ? 11 : 12);
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText(String(b), x, y + 0.5);
+    const placement = bandChoice(b, 'placement');
+    if (placement) {                            // badge: L / R / M / S; Stereo carries none
+        const bx = x + r * 0.78, by = y - r * 0.78;
+        cx.beginPath(); cx.arc(bx, by, 7, 0, 6.2832);
+        cx.fillStyle = '#FAF0E6'; cx.fill(); cx.strokeStyle = c; cx.lineWidth = 1; cx.stroke();
+        cx.fillStyle = c; cx.font = canvasFont(10.5); cx.fillText(PLACE_GLYPH[placement], bx, by + 0.5);
+    }
+}
+
+// Hover / drag readout, clamped inside the plot. Numbers, units and channel
+// letters only, so nothing in it needs a translation.
+function drawReadout(cx, b) {
+    const [x, y] = nodePos(b), type = bandChoice(b, 'type'), placement = bandChoice(b, 'placement');
+    const parts = [joinUnit(fmtHz(bandValue(b, 'freq')))];
+    if (TYPE_HAS_GAIN[type]) parts.push(joinUnit(fmtDb(bandValue(b, 'gain'))));
+    parts.push('Q ' + fmtQ(bandValue(b, 'q'))[0]);
+    if (placement) parts.push(PLACE_GLYPH[placement]);
+    const s = parts.join('  ·  ');
+    cx.font = canvasFont(11.5);
+    const tw = cx.measureText(s).width + 14, th = 20, M = PLOT_MARGIN;
+    const bx = clamp(x - tw / 2, M.l + 3, M.l + plotW - tw - 3);
+    let by = y - 22 - th;
+    if (by < M.t + 3) by = y + 22;
+    cx.fillStyle = '#FAF0E6'; cx.strokeStyle = '#5C4033'; cx.lineWidth = 1;
+    cx.beginPath();
+    if (cx.roundRect) cx.roundRect(Math.round(bx) + 0.5, Math.round(by) + 0.5, Math.round(tw), th, 3);
+    else cx.rect(Math.round(bx) + 0.5, Math.round(by) + 0.5, Math.round(tw), th);
+    cx.fill(); cx.stroke();
+    cx.fillStyle = '#3C2F2F'; cx.textAlign = 'left'; cx.textBaseline = 'middle';
+    cx.fillText(s, Math.round(bx) + 7.5, Math.round(by) + th / 2 + 1);
+}
+
+function draw() {
+    if (!curveEl || !curveCtx) return;
+    const cx = curveCtx, M = PLOT_MARGIN, t = performance.now() / 1000;
+    sizeCanvas();
+    cx.clearRect(0, 0, canvasW, canvasH);
+    if (plotW < 50 || plotH < 50) return;
+
+    const bands = activeBands();
+    const globalBypass = !!(toggleState.bypass && toggleState.bypass.getValue());
+
+    drawGrid(cx);
+    cx.save();
+    cx.beginPath(); cx.rect(M.l + 1, M.t + 1, plotW - 2, plotH - 2); cx.clip();
+    drawAnalyzer(cx);
+
+    if (displaySampleRate > 0) {
+        // One point per 2 px, plus every band frequency (keeps narrow notches honest).
+        const freqs = [];
+        for (let x = 0; x <= plotW; x += 2) freqs.push(xf(M.l + x));
+        for (const b of bands) freqs.push(clamp(bandValue(b, 'freq'), AXIS_FMIN, AXIS_FMAX));
+        freqs.sort((a, b) => a - b);
+        const n = freqs.length, xs = freqs.map(fx);
+        const lim = (v) => (Number.isNaN(v) ? NaN : clamp(v, -400, canvasH + 400));
+
+        const responses = new Map();
+        for (const b of bands) {
+            const pk = bandPackets[b];
+            if (!pk) continue;
+            const R = { re: new Float64Array(n), im: new Float64Array(n) };
+            evalBand(pk, freqs, R.re, R.im);
+            responses.set(b, R);
+        }
+
+        const y0 = gy(0);
+        const order = bands.slice().sort((a, b) => (a === ui.selected) - (b === ui.selected));
+        for (const b of order) {                // per-band watercolour wash + pigment line
+            const R = responses.get(b);
+            if (!R) continue;
+            const c = pigment(b), sel = b === ui.selected, byp = bandBool(b, 'bypass');
+            const ys = new Array(n);
+            for (let i = 0; i < n; i++) ys[i] = lim(gy(magDb(R.re[i], R.im[i])));
+            if (ui.listen === b) {
+                const xc = fx(clamp(bandValue(b, 'freq'), AXIS_FMIN, AXIS_FMAX));
+                const hw = clamp(plotW * 0.11 / Math.sqrt(Math.max(bandValue(b, 'q'), 1e-3)), 14, plotW * 0.3);
+                const g = cx.createLinearGradient(xc - hw, 0, xc + hw, 0);
+                g.addColorStop(0, rgba(c, 0)); g.addColorStop(0.5, rgba(c, 0.16)); g.addColorStop(1, rgba(c, 0));
+                cx.fillStyle = g; cx.fillRect(xc - hw, M.t, 2 * hw, plotH);
+            }
+            if (!byp) {
+                const k = sel ? 1.5 : 1, g = cx.createLinearGradient(0, M.t, 0, M.t + plotH);
+                g.addColorStop(0, rgba(c, 0.27 * k)); g.addColorStop(0.5, rgba(c, 0.07 * k)); g.addColorStop(1, rgba(c, 0.27 * k));
+                if (tracePath(cx, xs, ys, y0)) { cx.fillStyle = g; cx.fill(); }
+            }
+            tracePath(cx, xs, ys);
+            cx.strokeStyle = rgba(c, byp ? 0.7 : sel ? 0.95 : 0.72); cx.lineWidth = sel ? 1.4 : 1;
+            if (byp) cx.setLineDash([4, 3]);
+            cx.stroke(); cx.setLineDash([]);
+        }
+
+        // Summed response: ink, with a soft bleed under the line. Flat and
+        // dashed while the plugin is bypassed.
+        const audible = globalBypass ? [] : bands.filter((b) => !bandBool(b, 'bypass'));
+        const sum = composeSum(audible, responses, n, sumView());
+        const ys = new Array(n);
+        for (let i = 0; i < n; i++) ys[i] = lim(gy(sum[i]));
+        cx.lineJoin = 'round'; cx.lineCap = 'round';
+        tracePath(cx, xs, ys); cx.strokeStyle = 'rgba(60,47,47,0.13)'; cx.lineWidth = 5; cx.stroke();
+        tracePath(cx, xs, ys); cx.strokeStyle = '#3C2F2F'; cx.lineWidth = 1.9;
+        if (globalBypass) cx.setLineDash([6, 4]);
+        cx.stroke(); cx.setLineDash([]);
+    }
+    cx.restore();
+
+    const order = bands.slice().sort((a, b) => (a === ui.selected) - (b === ui.selected));
+    for (const b of order) drawNode(cx, b, t);
+    const ro = ui.drag ? ui.drag.b : ui.hover;
+    if (ro && bandOn(ro)) drawReadout(cx, ro);
+}
+
+// The listen halo is the page's only animation. It runs only while a band is
+// listening, and not at all under prefers-reduced-motion (the halo is then
+// drawn static and dotted, so the state stays visible).
+function listenPulse() {
+    const want = ui.listen > 0 && !reducedMotion;
+    if (want && !pulseRaf) {
+        const tick = () => {
+            pulseRaf = 0;
+            if (!(ui.listen > 0) || reducedMotion) return;
+            try { draw(); } catch (e) { console.error('draw failed:', e); }
+            pulseRaf = requestAnimationFrame(tick);
+        };
+        pulseRaf = requestAnimationFrame(tick);
+    }
+}
+
+// ── Naturalist plate: emperor dragonfly, dorsal view (Stage 3 U4) ───────────
+// Ported from v1-ui-test.html buildPlate(). Seeded (sd = 24): the same plate
+// on every open. A static DOM layer behind the canvas, never redrawn by it.
+// Colours come from CSS classes on the page tokens (--frame, --paper-light),
+// not from literals, so a token change carries into the plate.
+function buildPlate() {
+  let sd = 24; const rnd = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+  const f1 = (n) => n.toFixed(1); let outline = '', veins = '', cross = '', solid = '';
+  function wing(rx, ry, L, ang, wT, wB, p, mir) {
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+    const pt = (u, t) => { const s = Math.sin(Math.PI * Math.pow(u, 0.9)), sb = Math.sin(Math.PI * Math.pow(u, p));
+      const yT = -wT * Math.pow(Math.max(s, 0), 0.5), yB = wB * Math.pow(Math.max(sb, 0), 0.62), x = u * L, y = yT + t * (yB - yT);
+      return f1(rx + mir * (x * ca - y * sa)) + ' ' + f1(ry + x * sa + y * ca); };
+    let d = 'M' + pt(0, 0); for (let u = 0.02; u <= 1.0001; u += 0.02) d += 'L' + pt(u, 0); for (let u = 1; u >= -0.0001; u -= 0.02) d += 'L' + pt(Math.max(u, 0), 1); outline += d + 'Z';
+    const ts = [0, 0.1, 0.22, 0.36, 0.52, 0.7, 0.86, 1], u0 = [0, 0, 0, 0.04, 0.1, 0.18, 0.28, 0];
+    for (let j = 1; j < ts.length - 1; j++) { let v = 'M' + pt(u0[j], ts[j]); for (let u = u0[j] + 0.03; u <= 0.975; u += 0.03) v += 'L' + pt(u, ts[j]); veins += v; }
+    for (let j = 0; j < ts.length - 1; j++) for (let u = Math.max(u0[j], u0[j + 1]) + 0.02; u < 0.965; u += 0.013 + rnd() * 0.012 + j * 0.0015)
+      cross += 'M' + pt(u, ts[j]) + 'L' + pt(u + (rnd() - 0.5) * 0.01, ts[j + 1]);
+    solid += 'M' + pt(0.8, 0) + 'L' + pt(0.875, 0) + 'L' + pt(0.875, 0.1) + 'L' + pt(0.8, 0.1) + 'Z';       /* pterostigma */
+    veins += 'M' + pt(0.47, 0) + 'L' + pt(0.475, 0.22);                                                    /* nodus */
+  }
+  for (const m of [1, -1]) { wing(m * 9, -54, 218, -0.11, 7, 33, 0.74, m); wing(m * 9, -33, 208, 0.13, 6, 44, 0.54, m); }
+  /* abdomen: ten tapering segments */
+  const hw = (s) => s < 0.07 ? 6.5 + 22 * s : s < 0.2 ? 8 - 27 * (s - 0.07) : 4.5 - 1.6 * (s - 0.2) / 0.8, y0 = -18, y1 = 252;
+  let body = 'M' + f1(-hw(0)) + ' ' + y0; for (let s = 0.02; s <= 1.0001; s += 0.02) body += 'L' + f1(-hw(s)) + ' ' + f1(y0 + s * (y1 - y0));
+  for (let s = 1; s >= -0.0001; s -= 0.02) body += 'L' + f1(hw(Math.max(s, 0))) + ' ' + f1(y0 + Math.max(s, 0) * (y1 - y0)); body += 'Z';
+  let joints = ''; for (let k = 1; k < 10; k++) { const s = k / 10 - 0.02, y = y0 + s * (y1 - y0); joints += `M${f1(-hw(s))} ${f1(y)}L${f1(hw(s))} ${f1(y)}`;
+    solid += `M${f1(-hw(s) * 0.55)} ${f1(y + 3)}L${f1(hw(s) * 0.55)} ${f1(y + 3)}L${f1(hw(s) * 0.3)} ${f1(y + 11)}L${f1(-hw(s) * 0.3)} ${f1(y + 11)}Z`; }
+  joints += `M-2.6 ${y1}L-4 ${y1 + 11}M2.6 ${y1}L4 ${y1 + 11}`;
+  let hatch = ''; for (let i = -5; i <= 5; i++) { const y = -42 + i * 3.6, w = 13 * Math.sqrt(1 - Math.pow(i * 3.6 / 24, 2)); hatch += `M${f1(-w)} ${f1(y)}Q0 ${f1(y + 3)} ${f1(w)} ${f1(y)}`; }
+  $('plate').innerHTML = `<g class="plate-ink" transform="rotate(-21 0 60)" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="${cross}" stroke-width="0.4"/><path d="${veins}" stroke-width="0.7"/><path d="${outline}" stroke-width="1"/>
+    <path class="plate-solid" d="${solid}" fill-opacity="0.55" stroke-width="0.4"/>
+    <path class="plate-wash" d="${body}" stroke-width="1"/><path d="${joints}" stroke-width="0.8"/>
+    <ellipse class="plate-wash" cx="0" cy="-42" rx="14" ry="24" stroke-width="1"/><path d="${hatch}" stroke-width="0.5"/>
+    <ellipse class="plate-wash" cx="0" cy="-70" rx="9" ry="7" stroke-width="1"/>
+    <ellipse class="plate-solid" cx="-8.5" cy="-73" rx="8.5" ry="8" fill-opacity="0.3" stroke-width="1"/><ellipse class="plate-solid" cx="8.5" cy="-73" rx="8.5" ry="8" fill-opacity="0.3" stroke-width="1"/>
+    <path d="M-3 -80L-6 -88M3 -80L6 -88" stroke-width="0.6"/></g>`;
+}
+
+// ── Response display: interaction ───────────────────────────────────────────
+function initDisplay() {
+    curveEl = $('curve');
+    if (!curveEl) { console.error('Missing curve canvas'); return; }
+    curveCtx = curveEl.getContext('2d');
+
+    const local = (e) => { const r = curveEl.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const M = PLOT_MARGIN;
+
+    const onMove = (e) => {
+        const d = ui.drag;
+        if (!d) return;
+        const [x, y] = local(e);
+        const fSt = sliderState[bid(d.b, 'freq')], gSt = sliderState[bid(d.b, 'gain')];
+        if (!d.moved) {
+            if (Math.abs(x - d.sx) + Math.abs(y - d.sy) < DRAG_THRESHOLD_PX) return;
+            d.moved = true;
+            wheelEnd(fSt); wheelEnd(gSt);
+            fSt.sliderDragStarted(); gSt.sliderDragStarted();    // gesture begin on both
+        }
+        const scale = gainScale();
+        setScaled(fSt, xf(x - d.ox));
+        if (TYPE_HAS_GAIN[bandChoice(d.b, 'type')] && scale > 0.01)
+            setScaled(gSt, yg(y - d.oy) / scale);                // clamped by the live range
+        requestRender();
+    };
+
+    // Idempotent: pointerup, pointercancel and lostpointercapture can all fire.
+    const onUp = (e) => {
+        const d = ui.drag;
+        if (!d) return;
+        ui.drag = null;
+        if (d.moved) {
+            sliderState[bid(d.b, 'freq')].sliderDragEnded();
+            sliderState[bid(d.b, 'gain')].sliderDragEnded();     // gesture end on both
+        }
+        curveEl.removeEventListener('pointerup', onUp);
+        curveEl.removeEventListener('pointercancel', onUp);
+        curveEl.removeEventListener('lostpointercapture', onUp);
+        if (e && e.pointerId !== undefined) {
+            try { curveEl.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+        }
+        curveEl.style.cursor = ui.hover ? 'grab' : 'crosshair';
+        requestRender();
+    };
+
+    curveEl.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || ui.drag) return;
+        const [x, y] = local(e);
+        curveEl.focus({ preventScroll: true });
+        let b = hitNode(x, y), ox = 0, oy = 0;
+        if (b) {
+            const [nx, ny] = nodePos(b);
+            ox = x - nx; oy = y - ny;
+            selectBand(b);
+        } else {
+            // Click on the empty plot: the next free band, as a bell, there.
+            if (x < M.l || x > M.l + plotW || y < M.t || y > M.t + plotH) return;
+            const scale = gainScale();
+            b = createBand(0, xf(x), scale > 0.01 ? Math.round(yg(y) / scale * 10) / 10 : 0);
+            if (!b) return;
+        }
+        ui.drag = { b, ox, oy, moved: false, sx: x, sy: y };
+        try { curveEl.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+        curveEl.addEventListener('pointerup', onUp);
+        curveEl.addEventListener('pointercancel', onUp);
+        curveEl.addEventListener('lostpointercapture', onUp);
+        curveEl.style.cursor = 'grabbing';
+        requestRender();
+    });
+
+    curveEl.addEventListener('pointermove', (e) => {
+        if (ui.drag) { onMove(e); return; }
+        const [x, y] = local(e), h = hitNode(x, y);
+        if (h !== ui.hover) {
+            ui.hover = h;
+            curveEl.style.cursor = h ? 'grab' : 'crosshair';
+            requestRender();
+        }
+    });
+    curveEl.addEventListener('pointerleave', () => {
+        if (!ui.drag && ui.hover) { ui.hover = 0; requestRender(); }
+    });
+
+    // Double-click a node: reset its gain (not the click that just created it).
+    curveEl.addEventListener('dblclick', (e) => {
+        const [x, y] = local(e), b = hitNode(x, y);
+        if (!b || performance.now() - ui.createdAt < CREATE_DBLCLICK_MS) return;
+        const def = defaultOf(bid(b, 'gain'));
+        if (def !== null) writeScaled(sliderState[bid(b, 'gain')], def);
+    });
+
+    // Scroll on a node: Q, in the log domain (Shift = fine). One burst = one gesture.
+    curveEl.addEventListener('wheel', (e) => {
+        const [x, y] = local(e), b = hitNode(x, y);
+        if (!b) return;
+        if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;   // not ours; no preventDefault
+        e.preventDefault();
+        const st = sliderState[bid(b, 'q')], p = st.properties;
+        const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        wheelTouch(st);
+        setScaled(st, clamp(st.getScaledValue() * Math.exp(-dy * (e.shiftKey ? 0.0006 : 0.0025)), p.start, p.end));
+        selectBand(b);
+    }, { passive: false });
+
+    // The layout reflows: redraw whenever the display box changes size.
+    if (typeof ResizeObserver === 'function') new ResizeObserver(requestRender).observe(curveEl);
+    window.addEventListener('resize', requestRender);
+
+    // Canvas text keeps the fallback face unless the font is loaded before it
+    // paints: load both faces, then repaint.
+    if (document.fonts && document.fonts.load) {
+        Promise.all([document.fonts.load('11px "EB Garamond"'), document.fonts.load('italic 11px "EB Garamond"')])
+            .catch(() => {})
+            .then(requestRender);
+    }
+
+    if (window.matchMedia) {
+        const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+        reducedMotion = mq.matches;
+        const onChange = (e) => { reducedMotion = e.matches; requestRender(); };
+        if (mq.addEventListener) mq.addEventListener('change', onChange);
+    }
+}
+
+// ── C++ -> page events: section parameters and analyzer frames ──────────────
+// eqSections payload (see PluginEditor timerCallback):
+//   { sampleRate, bands: [{ band (1-based), type, placement, active,
+//                           sections: [[g, k, mL, mB, mH] ...],
+//                           onePoles: [[G, cL, cH] ...] } ...] }
+function onEqSections(payload) {
+    const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    if (!data) return;
+    if (Number(data.sampleRate) > 0) displaySampleRate = Number(data.sampleRate);
+    const list = Array.isArray(data.bands) ? data.bands : [];
+    for (const pk of list) {
+        const b = Number(pk && pk.band);
+        if (b >= 1 && b <= NB) bandPackets[b] = pk;
+    }
+    requestRender();
+}
+
+function initBridge(juce) {
+    const backend = window.__JUCE__ && window.__JUCE__.backend;
+    if (backend && typeof backend.addEventListener === 'function') {
+        backend.addEventListener('eqSections', onEqSections);
+        backend.addEventListener('analyzerPre',  (a) => { analyzerPre  = Array.isArray(a) ? a : null; if (ui.analyzer) requestRender(); });
+        backend.addEventListener('analyzerPost', (a) => { analyzerPost = Array.isArray(a) ? a : null; if (ui.analyzer) requestRender(); });
+        // 'outputLevel' belongs to the vu-meter mount (Stage 3).
+    } else {
+        console.warn('JUCE backend events unavailable: no response curve, no analyzer');
+    }
+
+    // Session UI state: PULL once at init (a one-shot push would go stale).
+    try {
+        setUiStateNative = juce.getNativeFunction('setUiState');
+        setListenNative  = juce.getNativeFunction('setListenBand');
+        resizeNative     = juce.getNativeFunction('resizeEditor');
+        juce.getNativeFunction('getUiState')()
+            .then((raw) => {
+                const s = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                if (!s) return;
+                if ([0, 1, 2, 3].includes(Number(s.analyzerMode))) ui.analyzer = Number(s.analyzerMode);
+                if ([6, 12, 30].includes(Number(s.displayRange))) ui.range = Number(s.displayRange);
+                const sel = Number(s.selectedBand);
+                if (sel >= 1 && sel <= NB && bandOn(sel)) ui.selected = sel;
+                requestRender();
+            })
+            .catch((e) => console.warn('Could not read UI state:', e));
+        // Ask for every band's section parameters (pull, not a one-shot push).
+        juce.getNativeFunction('requestEqSections')().catch(() => {});
+    } catch (e) {
+        console.warn('UI state bridge not available, session-only:', e);
+    }
+
+    // No stored selection: start on the first band that exists.
+    if (!selectedBand()) {
+        const first = activeBands()[0];
+        if (first) ui.selected = first;
+    }
+}
+
+// ── Preset bar: preset-manager 1.1.1 mount ──────────────────────────────────
+// Dynamic import, so a missing module cannot take the page down with it.
+async function initPresetBar(juce) {
+    try {
+        const mod = await import('./modules/preset-manager.js');
+        presetManager = new mod.PresetManager({
+            displayElement: $('preset-name'),
+            prevButton: $('preset-prev'),
+            nextButton: $('preset-next'),
+            saveButton: $('preset-save'),
+            getNativeFunction: juce.getNativeFunction,
+            onPresetChanged: () => {
+                // A preset replaces every band: re-pull the section parameters.
+                juce.getNativeFunction('requestEqSections')().catch(() => {});
+                requestRender();
+            },
+        });
+        await presetManager.initialize();
+    } catch (e) {
+        console.error('preset manager init failed:', e);
+    }
+}
+
+// ── Corner grip ─────────────────────────────────────────────────────────────
+// The WebView covers the editor, so the page asks C++ for a size. C++ clamps
+// to the same limits.
+function initGrip() {
+    const grip = $('grip');
+    if (!grip) return;
+    let d = null, pending = null, raf = 0;
+
+    const flush = () => {
+        raf = 0;
+        if (pending && resizeNative) resizeNative(pending[0], pending[1]).catch(() => {});
+        pending = null;
+    };
+    const onMove = (e) => {
+        if (!d) return;
+        pending = [Math.round(clamp(d.w + (e.clientX - d.x), WIN_MIN_W, WIN_MAX_W)),
+                   Math.round(clamp(d.h + (e.clientY - d.y), WIN_MIN_H, WIN_MAX_H))];
+        if (!raf) raf = requestAnimationFrame(flush);
+    };
+    const onUp = (e) => {
+        if (!d) return;
+        d = null;
+        grip.removeEventListener('pointermove', onMove);
+        grip.removeEventListener('pointerup', onUp);
+        grip.removeEventListener('pointercancel', onUp);
+        grip.removeEventListener('lostpointercapture', onUp);
+        if (e && e.pointerId !== undefined) {
+            try { grip.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+        }
+    };
+    grip.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        d = { x: e.clientX, y: e.clientY, w: window.innerWidth, h: window.innerHeight };
+        try { grip.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+        grip.addEventListener('pointermove', onMove);
+        grip.addEventListener('pointerup', onUp);
+        grip.addEventListener('pointercancel', onUp);
+        grip.addEventListener('lostpointercapture', onUp);
+    });
+}
+
+// ── Settings popover ────────────────────────────────────────────────────────
+function initSettingsPopover() {
+    const gearBtn = document.getElementById('gear-btn');
+    const popover = document.getElementById('settings-popover');
+    if (gearBtn === null || popover === null) {
+        console.warn('settings popover missing: language selector unavailable');
+        return;
+    }
+
+    const setOpen = (open) => {
+        popover.hidden = !open;
+        gearBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    gearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setOpen(popover.hidden);
+    });
+
+    // Dismiss on a press anywhere else, and on Escape. Capture-phase
+    // pointerdown, NOT document mousedown: the knobs and fields preventDefault
+    // their pointerdown, which suppresses the compatibility mousedown.
+    document.addEventListener('pointerdown', (e) => {
+        if (popover.hidden) return;
+        if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+        setOpen(false);
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !popover.hidden) {
+            setOpen(false);
+            gearBtn.focus();
+        }
+    });
+}
+
+// ── Tooltips (the O-ReverseDelay renderer) ──────────────────────────────────
+// Reads data-tip-title / data-tip off the anchor; applyI18n() writes both from
+// TIP_BINDINGS. textContent only.
+function handleTooltipOver(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target || target === tooltipTarget) return;
+
+    tooltipTarget = target;
+    clearTimeout(tooltipTimer);
+
+    if (tooltipSuppressed) return;
+    tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+
+function handleTooltipOut(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target) return;
+
+    // Moving between children of the same control is not a real exit.
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+    hideTooltip();
+}
+
+function showTooltip(target) {
+    // The pointer may have moved on, or gone down, during the delay.
+    if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+
+    // The hover-help switch is a SHOW gate. data-tip-always survives it.
+    if (!tipsEnabled && !target.hasAttribute('data-tip-always')) return;
+
+    const title = target.getAttribute('data-tip-title');
+    const body  = target.getAttribute('data-tip');
+
+    tooltipEl.textContent = '';
+
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'tooltip-title';
+        titleEl.textContent = title;
+        tooltipEl.appendChild(titleEl);
+    }
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'tooltip-body';
+    bodyEl.textContent = body;
+    tooltipEl.appendChild(bodyEl);
+
+    const anchor = target.getBoundingClientRect();
+
+    // MEASURE, THEN PIN, THEN CLAMP. A fixed box with `left` set and width auto
+    // shrinks to fit the space to its right, so measuring at the previous
+    // offset under-reports the width and a near-edge `left` re-wraps the tip
+    // into a ribbon. Release the width, measure from the left edge, pin the
+    // result in px, and only then place.
+    tooltipEl.style.width = '';
+    tooltipEl.style.left  = '0px';
+    tooltipEl.style.top   = '0px';
+
+    const width = tooltipEl.getBoundingClientRect().width;
+    tooltipEl.style.width = `${width}px`;
+
+    // Height is only stable once the width is definite.
+    const height = tooltipEl.getBoundingClientRect().height;
+
+    // Prefer above; flip below only when there is no room at the top. Then
+    // clamp inside the window on both axes (the window is resizable, so the
+    // limits are read now, not cached).
+    let top = anchor.top - height - TOOLTIP_MARGIN;
+    let placement = 'above';
+
+    if (top < TOOLTIP_MARGIN) {
+        top = anchor.bottom + TOOLTIP_MARGIN;
+        placement = 'below';
+    }
+    top = Math.max(TOOLTIP_MARGIN, Math.min(window.innerHeight - height - TOOLTIP_MARGIN, top));
+
+    const anchorCentreX = anchor.left + anchor.width / 2;
+    const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+    const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
+
+    tooltipEl.style.left = `${left}px`;
+    tooltipEl.style.top  = `${top}px`;
+    tooltipEl.dataset.placement = placement;
+
+    // The tip is clamped, but the arrow still points at the control.
+    const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
+    tooltipEl.style.setProperty('--arrow-x', `${arrowX}px`);
+
+    tooltipEl.classList.add('visible');
+    tooltipEl.setAttribute('aria-hidden', 'false');
+}
+
+function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    tooltipTarget = null;
+
+    if (!tooltipEl) return;
+    tooltipEl.classList.remove('visible');
+    tooltipEl.setAttribute('aria-hidden', 'true');
+}
+
+function applyTipsEnabled(on) {
+    tipsEnabled = !!on;
+    if (!tipsEnabled) hideTooltip();
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+    // Two calls in two branches, never one call with a ternary.
+    if (tipsEnabled) setLabel(btn, 'ui.on');
+    else             setLabel(btn, 'ui.off');
+}
+
+function initTipsToggle() {
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) { console.error('Missing tips-toggle element'); return; }
+    let stored = null;
+    try { stored = localStorage.getItem(TIPS_STORAGE_KEY); } catch (e) { stored = null; }
+    applyTipsEnabled(stored !== 'false');          // first run and private mode: ON
+    btn.addEventListener('click', () => {
+        applyTipsEnabled(!tipsEnabled);
+        try { localStorage.setItem(TIPS_STORAGE_KEY, String(tipsEnabled)); }
+        catch (e) { /* private mode: the switch still works, it just forgets */ }
+    });
+}
+
+function initTooltips() {
+    tooltipEl = document.getElementById('tooltip');
+    if (!tooltipEl) { console.warn('Tooltip element not found: tooltips disabled'); return; }
+
+    document.addEventListener('mouseover', handleTooltipOver);
+    document.addEventListener('mouseout', handleTooltipOut);
+
+    // Any press begins a click or a drag: get the tip out of the way and keep
+    // it away until release. Capture phase, because the knobs and fields
+    // preventDefault their own pointerdown.
+    document.addEventListener('pointerdown', () => {
+        tooltipSuppressed = true;
+        hideTooltip();
+    }, true);
+
+    document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
+    document.addEventListener('pointercancel', () => { tooltipSuppressed = false; }, true);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// THE CANON — pasted verbatim from scripts/i18n-canon.js (check-i18n [6]
+// byte-compares it). Never retyped, never edited.
+// ════════════════════════════════════════════════════════════════════════════
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    // <html lang> follows the selector: screen readers pick the French voice,
+    // and CSS hyphens:auto / quotes resolve in the page's actual language.
+    document.documentElement.lang = uiLanguage;
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+// Re-runs the sweep at the CURRENT language, for a subtree built AFTER the last
+// one. It cannot be window.__setLanguage, which needs a language argument the
+// caller does not have: uiLanguage lives in this module's scope and nothing
+// outside can read it, so guessing 'en' would silently reset a French page every
+// time a panel remounted.
+//
+// This is in the canon because three plugins wrote it independently, OUTSIDE the
+// byte-compared region, each with a comment explaining that the region "may not
+// gain a line" — O-Bells (index.html:1992), O-Marimba and O-IntonationPad
+// (js/app.js). Three authors hitting the same wall and working around it the
+// same way is the canon's job, not theirs. Declaring it here changes no
+// behaviour on a page that never calls it; it only means a page that needs it no
+// longer has to reach around the gate to get it.
+window.__reapplyI18n = () => applyI18n(uiLanguage);
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── Entry point ─────────────────────────────────────────────────────────────
+function init() {
+    // Required: no browser context menu.
+    document.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+
+    // 196 parameter states: 2 knobs + 2 toggles here, 192 band states below.
+    try { KNOB_IDS.forEach((id) => bindKnob(Juce, id)); } catch (e) { console.error('knob binding failed:', e); }
+    try { bindToggle(Juce, 'bypass'); bindToggle(Juce, 'auto_gain'); } catch (e) { console.error('toggle binding failed:', e); }
+    try { bindBandStates(Juce); } catch (e) { console.error('band binding failed:', e); }
+
+    try { buildPlate(); }      catch (e) { console.error('plate build failed:', e); }
+    try { initStrip(); }       catch (e) { console.error('strip init failed:', e); }
+    try { initDisplay(); }     catch (e) { console.error('display init failed:', e); }
+    try { initBridge(Juce); }  catch (e) { console.error('bridge init failed:', e); }
+    try { initGrip(); }        catch (e) { console.error('grip init failed:', e); }
+
+    loadParameterDefaults(Juce);   // async; double-click reset and new-band Q depend on it
+    initPresetBar(Juce);           // async; catches its own errors
+
+    // Order is load-bearing: applyI18n() (inside initI18n) is what writes
+    // data-tip onto the anchors the tooltip renderer resolves.
+    try { initSettingsPopover(); } catch (e) { console.error('settings popover init failed:', e); }
+    try { initI18n(); }            catch (e) { console.error('i18n init failed:', e); }
+    try { initTooltips(); }        catch (e) { console.error('tooltip init failed:', e); }
+    try { initTipsToggle(); }      catch (e) { console.error('tips toggle init failed:', e); }
+
+    requestRender();
+
+    // pageReady: the 196 states are bound and getUiState is already queued
+    // ahead of this call, so C++ may start its 30 Hz timer. Sent after the
+    // first painted frame with that frame's performance.now() (editor timing log).
+    requestAnimationFrame(() => requestAnimationFrame(() => { try { Juce.getNativeFunction('pageReady')(performance.now()).catch(() => {}); } catch (e) { console.warn('pageReady unavailable:', e); } }));
+}
+
+// ════ ONE call, at the very BOTTOM of the module ════
+init();
+</script>
+</body>
+</html>

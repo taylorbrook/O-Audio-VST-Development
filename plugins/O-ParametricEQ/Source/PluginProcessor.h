@@ -154,7 +154,8 @@
       - With listen off and no consumer registered, the output is
         bit-identical to 0.5.0.
 
-    No WebView editor (Stage 3), no presets (Stage 4).
+    Phase 3.1: the WebView editor (createEditor, behind JUCE_WEB_BROWSER)
+    and the preset manager (user presets; factory presets in Stage 4).
 
   ==============================================================================
 */
@@ -183,6 +184,9 @@
 // that its first build inside a plugin happens now. No member is declared;
 // the meter itself is mounted in Stage 3.
 #include "VUMeterBridge.h"
+
+// preset-manager 1.1.1 (Phase 3.1, call C2): the processor owns the manager.
+#include "OuariconPresetManager.h"
 
 class OuariconParametricEQAudioProcessor : public juce::AudioProcessor
 {
@@ -313,6 +317,15 @@ public:
     //==========================================================================
     /** 196 parameters. State tree type "OParametricEQ". */
     juce::AudioProcessorValueTreeState parameters;
+
+    /** User presets (Phase 3.1, call C2): ~/Library/O-ParametricEQ/Presets.
+        output_gain and bypass are excluded (presets never set them); each
+        applied value is validated and is its own host gesture. Empty factory
+        set until Stage 4; directories are created lazily, so construction
+        does no file I/O. Session state does NOT go through it: the codec in
+        getStateInformation / setStateInformation is its own. Declared after
+        `parameters`, which it references. */
+    OuariconPresetManager presetManager { parameters, "O-ParametricEQ" };
 
     //==========================================================================
     // Session UI state. NOT host parameters, not in APVTS, not part of presets.

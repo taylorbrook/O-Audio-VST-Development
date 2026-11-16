@@ -1,0 +1,22 @@
+LS10  f / Q edit during a move not passed to the incoming voice
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-ls10  (142.4 s)
+LS11  settled f / Q edit runs a change move instead of a ramp
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-ls11  (143.0 s)
+LS15  clearState does nothing
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-ls15  (141.6 s)
+LS12  structural edit of the listened band ignored
+   render FULL: rc 2 | 164 PASS, 2 FAIL | FAIL: XR-ls11, XR-px22  (142.2 s)
+PX27  listen voices get no control tick
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-ls10  (142.5 s)
+PX26  non-finite: listen state not cleared
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-ls15  (143.0 s)
+PX39  latched un-bypass jumps although listen is engaged
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-px39  (141.6 s)
+PX38  listenBand range off by one (24 accepted)
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-px38  (143.4 s)
+DM2  display: layout change does not re-design
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-dm2  (140.7 s)
+AN1  analyzer: drop counter ignored
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-an1  (140.9 s)
+PX22  listen input without the effective placement
+   render FULL: rc 1 | 165 PASS, 1 FAIL | FAIL: XR-px22  (131.8 s)

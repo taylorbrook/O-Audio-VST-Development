@@ -42,6 +42,10 @@
 
 #include "PluginProcessor.h"
 
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"
+#endif
+
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -279,6 +283,11 @@ OuariconParametricEQAudioProcessor::OuariconParametricEQAudioProcessor()
     jassert (rawValues[kRawGainScale] == parameters.getRawParameterValue ("gain_scale"));
     jassert (rawValues[kRawOutputGain] == parameters.getRawParameterValue ("output_gain"));
     jassert (rawValues[kRawAutoGain] == parameters.getRawParameterValue ("auto_gain"));
+
+    // Presets (Phase 3.1, call C2): never output gain or bypass; values
+    // validated and applied one host gesture each. No factory presets yet.
+    presetManager.setExcludedParameters ({ "output_gain", "bypass" });
+    presetManager.setValidatedApply (true);
 }
 
 //==============================================================================
@@ -1239,9 +1248,14 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
 //==============================================================================
 juce::AudioProcessorEditor* OuariconParametricEQAudioProcessor::createEditor()
 {
-    // Stage 1: the generic editor, unconditionally. Phase 3.1 swaps in the
-    // WebView editor behind a JUCE_WEB_BROWSER guard.
+    // Phase 3.1: the WebView editor. The render harness and the param dump
+    // build with JUCE_WEB_BROWSER=0 and without the editor TU: they get the
+    // generic editor.
+   #if JUCE_WEB_BROWSER
+    return new OuariconParametricEQAudioProcessorEditor (*this);
+   #else
     return new juce::GenericAudioProcessorEditor (*this);
+   #endif
 }
 
 //==============================================================================

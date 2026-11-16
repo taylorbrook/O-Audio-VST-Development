@@ -1,0 +1,21 @@
+[
+  {
+    "name": "settings popover open (label.language and the endonym select)",
+    "click": "#gear-btn",
+    "note": "No preset-dropdown state: v1 shows #preset-name as a plain label (no list), so there is nothing to open (PLAN-3.1 P8). Append any new state LAST: the gate's state pass flips every toggle after each state."
+  },
+  {
+    "name": "settings popover open, hover-help OFF (ui.off on the switch)",
+    "click": "#tips-toggle"
+  },
+  {
+    "name": "band 1 enabled and selected (the strip's labels)",
+    "click": "#chips .chip[data-b=\"1\"]",
+    "eval": "window.__stubStates.toggles.get('b01_enabled').setValue(true);"
+  },
+  {
+    "name": "band 1 Low Cut at 6 dB/oct (gain and Q fields disabled)",
+    "click": "#chips .chip[data-b=\"1\"]",
+    "eval": "const s = window.__stubStates; s.toggles.get('b01_enabled').setValue(true); s.combos.get('b01_type').setChoiceIndex(3); s.combos.get('b01_slope').setChoiceIndex(0);"
+  }
+]
