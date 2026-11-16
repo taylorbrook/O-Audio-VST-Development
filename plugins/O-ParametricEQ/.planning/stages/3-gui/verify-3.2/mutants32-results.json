@@ -1,0 +1,251 @@
+[
+ {
+  "mutant": "control",
+  "target": null,
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": null,
+  "controlPass": true
+ },
+ {
+  "mutant": "V1-timer-30Hz",
+  "target": "E-stopped",
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": false
+ },
+ {
+  "mutant": "V2-band-0-based",
+  "target": "E-eq-init",
+  "verdict": "FAIL E-eq-init (every open),E-eq-init (preset paths: changed bands pushed),E-stopped,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-eq-init (every open)",
+   "E-eq-init (preset paths: changed bands pushed)",
+   "E-stopped",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true,
+  "note": "re-scored at verify: row names carry a suffix"
+ },
+ {
+  "mutant": "V3-flag-never-cleared",
+  "target": "E-eq-idle",
+  "verdict": "FAIL E-idle,E-eq-idle,bench failedChecks empty",
+  "failing": [
+   "E-idle",
+   "E-eq-idle",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V4-changed-ignored",
+  "target": "E-stopped",
+  "verdict": "FAIL E-eq-init (preset paths: changed bands pushed),E-eq-init (preset paths: painted curve = engine),E-stopped,E-mono,E-lag,bench failedChecks empty",
+  "failing": [
+   "E-eq-init (preset paths: changed bands pushed)",
+   "E-eq-init (preset paths: painted curve = engine)",
+   "E-stopped",
+   "E-mono",
+   "E-lag",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V5-header-stereo-true",
+  "target": "E-mono",
+  "verdict": "FAIL E-mono,bench failedChecks empty",
+  "failing": [
+   "E-mono",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V6-active-filter-dropped",
+  "target": "probe",
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": null
+ },
+ {
+  "mutant": "V7-global-bypass-ignored",
+  "target": "probe",
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": null
+ },
+ {
+  "mutant": "V8-sumView-always-LL",
+  "target": "probe",
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": null
+ },
+ {
+  "mutant": "V9-dgain-ignores-scale",
+  "target": "E-drag",
+  "verdict": "FAIL E-drag,bench failedChecks empty",
+  "failing": [
+   "E-drag",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V10-dgain-ignores-type",
+  "target": "E-drag",
+  "verdict": "FAIL E-drag,bench failedChecks empty",
+  "failing": [
+   "E-drag",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V11-onUp-skips-gain-end",
+  "target": "E-drag",
+  "verdict": "FAIL E-drag,bench failedChecks empty",
+  "failing": [
+   "E-drag",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V12-tip-gated-by-help",
+  "target": "E-full",
+  "verdict": "FAIL E-full,bench failedChecks empty",
+  "failing": [
+   "E-full",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V13-hover-keeps-point-binding",
+  "target": "probe",
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": null
+ },
+ {
+  "mutant": "V14-parseEntry-no-exponent",
+  "target": "E-ends",
+  "verdict": "FAIL E-ends,bench failedChecks empty",
+  "failing": [
+   "E-ends",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V15-create-keeps-placement",
+  "target": "E-create",
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": false
+ },
+ {
+  "mutant": "V16-create-keeps-q",
+  "target": "E-create",
+  "verdict": "FAIL E-create,bench failedChecks empty",
+  "failing": [
+   "E-create",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V17-dblclick-create-guard-gone",
+  "target": "E-dblclick",
+  "verdict": "FAIL E-dblclick,bench failedChecks empty",
+  "failing": [
+   "E-dblclick",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V18-wheel-gesture-per-event",
+  "target": "E-wheel",
+  "verdict": "FAIL E-wheel,bench failedChecks empty",
+  "failing": [
+   "E-wheel",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V19-delete-selects-none",
+  "target": "E-delete",
+  "verdict": "FAIL E-delete,bench failedChecks empty",
+  "failing": [
+   "E-delete",
+   "bench failedChecks empty"
+  ],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": true
+ },
+ {
+  "mutant": "V20-create-not-bypass-cleared",
+  "target": "E-create",
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": false,
+  "note": "re-scored at verify: row names carry a suffix"
+ },
+ {
+  "mutant": "control-end",
+  "target": null,
+  "verdict": "ALL-PASS",
+  "failing": [],
+  "rc": 0,
+  "lockedDuringRun": false,
+  "caught": null,
+  "controlPass": true
+ }
+]

@@ -1,0 +1,28 @@
+  [PASS] vacuity: function evalBand found exactly once in index.html (found 1)
+  [PASS] vacuity: function magDb found exactly once in index.html (found 1)
+  [PASS] vacuity: function composeSum found exactly once in index.html (found 1)
+  [PASS] vacuity: the 0.7.0 composeSum fixture holds exactly one composeSum
+  [PASS] vacuity: control 4 finds the Side matrix line exactly once
+  [PASS] vacuity: control 6 finds the active filter exactly once
+  [PASS] vacuity: 260 draws in the dump (found 260)
+G9 (b): Source/ui/public/index.html vs 260 XR-g9 draws
+    44100 Hz  worst 5.16e-9 dB over 29678 points
+    48000 Hz  worst 8.30e-10 dB over 31198 points
+    88200 Hz  worst 7.56e-10 dB over 27543 points
+    96000 Hz  worst 3.50e-10 dB over 31329 points
+    192000 Hz  worst 1.37e-8 dB over 29208 points
+    worst at s202.json view 0 36.673 Hz: C++ -43.4350 dB, page -43.4350 dB
+  [PASS] G9 (b) worst 1.372e-8 dB <= 0.01 dB
+  [PASS] vacuity: 148956 scored points >= 100000
+  [PASS] vacuity: every rate contributes points
+  [PASS] vacuity: the mono set contributes points (875)
+  [PASS] no NaN below Nyquist (0)
+  [PASS] control 1 k x 1.01 in every SVF section: worst 19.681 dB > 0.05 dB (148956 points)
+  [PASS] control 2 onePoles dropped: worst 172.942 dB > 0.05 dB (148956 points)
+  [PASS] control 3 first Left and Mid bands swapped in order: worst 238.015 dB > 0.05 dB (148081 points)
+  [PASS] control 4 Side composed with the Mid matrix: worst 236.620 dB > 0.05 dB (148956 points)
+  [PASS] control 6 the active filter removed: worst 256.814 dB > 0.05 dB (148956 points)
+  [PASS] control 5a: on the 10 mono draws the shipping composeSum ignores relay placement (max diff 0 dB over 2035 points)
+  [PASS] control 5b: the 0.7.0 composeSum fed the same relay placements misses by 59.514 dB > 0.05 dB (m000.json view 0 1716.837 Hz: C++ -41.1101 dB, page 18.4041 dB)
+
+G9 (b) PASS

@@ -37,17 +37,17 @@ lastUpdated: 2026-11-15
 | DSP-03 | Slopes of 6, 12, 18, 24, 36, 48, 72 and 96 dB/oct on every type that supports them | must | complete | stage-2 |
 | DSP-04 | Click-free under automation and fast drags of every parameter, including type, slope, placement and enable | must | complete | stage-2 |
 | DSP-05 | Numerically stable and quiet at low frequency / high Q at all supported sample rates | must | complete | stage-2 |
-| DSP-06 | Parameter ranges: frequency 10 Hz – 30 kHz, gain ±30 dB, Q 0.025 – 40 | must | partial | stage-2 |
+| DSP-06 | Parameter ranges: frequency 10 Hz – 30 kHz, gain ±30 dB, Q 0.025 – 40 | must | complete | stage-2 |
 | DSP-07 | Band engine and state format leave room for dynamic EQ without breaking v1 sessions | should | complete | stage-1 |
 
 ### UI (UI)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Interactive response display: click to create a band, drag frequency / gain, scroll Q | must | pending | stage-3 |
-| UI-02 | Displayed curve equals the true filter response at the session sample rate | must | pending | stage-3 |
+| UI-01 | Interactive response display: click to create a band, drag frequency / gain, scroll Q | must | complete | stage-3 |
+| UI-02 | Displayed curve equals the true filter response at the session sample rate | must | complete | stage-3 |
 | UI-03 | Real-time spectrum analyzer: Off / Pre / Post / Pre+Post | should | pending | stage-3 |
-| UI-04 | Selected-band strip with typed value entry and double-click reset | should | pending | stage-3 |
+| UI-04 | Selected-band strip with typed value entry and double-click reset | should | complete | stage-3 |
 | UI-05 | Ouaricon house style, French and zh-Hans localisation | should | pending | stage-4 |
 | UI-06 | Output level meter | nice | pending | stage-3 |
 | UI-07 | Per-band curve fills coloured by band | nice | pending | stage-3 |
@@ -153,19 +153,19 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 ### DSP-06: Parameter ranges
 
 **Acceptance Criteria:**
-- [ ] All ranges reachable from UI, automation and typed entry
+- [x] All ranges reachable from UI, automation and typed entry
 - [x] Frequencies above Nyquist at low sample rates are handled without instability
 
 ### UI-01: Interactive display
 
 **Acceptance Criteria:**
-- [ ] Clicking empty curve space creates a band at that frequency / gain
-- [ ] Dragging a node updates frequency and gain with host automation gestures; scroll changes Q
+- [x] Clicking empty curve space creates a band at that frequency / gain
+- [x] Dragging a node updates frequency and gain with host automation gestures; scroll changes Q
 
 ### UI-02: True curve
 
 **Acceptance Criteria:**
-- [ ] Displayed summed curve matches the measured plugin response within 0.1 dB at every supported sample rate
+- [x] Displayed summed curve matches the measured plugin response within 0.1 dB at every supported sample rate
 
 ### PERF-01: Real-time safety
 
@@ -235,3 +235,5 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 *Phase 2.6 verify, 2026-11-15 (`stages/2-dsp/VERIFICATION-2.6.md`), Stage 2 closed: PERF-01 complete. FUNC-01, FUNC-02, DSP-06 and QUAL-01 stay partial; their remaining criteria are Stage 3 / 4 or the hands-on listen. Engine halves met for FUNC-08 (listen), UI-02 (G9 (a), 2.1e-3 dB) and UI-03 (taps, analyzer); those requirements close in Stage 3.*
 
 *Phase 3.1 verify, 2026-11-15 (`stages/3-gui/VERIFICATION-3.1.md`): no status change. Bindings, presets (C2), disabled states and the transient half of FUNC-08 (`setListenBand` mapping, editor-close reset) proven; UI-01, UI-02, UI-04 close in 3.2, FUNC-08, UI-03, UI-06, UI-07 in 3.3.*
+
+*Phase 3.2 verify, 2026-11-16 (`stages/3-gui/VERIFICATION-3.2.md`): UI-01, UI-02, UI-04 and DSP-06 complete. UI-02 by the chain G9 (a) 2.03e-3 dB + G9 (b) 1.37e-8 dB at all five rates and mono; UI-01 gestures proven in-process (Logic / VST3 lane recording is a hands-on row); UI-04 / DSP-06 by E-ends 20 / 20 exact and E-dblclick. FUNC-08, UI-03, UI-06, UI-07 close in 3.3.*

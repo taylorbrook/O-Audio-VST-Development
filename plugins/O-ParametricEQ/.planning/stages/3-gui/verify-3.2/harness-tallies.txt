@@ -1,0 +1,4 @@
+verify 3.2, 47d767d3, harness objects deleted and rebuilt
+designer: 150 PASS, 0 FAIL, 18 INFO  rc 0
+render: 166 PASS, 0 FAIL  rc 0
+render-long: 166 PASS, 0 FAIL  rc 0
