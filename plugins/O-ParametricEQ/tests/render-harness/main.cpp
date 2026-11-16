@@ -243,6 +243,7 @@
       O-ParametricEQ-render-harness --dump-sessions <dir>
                                                         write the 16 XR-lid sessions (PLAN-2.6 T1, P13)
       O-ParametricEQ-render-harness --dump-g9 <dir>     write the 260 XR-g9 draws for tests/g9b (PLAN-3.2 P4)
+      O-ParametricEQ-render-harness --rows33            only the Phase 3.3 rows (PLAN-3.3 T11 mutant runs)
 
     Harness references (PLAN-2.6 P12), none of which calls eq::Listen,
     OutputStage::process / nextGains or a DisplayModel design call:
@@ -340,6 +341,20 @@
       XR-psg    Factory/Locked.json: isFactoryPreset, PresetSaveGuard refuses the name and
                 the file, not a user name. Control: file absent -> the name is not refused
 
+    Stage 3, Phase 3.3 (PLAN-3.3 T3): the listen NaN fix (P1), analyzer Off
+    gating and the meter feed's hold rule (P4; the shipping editor/PeakHold.h).
+
+      N1e       VERIFICATION-2.6 Issue 1 (probe33 n): a NaN inside listen's input ramp is
+                caught at its own block: 16 cases (12 / 16 before the fix)
+      N1e-u     the voice flag is taken every chunk, not inside `! finite || ...`: NaN on
+                the voice's channel vs the other channel, a lane non-finite in both: the
+                renders are bit-equal from the next block
+      AO1       analyzer mode 0 drains 0 / 0; mode 2 drains post only
+      AO2       the analyzer's Off rule: a tap switched back on after 3 s Off draws no
+                pre-gap audio (>= 55 dB under the noise's top) (control: the mutant "Off rule removed")
+      M1        PeakHold over the editor's 60 Hz reads: -6 dBFS within 0.5 dB at 44.1 / 48 /
+                192 kHz, blocks 1024 - 4096; H = 1 control shows empty reads
+
     Existing rows amended in Phase 2.6, by name (PLAN-2.6 P16; a comment at
     its code): S5 also redraws listenBand (p 1/200 per block) and the
     analyzer mode (p 1/500) with the consumer registered and no reader, and
@@ -368,6 +383,7 @@
 #include "analysis/SpectrumAnalyzer.h"
 #include "analysis/DisplayModel.h"
 #include "PresetSaveGuard.h"
+#include "editor/PeakHold.h"
 
 #include <algorithm>
 #include <array>
@@ -17195,6 +17211,351 @@ namespace
     }
 
     //==========================================================================
+    // Stage 3, Phase 3.3 (PLAN-3.3 T3): the listen NaN fix (P1), the analyzer
+    // Off gating and the meter feed's hold rule (P4). N1e and AO1 are the
+    // RESEARCH-3.3 probe rows (research-3.3/probe/probe33.cpp) as written.
+    //==========================================================================
+    std::unique_ptr<Processor> p33Make (double rate, int channels, int block)
+    {
+        auto p = make();
+
+        if (! setLayout (*p, channels))
+            row (false, "harness: layout refused (" + juce::String (channels) + " channels)");
+
+        p->setRateAndBufferSizeDetails (rate, block);
+        p->prepareToPlay (rate, block);
+        return p;
+    }
+
+    void phase33RowsXr()
+    {
+        section ("N1e / N1e-u / AO1 / AO2 / M1. the listen NaN fix, analyzer Off and its Off rule, the meter hold (Phase 3.3: PLAN-3.3 P1, P2, P4)");
+
+        //======================================================================
+        // N1e (VERIFICATION-2.6 Issue 1; probe33 n): a NaN at t1 + 700, inside
+        // the 30 ms input ramp of an engage (from off) or a change (5 -> 3) at
+        // 1001, 48 kHz; band 3 on / off, band 5 off. PASS when no non-finite
+        // sample follows the NaN's own host block. Before P1, an engage with
+        // no band running stayed non-finite until the ramp opened (12 / 16).
+        //======================================================================
+        {
+            Tally tally;
+
+            for (const int channels : { 1, 2 })
+                for (const int block : { 64, 512 })
+                    for (const int band3 : { 0, 1 })
+                        for (const int kind : { 0, 1 })     // 0 engage from off, 1 change 5 -> 3
+                        {
+                            const double rate = 48000.0;
+                            const int length = 9000, grid = harnessGrid (rate);
+                            const int t1 = owedCeil (1001, grid), nanAt = t1 + 700;
+                            auto input = makeNoiseAt (channels, length, 91, 0.5f);
+
+                            for (int channel = 0; channel < channels; ++channel)
+                                input.setSample (channel, nanAt, std::numeric_limits<float>::quiet_NaN());
+
+                            OwedOptions o;
+                            o.block = block;
+                            const auto y = owedRender (rate, input,
+                                                       owedAll ({ owedBand (3, kBell, 1000.0f, 6.0f, 2.0f), owedBand (5, kBell, 4000.0f, 3.0f, 1.0f),
+                                                                  owedSet (bandId (6, "enabled"), 0.0f), owedSet (bandId (4, "enabled"), band3 ? 1.0f : 0.0f),
+                                                                  owedListen (kind ? 5 : -1) }),
+                                                       { { 1001, owedListen (3) } }, o);
+                            const int chunkEnd = 1001 + ((nanAt - 1001) / block + 1) * block;
+                            int lo = -1, hi = -1;
+
+                            for (int channel = 0; channel < channels; ++channel)
+                                for (int i = chunkEnd; i < length; ++i)
+                                    if (! std::isfinite (y.getSample (channel, i)))
+                                    {
+                                        if (lo < 0 || i < lo) lo = i;
+                                        hi = juce::jmax (hi, i);
+                                    }
+
+                            const juce::String where = juce::String (channels) + "ch blk " + juce::String (block) + (band3 ? " on" : " off") + (kind ? " change" : " engage");
+                            tally.check (lo < 0, where + ": non-finite [" + juce::String (lo) + " .. " + juce::String (hi) + "] after " + juce::String (chunkEnd));
+                        }
+
+            row (tally.bad == 0 && tally.total == 16,
+                 "N1e    VERIFICATION-2.6 Issue 1 (probe33 n): a NaN at t1 + 700 inside listen's 30 ms input ramp (engage from off / change 5 -> 3 at 1001), band 3 on / off, mono / stereo, blocks 64 / 512, 48 kHz: no non-finite sample after the NaN's own block",
+                 tally.detail());
+        }
+
+        //======================================================================
+        // N1e-u (PLAN-3.3 P1: the flag is taken every chunk, never inside
+        // `! finite || ...`). Stereo; listen engages band 3 (Left; itself
+        // running in the EQ path or not); band 7 running on Stereo so the
+        // NaN's lane goes non-finite in the same chunk. (Engage only: during
+        // an established Left listen the right lane carries no EQ path, so a
+        // NaN on R never reaches a lane.) The NaN sits inside the incoming
+        // voice's ramp, on the Left channel (the voice and a lane both
+        // non-finite) or on the Right channel (a lane only: a Left voice
+        // renders 0 on the right). Both renders clear every state at the
+        // NaN's chunk, so they are bit-equal from the next block on. With the
+        // flag taken inside the `||`, the Left render keeps the flag and
+        // clears again at the next clean chunk: the renders then differ.
+        //======================================================================
+        {
+            Tally tally;
+            juce::String figures;
+
+            for (const int block : { 64, 512 })
+                for (const int band3 : { 0, 1 })
+                {
+                    const double rate = 48000.0;
+                    const int length = 12000, grid = harnessGrid (rate);
+                    const int t1 = owedCeil (1001, grid), nanAt = t1 + 700;
+                    const auto clean = makeNoiseAt (2, length, 0x33000001, 0.5f);
+                    auto onLeft = clean, onRight = clean;
+                    onLeft.setSample (0, nanAt, std::numeric_limits<float>::quiet_NaN());
+                    onRight.setSample (1, nanAt, std::numeric_limits<float>::quiet_NaN());
+
+                    const auto setup = owedAll ({ owedBand (3, kBell, 1000.0f, 6.0f, 2.0f, 1, kLeft), owedSet (bandId (4, "enabled"), band3 ? 1.0f : 0.0f),
+                                                  owedBand (7, kBell, 2500.0f, 4.0f, 1.5f), owedListen (-1) });
+                    OwedOptions o;
+                    o.block = block;
+                    const std::vector<OwedEvent> events { { 1001, owedListen (3) } };
+                    const auto yl = owedRender (rate, onLeft, setup, events, o);
+                    const auto yr = owedRender (rate, onRight, setup, events, o);
+                    const int blockEnd = 1001 + ((nanAt - 1001) / block + 1) * block;
+
+                    // Preconditions: each render is non-finite inside the NaN's block (a lane took it).
+                    int nonFiniteL = 0, nonFiniteR = 0;
+                    for (int channel = 0; channel < 2; ++channel)
+                        for (int i = nanAt; i < blockEnd; ++i)
+                        {
+                            nonFiniteL += std::isfinite (yl.getSample (channel, i)) ? 0 : 1;
+                            nonFiniteR += std::isfinite (yr.getSample (channel, i)) ? 0 : 1;
+                        }
+
+                    int firstDiff = -1;
+                    for (int channel = 0; channel < 2; ++channel)
+                        for (int i = blockEnd; i < length; ++i)
+                            if (! sameBits (yl.getSample (channel, i), yr.getSample (channel, i)))
+                            {
+                                if (firstDiff < 0 || i < firstDiff) firstDiff = i;
+                                break;
+                            }
+
+                    const juce::String where = "blk " + juce::String (block) + (band3 ? " band 3 on" : " band 3 off");
+                    tally.check (nonFiniteL > 0 && nonFiniteR > 0 && firstDiff < 0,
+                                 where + ": non-finite in the NaN's block L / R " + juce::String (nonFiniteL) + " / " + juce::String (nonFiniteR)
+                                     + ", first difference from " + juce::String (blockEnd) + ": " + juce::String (firstDiff));
+                    figures += (figures.isEmpty() ? "" : ", ") + where + " equal from " + juce::String (blockEnd);
+                }
+
+            row (tally.bad == 0 && tally.total == 4,
+                 "N1e-u  PLAN-3.3 P1: NaN inside listen's engage ramp with a lane also non-finite in that chunk (Left voice; NaN on L: voice + lane, on R: lane only), stereo, blocks 64 / 512, band 3 on / off, 48 kHz: the two renders are bit-equal from the block after the NaN (the voice flag is taken, not left set)",
+                 tally.detail() + "  " + figures);
+        }
+
+        //======================================================================
+        // AO1 (probe33 a): the consumer registered, analyzerMode 0 for 1 s of
+        // noise -> 0 / 0 samples drained; mode 2 the next second -> pre 0,
+        // post = the second's sample count.
+        //======================================================================
+        {
+            const double rate = 48000.0;
+            const int second = 48000, block = 512;
+            auto p = p33Make (rate, 2, block);
+            setBand (*p, 1, makeSpec (kBell, 800.0f, -4.0f, 2.0f, 1, kStereo));
+            p->analyzerMode.store (0);
+            SpectrumAnalyzer analyzer (*p);
+            auto input = makeNoiseAt (2, second, 3, 0.5f);
+            juce::MidiBuffer midi;
+
+            const auto runSecond = [&]
+            {
+                auto buffer = input;
+
+                for (int s = 0; s < second; s += block)
+                {
+                    juce::AudioBuffer<float> view (buffer.getArrayOfWritePointers(), 2, s, juce::jmin (block, second - s));
+                    p->processBlock (view, midi);
+
+                    if (s % 4096 == 0)
+                        analyzer.process (0.016);
+                }
+
+                analyzer.process (0.016);
+            };
+
+            runSecond();
+            const auto off0 = analyzer.getSamplesDrained (0), off1 = analyzer.getSamplesDrained (1);
+            p->analyzerMode.store (2);
+            runSecond();
+            const auto on0 = analyzer.getSamplesDrained (0), on1 = analyzer.getSamplesDrained (1);
+
+            row (off0 == 0 && off1 == 0 && on0 == 0 && on1 == (std::uint64_t) second,
+                 "AO1    analyzer Off stops the audio-thread writes (ROADMAP 3.3 criterion 1): consumer registered, mode 0 for 1 s of noise -> 0 / 0 drained; mode 2 the next second -> pre 0, post 48 000 (48 kHz, blocks 512)",
+                 "off drained " + juce::String ((juce::int64) off0) + " / " + juce::String ((juce::int64) off1) + "; Post: pre " + juce::String ((juce::int64) on0)
+                     + ", post " + juce::String ((juce::int64) on1));
+        }
+
+        //======================================================================
+        // AO2 (PLAN-3.3 execute: the analyzer's Off rule). Post with noise for
+        // 1 s, mode 0 for 3 s of silence (process every 1 / 60 s throughout),
+        // then mode 2 with silence for 0.5 s: no Post frame may show pre-gap
+        // audio, so every display point after the switch stays at least 55 dB
+        // below the noise's highest point (the release alone takes 60 dB off
+        // in the 3 s; a frame of pre-gap audio puts it back near the top).
+        // Stimulus guard: during the noise second the display reaches above
+        // -60 dB. (The rule's control is the mutant "Off rule removed".)
+        //======================================================================
+        {
+            const double rate = 48000.0;
+            const int block = 512;
+            auto p = p33Make (rate, 2, block);
+            p->analyzerMode.store (2);
+            SpectrumAnalyzer analyzer (*p);
+            juce::MidiBuffer midi;
+            auto noise = makeNoiseAt (2, 48000, 5, 0.5f);
+            juce::AudioBuffer<float> silence (2, block);
+            const double tick = rate / 60.0;
+            double clock = 0.0, nextTick = tick;
+            int pos = 0;
+
+            const auto runFor = [&] (double seconds, bool withNoise) -> float
+            {
+                const double end = clock + seconds * rate;
+                float highest = -999.0f;
+
+                while (clock < end)
+                {
+                    if (withNoise)
+                    {
+                        juce::AudioBuffer<float> view (noise.getArrayOfWritePointers(), 2, pos, block);
+                        p->processBlock (view, midi);
+                        pos = (pos + block) % (48000 - block);
+                    }
+                    else
+                    {
+                        silence.clear();
+                        p->processBlock (silence, midi);
+                    }
+
+                    clock += block;
+
+                    while (nextTick <= clock)
+                    {
+                        analyzer.process (1.0 / 60.0);
+                        nextTick += tick;
+
+                        for (int i = 0; i < SpectrumAnalyzer::numPoints; ++i)
+                            highest = juce::jmax (highest, analyzer.getPost()[i]);
+                    }
+                }
+
+                return highest;
+            };
+
+            const float during = runFor (1.0, true);
+            p->analyzerMode.store (0);
+            runFor (3.0, false);
+            p->analyzerMode.store (2);
+            const float after = runFor (0.5, false);
+
+            row (during > -60.0f && after <= during - 55.0f,
+                 "AO2    analyzer Off rule (PLAN-3.3 execute): Post with noise 1 s, Off 3 s of silence, then Post with silence: every Post point after the switch >= 55 dB below the noise's highest (no frame of pre-gap audio; the release takes 60 dB); the noise reached > -60 dB (stimulus guard)",
+                 "highest Post point: during the noise " + fmtG (during, 4) + " dB, after the switch " + fmtG (after, 4) + " dB");
+        }
+
+        //======================================================================
+        // M1 (PLAN-3.3 P4; RESEARCH-3.3 Q2): the shipping opeq::PeakHold and
+        // gainToTenthsDb on the editor's 60 Hz reads, blocks completing in
+        // real time (block b ends at (b + 1) B / fs), a -6 dBFS 1 kHz sine,
+        // stereo, 3 s. Every tick after the first H reads shows -6 within
+        // 0.5 dB on both channels. Vacuity guard: the same run with H = 1 at
+        // 1024 / 44.1 kHz must show empty ticks (the floor, -60 dB).
+        //======================================================================
+        {
+            Tally tally;
+            juce::String figures;
+            int emptyTicksDepth1 = 0;
+
+            struct Case { double rate; int block; };
+
+            for (const auto c : { Case { 44100.0, 1024 }, Case { 44100.0, 2048 }, Case { 44100.0, 4096 },
+                                  Case { 48000.0, 1024 }, Case { 48000.0, 4096 }, Case { 192000.0, 2048 } })
+                for (const bool depthOne : { false, true })
+                {
+                    if (depthOne && ! (c.rate == 44100.0 && c.block == 1024))
+                        continue;
+
+                    auto p = p33Make (c.rate, 2, c.block);
+                    const int length = owedLength (3.0, c.rate);
+                    const float amplitude = (float) std::pow (10.0, -6.0 / 20.0);
+                    juce::AudioBuffer<float> input (2, length);
+
+                    for (int i = 0; i < length; ++i)
+                    {
+                        const auto v = (float) (amplitude * std::sin (2.0 * juce::MathConstants<double>::pi * 1000.0 * i / c.rate));
+                        input.setSample (0, i, v);
+                        input.setSample (1, i, v);
+                    }
+
+                    const int depth = depthOne ? 1 : opeq::PeakHold::depthFor (p->getBlockSize(), p->getSampleRate());
+                    std::array<opeq::PeakHold, 2> hold;
+                    for (auto& h : hold) h.setDepth (depth);
+
+                    juce::MidiBuffer midi;
+                    int done = 0, worstTenths = 0, worstDev = -1, empty = 0, ticks = 0;
+
+                    for (int j = 1; j / 60.0 < 3.0; ++j)
+                    {
+                        const double t = j / 60.0;
+
+                        while (done < length / c.block && (done + 1) * (double) c.block / c.rate <= t)
+                        {
+                            juce::AudioBuffer<float> view (input.getArrayOfWritePointers(), 2, done * c.block, c.block);
+                            p->processBlock (view, midi);
+                            ++done;
+                        }
+
+                        for (int ch = 0; ch < 2; ++ch)
+                            hold[(size_t) ch].push (p->readAndResetOutputPeak (ch));
+
+                        if (j <= depth)
+                            continue;
+
+                        ++ticks;
+
+                        for (int ch = 0; ch < 2; ++ch)
+                        {
+                            const int tenths = opeq::gainToTenthsDb (hold[(size_t) ch].max(), -600, 120);
+
+                            if (tenths <= -600)
+                                ++empty;
+
+                            if (worstDev < 0 || std::abs (tenths + 60) > worstDev)
+                            {
+                                worstDev = std::abs (tenths + 60);
+                                worstTenths = tenths;
+                            }
+                        }
+                    }
+
+                    const juce::String where = fmtG (c.rate / 1000.0, 4) + "k / " + juce::String (c.block);
+
+                    if (depthOne)
+                    {
+                        emptyTicksDepth1 = empty;
+                        figures += "; H = 1 control at " + where + ": " + juce::String (empty) + " empty reads";
+                        continue;
+                    }
+
+                    tally.check (worstDev >= 0 && worstDev <= 5 && ticks > 100,
+                                 where + " H " + juce::String (depth) + ": worst " + fmtG (worstTenths / 10.0, 4) + " dB over " + juce::String (ticks) + " ticks");
+                    figures += (figures.isEmpty() ? "" : ", ") + where + " H " + juce::String (depth) + " worst " + fmtG (worstTenths / 10.0, 4) + " dB";
+                }
+
+            row (tally.bad == 0 && tally.total == 6 && emptyTicksDepth1 >= 1,
+                 "M1     UI-06 meter feed (PLAN-3.3 P4): opeq::PeakHold (H = ceil (B / fs x 60) + 1) on 60 Hz reads of readAndResetOutputPeak, blocks in real time, -6 dBFS 1 kHz sine, 3 s, 44.1 k / 1024, 2048, 4096; 48 k / 1024, 4096; 192 k / 2048: every tick after the first H within 0.5 dB of -6 on both channels; H = 1 at 1024 / 44.1 k shows empty reads (control)",
+                 tally.detail() + "  " + figures);
+        }
+    }
+
+    //==========================================================================
     // Stage 3, Phase 3.1 (PLAN-3.1 P6, call C2): the preset manager
     //==========================================================================
 
@@ -17437,6 +17798,7 @@ int main (int argc, char** argv)
     } homeCleanup { harnessHome() };
 
     bool dumpParams = false;
+    bool rows33Only = false;
     juce::File dumpSessionsDir;
     juce::File goldenDir (juce::String::fromUTF8 (GOLDEN_DIR));
 
@@ -17464,13 +17826,17 @@ int main (int argc, char** argv)
         {
             lidDumpDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
         }
+        else if (arg == "--rows33")
+        {
+            rows33Only = true;   // PLAN-3.3 T11 mutant runs: only phase33RowsXr
+        }
         else if (arg == "--dump-g9" && a + 1 < argc)
         {
             g9DumpDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
         }
         else
         {
-            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>] [--dump-g9 <dir>]\n", argv[0]);
+            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>] [--dump-g9 <dir>] [--rows33]\n", argv[0]);
             return 255;
         }
     }
@@ -17510,6 +17876,14 @@ int main (int argc, char** argv)
     }
 
     std::printf ("O-ParametricEQ render harness (Stage 1)  golden dir: %s\n", goldenDir.getFullPathName().toRawUTF8());
+
+    if (rows33Only)
+    {
+        phase33RowsXr();
+        std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+        std::fflush (stdout);
+        return juce::jmin (failures, 255);
+    }
 
     layoutRows (goldenDir);
     busRows();
@@ -17569,6 +17943,9 @@ int main (int argc, char** argv)
 
     // Stage 3, Phase 3.1 (PLAN-3.1 P6, call C2)
     presetRowsXr();
+
+    // Stage 3, Phase 3.3 (PLAN-3.3 T3)
+    phase33RowsXr();
 
     listenAllocationRowsXr();
     cpuInfoListen();

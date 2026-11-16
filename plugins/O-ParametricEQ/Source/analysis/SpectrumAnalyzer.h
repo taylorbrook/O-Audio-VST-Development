@@ -68,6 +68,11 @@
          zero-padded to 4 N, performFrequencyOnlyForwardTransform on the
          scratch (it works in place), per bin 20 log10 (|X| 2 / sum (w)),
          floor -200 dB. A tap that received nothing computes no frame.
+         A tap whose analyzerMode bit is off clears its valid count on
+         every call (PLAN-3.3 execute): switched back on, it computes no
+         frame until N new samples have arrived, so no window straddles
+         the Off gap. (A host that stops calling processBlock is not such
+         a gap: re-entry attacks at once, XR-anrel.)
       3. ballistics per bin: display = max (frame, held - 20 dt) with a
          frame, held - 20 dt without one (floor -200): instant attack, a
          release of 20 dB/s that keeps running when no data arrives, so the

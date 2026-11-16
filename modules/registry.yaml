@@ -273,9 +273,7 @@ modules:
     dependencies: []
     tags: [vu, meter, levels, animation, atomic]
     reuse_score: 9
-    used_by:
-      - plugin: O-ParametricEQ
-        version: 0.1.0
+    used_by: []
 
   # ============================================================================
   # TUNING MODULES

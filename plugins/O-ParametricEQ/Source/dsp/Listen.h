@@ -414,6 +414,7 @@ public:
         request and the wish are kept (startSettled seeds the restart). */
     void goIdle() noexcept
     {
+        nonFiniteVoice = false;
         moveKind = ListenMove::none;
         movePos = 0;
         retire (0);
@@ -436,6 +437,16 @@ public:
     //==========================================================================
     // Queries
     //==========================================================================
+
+    /** A voice rendered a non-finite last sample since the previous call;
+        clears the report. Step 8 calls it once per chunk, unconditionally
+        (PLAN-3.3 P1). */
+    bool takeNonFiniteVoice() noexcept
+    {
+        const bool r = nonFiniteVoice;
+        nonFiniteVoice = false;
+        return r;
+    }
 
     /** The pending wish differs from the request. */
     bool hasPending() const noexcept
@@ -793,6 +804,13 @@ private:
 
         soloRender (vc.band, vc.placement, dryL, dryR, outL, outR, count, stereo, g);
 
+        // PLAN-3.3 P1 (VERIFICATION-2.6 Issue 1): a voice whose state took a
+        // NaN inside its input ramp is not yet heard, so the lanes stay finite
+        // and step 8 would not clear it until the ramp opens. Report it.
+        if (count > 0 && (! std::isfinite (outL[count - 1])
+                          || (stereo && outR != nullptr && ! std::isfinite (outR[count - 1]))))
+            nonFiniteVoice = true;
+
         const int next = vc.rampPos + count;
         vc.rampPos = (next < rampLength) ? next : rampLength;
     }
@@ -921,6 +939,7 @@ private:
     int target = -1;
     ListenMove moveKind = ListenMove::none;
     int movePos = 0;
+    bool nonFiniteVoice = false;    // audio thread only (renderVoice -> step 8)
 
     int pendingIndex = -1;
     BandInput pendingInput;

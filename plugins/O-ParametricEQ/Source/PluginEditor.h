@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    O-ParametricEQ - Editor (WebView UI), Phase 3.2
+    O-ParametricEQ - Editor (WebView UI), Phase 3.3
 
     Window: 960 x 600 default, resizable 800 x 500 to 1600 x 1000, aspect free.
     Parameters: 196 host parameters = 196 relays + 196 attachments
@@ -33,8 +33,9 @@
 
     Phase 3.1 (PLAN-3.1 P2): bindings, 19 native functions, the pageReady
     timer gate. Phase 3.2 (PLAN-3.2 P2): the 60 Hz timer emits eqSections
-    from an editor-owned DisplayModel. 3.3 adds the analyzer (an editor-owned
-    SpectrumAnalyzer) and the output meter.
+    from an editor-owned DisplayModel. Phase 3.3 (PLAN-3.3 P2, P4): the same
+    timer runs an editor-owned SpectrumAnalyzer (analyzerPre / analyzerPost)
+    and feeds the page-drawn output meter (outputLevel, held over PeakHold).
 
   ==============================================================================
 */
@@ -47,8 +48,10 @@
 #include <memory>
 #include <optional>
 #include "PluginProcessor.h"
+#include "editor/PeakHold.h"
 
 class DisplayModel;
+class SpectrumAnalyzer;
 
 namespace opeq
 {
@@ -155,6 +158,15 @@ namespace opeq
             /** Called on the message thread for every eqSections emit, with
                 the 0-based bands it carries (PLAN-3.2 E-lag / E-stopped). */
             std::function<void (const juce::Array<int>&)> onEqSections;
+
+            /** Called for every analyzerPre (tap 0) / analyzerPost (tap 1)
+                emit with its 256 tenths of a dB; a null point is
+                opeq::kAnalyzerNoData (PLAN-3.3 T6). */
+            std::function<void (int, const juce::Array<int>&)> onAnalyzerEmit;
+
+            /** Called for every outputLevel emit with its tenths of a dB
+                (two values, one on a mono layout). */
+            std::function<void (const juce::Array<int>&)> onOutputLevel;
         };
 
         Hooks& hooks();
@@ -195,6 +207,10 @@ private:
     /** Appends one line to ~/Library/O-ParametricEQ/Logs/ui-timing.log; only
         called when the flag file existed at construction (P10). */
     void writeTimingLog (double pagePaintMs);
+
+    /** Timer parts (PLAN-3.3 P2, P4); message thread. */
+    void emitAnalyzer (double dtSeconds);
+    void emitOutputLevel();
 
     // Reference to processor
     OuariconParametricEQAudioProcessor& audioProcessor;
@@ -240,6 +256,23 @@ private:
 
     // Set by requestEqSections: the next tick emits all 24 bands.
     bool fullPushPending = true;
+
+    // The analyzer (PLAN-3.3 P2). Built after displayModel; the destructor
+    // resets it FIRST so the processor's consumer is unregistered before
+    // anything else goes. The taps are single-reader: while an editor is
+    // open no second consumer (a harness, a bench) may run its own analyzer.
+    std::unique_ptr<SpectrumAnalyzer> analyzer;
+    double lastTickMs = -1.0;     // timer tick time for the analyzer's dt; < 0 before the first
+    int lastAnalyzerMode = 0;
+    // Per tap (0 pre, 1 post): the last array sent, and whether there is one.
+    std::array<std::array<std::int32_t, opeq::kAnalyzerPoints>, 2> lastAnalyzerSent {};
+    std::array<bool, 2> analyzerSent { false, false };
+
+    // The output meter feed (PLAN-3.3 P4): per channel, the max of the last H
+    // readAndResetOutputPeak reads; outputLevel goes out only on change.
+    std::array<opeq::PeakHold, 2> meterHold;
+    std::array<int, 2> lastLevelSent { 0, 0 };
+    int lastLevelCount = 0;       // values in the last outputLevel; 0 = none sent
 
     // Set by the page's pageReady call (its states are bound); the 60 Hz timer
     // starts there, never before, and sends nothing while this is false

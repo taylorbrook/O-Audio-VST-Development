@@ -1,0 +1,276 @@
+[
+ {
+  "mutant": "control-bench",
+  "scorer": "bench",
+  "targets": [],
+  "benchVerdict": "ALL-PASS",
+  "benchFailing": [],
+  "lockedDuringRun": false,
+  "failedChecks": [],
+  "caught": null,
+  "controlPass": true
+ },
+ {
+  "mutant": "control-harness",
+  "scorer": "harness",
+  "targets": [],
+  "harnessFailing": [],
+  "harnessTally": [
+   "5",
+   "0"
+  ],
+  "caught": null,
+  "controlPass": true
+ },
+ {
+  "mutant": "control-node",
+  "scorer": "node",
+  "targets": [],
+  "nodeFailing": [],
+  "nodeTail": [
+   "  [PASS] control (per-frame decay): 60 Hz -16.000 vs 120 Hz -26.000 at 0.5 s differ by > 1 dB (fires)",
+   "",
+   "meter ballistics PASS"
+  ],
+  "caught": null,
+  "controlPass": true
+ },
+ {
+  "mutant": "listen-flag-never-set",
+  "scorer": "harness",
+  "targets": [
+   "N1e"
+  ],
+  "harnessFailing": [
+   "N1e"
+  ],
+  "harnessTally": [
+   "4",
+   "1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "flag-inside-or",
+  "scorer": "harness",
+  "targets": [
+   "N1e-u"
+  ],
+  "harnessFailing": [
+   "N1e-u"
+  ],
+  "harnessTally": [
+   "4",
+   "1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "process-skipped-while-off",
+  "scorer": "bench",
+  "targets": [
+   "E-an-stale"
+  ],
+  "benchVerdict": "FAIL E-an-stale,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-stale",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-stale / first Post frame after Off -> Post is <= -1000 everywhere (and every frame in 0.6 s)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "emit-every-tick",
+  "scorer": "bench",
+  "targets": [
+   "E-idle"
+  ],
+  "benchVerdict": "FAIL E-idle,E-eq-idle,E-idle33,bench failedChecks empty",
+  "benchFailing": [
+   "E-idle",
+   "E-eq-idle",
+   "E-idle33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-eq-idle",
+   "E-idle33 / after audio and decay: 0 relay / eqSections / analyzer / outputLevel messages"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "null-to-zero",
+  "scorer": "bench",
+  "targets": [
+   "E-an-nyq"
+  ],
+  "benchVerdict": "FAIL E-an-nyq,E-an-peak,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-nyq",
+   "E-an-peak",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-nyq / null exactly from the first span >= 24 kHz; no analyzer ink right of fx(24 kHz)",
+   "E-an-peak / span-centre sine: highest trace pixel within 1 px of fx(f)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "span-centre-reverted",
+  "scorer": "bench",
+  "targets": [
+   "E-an-peak"
+  ],
+  "benchVerdict": "FAIL E-an-peak,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-peak",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-peak / span-centre sine: highest trace pixel within 1 px of fx(f)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "peakhold-depth-1",
+  "scorer": "bench+harness",
+  "targets": [
+   "E-meter",
+   "M1"
+  ],
+  "benchVerdict": "FAIL E-meter,bench failedChecks empty",
+  "benchFailing": [
+   "E-meter",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-meter / 44.1 k / 2048: level-fill top range <= 1 px over 2 s (no sawtooth), near my(-6); peak line range <= 1 px"
+  ],
+  "harnessFailing": [
+   "M1"
+  ],
+  "harnessTally": [
+   "4",
+   "1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "listen-at-pointerdown",
+  "scorer": "bench",
+  "targets": [
+   "E-listen33"
+  ],
+  "benchVerdict": "FAIL E-listen33,bench failedChecks empty",
+  "benchFailing": [
+   "E-listen33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-listen33 / (b) click on node 5 without movement: 0 setListenBand writes, listen off"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "no-return-to-latch",
+  "scorer": "bench",
+  "targets": [
+   "E-listen33"
+  ],
+  "benchVerdict": "FAIL E-listen33,bench failedChecks empty",
+  "benchFailing": [
+   "E-listen33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-listen33 / (c) release returns to the latch: 2"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "disable-hook-only-in-delete",
+  "scorer": "bench",
+  "targets": [
+   "E-listen33"
+  ],
+  "benchVerdict": "FAIL E-listen33,bench failedChecks empty",
+  "benchFailing": [
+   "E-listen33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-listen33 / (d) host disables band 3: -1",
+   "E-listen33 / (e) preset load disabling band 3: -1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "timer-30hz",
+  "scorer": "bench",
+  "targets": [
+   "E-rate"
+  ],
+  "benchVerdict": "FAIL E-rate,bench failedChecks empty",
+  "benchFailing": [
+   "E-rate",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-rate / median interval between eqSections emits during the drag <= 20 ms"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "meter-decay-per-frame",
+  "scorer": "node",
+  "targets": [
+   "meter-ballistics"
+  ],
+  "nodeFailing": [
+   "meter-ballistics"
+  ],
+  "nodeTail": [
+   "  [PASS] control (per-frame decay): 60 Hz -16.000 vs 120 Hz -26.000 at 0.5 s differ by > 1 dB (fires)",
+   "",
+   "meter ballistics FAIL (4)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "off-rule-removed",
+  "scorer": "bench+harness",
+  "targets": [
+   "E-an-stale",
+   "AO2"
+  ],
+  "benchVerdict": "FAIL E-an-stale,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-stale",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-stale / first Post frame after Off -> Post is <= -1000 everywhere (and every frame in 0.6 s)"
+  ],
+  "harnessFailing": [
+   "AO2"
+  ],
+  "harnessTally": [
+   "4",
+   "1"
+  ],
+  "caught": true
+ }
+]

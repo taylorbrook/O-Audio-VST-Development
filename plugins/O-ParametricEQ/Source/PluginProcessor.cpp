@@ -1221,6 +1221,14 @@ void OuariconParametricEQAudioProcessor::processAudio (juce::AudioBuffer<float>&
             if (io[lane] != nullptr && ! std::isfinite (work[lane][n - 1]))
                 finite = false;
 
+        // Listen's voices report their own non-finite output (PLAN-3.3 P1): a
+        // NaN inside a voice's input ramp is not yet in the lanes. Taken every
+        // chunk on its own line, never inside `! finite || ...`: that would
+        // short-circuit on a non-finite lane, leave the flag set and clear
+        // every band again on the next clean chunk.
+        if (listen.takeNonFiniteVoice())
+            finite = false;
+
         if (! finite)
         {
             for (auto& band : bands)

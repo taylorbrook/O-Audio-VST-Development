@@ -1,5 +1,24 @@
 # O-ParametricEQ Changelog
 
+## [0.9.0] - 2026-11-16
+
+Stage 3, Phase 3.3 (analyzer, meter, fills, listen). The display now shows what is playing.
+
+### Added
+- Analyzer: Off, Pre, Post or Pre+Post spectrum behind the curve, with a 20 dB/s fall. Off stops the analysis entirely. Nothing is drawn above the session's Nyquist frequency.
+- Output meter: two bars from −60 to +6 dB with a ruler, fixed green / ochre / red zones, and a peak line that holds for one second. It moves at the same speed on 60 Hz and 120 Hz displays, and stays steady at large host buffer sizes.
+- Listen on drag: dragging a node solos that band while the drag lasts, then returns to the latched band (or to off). The strip's Listen button latches the selected band. Disabling or deleting the listened band, from the page, host automation or a preset load, ends listen.
+
+### Fixed
+- A NaN arriving while listen fades in, with no band running, is now cleared at its own block instead of a few blocks later.
+
+### Changed
+- Nothing else audible: with listen off, the output is bit-identical to 0.8.0.
+- The shared `vu-meter` module is no longer used; the meter is drawn by the page.
+
+### Known in this build
+- The French and Chinese text are machine drafts, reviewed in Stage 4.
+
 ## [0.8.0] - 2026-11-15
 
 Stage 3, Phase 3.2 (interactive response display). The curve is drawn, and the nodes are live.

@@ -20,17 +20,22 @@
 /*
   ==============================================================================
 
-    O-ParametricEQ - Editor implementation, Phase 3.2
+    O-ParametricEQ - Editor implementation, Phase 3.3
 
     From .planning/mockups/v1-PluginEditor-TEMPLATE.cpp, mapped onto the
     Stage 2 processor (RESEARCH-3.1 Q2; PLAN-3.1 P2):
 
       - The editor owns a DisplayModel (3.2): the 60 Hz timer polls it and
         emits `eqSections` for the bands that changed, all 24 after
-        requestEqSections. No SpectrumAnalyzer yet (3.3): building one
-        registers the analyzer consumer and turns the taps on.
-      - No editorOpen / outputLevelDB (the processor has neither; the meter
-        reads readAndResetOutputPeak in 3.3).
+        requestEqSections.
+      - The editor owns a SpectrumAnalyzer (3.3, PLAN-3.3 P2): building it
+        registers the analyzer consumer, so the taps run only while an editor
+        is open (and analyzerMode has their bit). The timer processes it on
+        every tick and emits analyzerPre / analyzerPost as tenths of a dB,
+        per tap, only when the array changed.
+      - No editorOpen / outputLevelDB (the processor has neither): the meter
+        is fed from readAndResetOutputPeak held over PeakHold (3.3, P4) as
+        outputLevel, only on change; the page draws it (CONTEXT U7, C1).
       - listenBand is 0 ... 23 with -1 off; the page sends 1 ... 24 with 0 off.
       - presetManager is the processor's (call C2); saves go through
         PresetSaveGuard.h.
@@ -44,6 +49,7 @@
 #include "PluginEditor.h"
 #include "PresetSaveGuard.h"
 #include "analysis/DisplayModel.h"
+#include "analysis/SpectrumAnalyzer.h"
 #include "UIBinaryData.h"
 
 namespace
@@ -205,6 +211,11 @@ Editor::OuariconParametricEQAudioProcessorEditor (Processor& p)
     // nothing; its first poll() reports all 24 bands.
     displayModel = std::make_unique<DisplayModel> (audioProcessor);
 
+    // The analyzer (PLAN-3.3 P2). Its constructor registers the processor's
+    // analyzer consumer. One analyzer per processor: JUCE gives a processor
+    // one active editor, and nothing else may drain the taps while it exists.
+    analyzer = std::make_unique<SpectrumAnalyzer> (audioProcessor);
+
     // 3. ATTACHMENTS --------------------------------------------------------------
     // Three arguments (parameter, relay, undo manager): JUCE 8.
     // They stay valid without a WebView: the relays drop their events while no
@@ -272,6 +283,10 @@ Editor::OuariconParametricEQAudioProcessorEditor (Processor& p)
 
 Editor::~OuariconParametricEQAudioProcessorEditor()
 {
+    // First: unregister the analyzer consumer before anything it reads goes
+    // (the audio thread stops writing the taps from its next block).
+    analyzer.reset();
+
     stopTimer();
     pageIsReady = false;
 
@@ -384,7 +399,9 @@ Editor::addNativeFunctions (juce::WebBrowserComponent::Options options)
         [this] (auto& args, auto complete)
         {
             // Page sends 1 ... 24, or 0 for off. Engine index is 0 ... 23, -1 off.
-            // The drag / latch state machine (U2) is Phase 3.3.
+            // The page is the only writer (PLAN-3.3 P6: its drag / latch state
+            // machine calls this only when the effective band changes); the
+            // destructor's reset is the other.
             const int band = args.size() > 0 ? (int) args[0] : 0;
             audioProcessor.listenBand.store (
                 band >= 1 && band <= opeq::kNumBands ? band - 1 : -1,
@@ -424,6 +441,11 @@ Editor::addNativeFunctions (juce::WebBrowserComponent::Options options)
         {
             const bool first = ! pageIsReady;
             pageIsReady = true;
+
+            // A (re)loaded page holds no analyzer trace and no meter level:
+            // the next tick sends the current ones once.
+            analyzerSent = { false, false };
+            lastLevelCount = 0;
 
             if (! isTimerRunning())
                 startTimerHz (60);
@@ -703,8 +725,118 @@ void Editor::timerCallback()
        #endif
     }
 
-    // Phase 3.3: analyzer frames (`analyzerPre` / `analyzerPost`, from an
-    // editor-owned SpectrumAnalyzer) and the output meter (readAndResetOutputPeak).
+    // Analyzer and meter (PLAN-3.3 P2, P4). dt is the measured tick
+    // interval, clamped to [0, 0.25] s; the first tick uses 1 / 60.
+    const double now = nowMs();
+    const double dt = lastTickMs < 0.0 ? 1.0 / 60.0
+                                       : juce::jlimit (0.0, 0.25, (now - lastTickMs) * 0.001);
+    lastTickMs = now;
+
+    emitAnalyzer (dt);
+    emitOutputLevel();
+}
+
+void Editor::emitAnalyzer (double dtSeconds)
+{
+    if (analyzer == nullptr)
+        return;
+
+    // Every tick, whatever the mode: with mode 0 the processor writes nothing
+    // and no frame is computed, but the 20 dB/s release keeps running, so a
+    // tap switched back on never shows a stale spectrum.
+    analyzer->process (dtSeconds);
+
+    const int mode = audioProcessor.analyzerMode.load (std::memory_order_acquire);
+
+    // A mode change that adds a tap sends that tap once.
+    for (int tap = 0; tap < 2; ++tap)
+    {
+        const int bit = 1 << tap;   // 1 Pre, 2 Post
+        if ((mode & bit) != 0 && (lastAnalyzerMode & bit) == 0)
+            analyzerSent[(size_t) tap] = false;
+    }
+
+    lastAnalyzerMode = mode;
+
+    const double rate = analyzer->getPreparedRate();
+
+    for (int tap = 0; tap < 2; ++tap)
+    {
+        if ((mode & (1 << tap)) == 0)
+            continue;
+
+        std::array<std::int32_t, opeq::kAnalyzerPoints> encoded;
+        opeq::encodeAnalyzerPoints (tap == 0 ? analyzer->getPre() : analyzer->getPost(), rate, encoded);
+
+        auto& last = lastAnalyzerSent[(size_t) tap];
+        if (analyzerSent[(size_t) tap]
+            && std::memcmp (encoded.data(), last.data(), sizeof (encoded)) == 0)
+            continue;
+
+        last = encoded;
+        analyzerSent[(size_t) tap] = true;
+
+        juce::Array<juce::var> points;
+        points.ensureStorageAllocated (opeq::kAnalyzerPoints);
+        for (const auto v : encoded)
+            points.add (v == opeq::kAnalyzerNoData ? juce::var() : juce::var ((int) v));
+
+        webView->emitEventIfBrowserIsVisible (tap == 0 ? "analyzerPre" : "analyzerPost",
+                                              juce::var (points));
+
+       #if defined (OPEQ_EDITOR_BENCH)
+        if (opeq::bench::hooks().onAnalyzerEmit)
+        {
+            juce::Array<int> ints;
+            for (const auto v : encoded)
+                ints.add ((int) v);
+            opeq::bench::hooks().onAnalyzerEmit (tap, ints);
+        }
+       #endif
+    }
+}
+
+void Editor::emitOutputLevel()
+{
+    // H from the prepared block size (the host's largest) and rate, checked
+    // every tick (P4).
+    const int depth = opeq::PeakHold::depthFor (audioProcessor.getBlockSize(),
+                                                audioProcessor.getSampleRate());
+    const bool stereo = audioProcessor.getPreparedStereo();
+    const int count = stereo ? 2 : 1;
+
+    std::array<int, 2> level { -600, -600 };
+
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        auto& hold = meterHold[(size_t) ch];
+        hold.setDepth (depth);
+        hold.push (audioProcessor.readAndResetOutputPeak (ch));
+        level[(size_t) ch] = opeq::gainToTenthsDb (hold.max(), -600, 120);
+    }
+
+    if (count == lastLevelCount && level[0] == lastLevelSent[0]
+        && (count == 1 || level[1] == lastLevelSent[1]))
+        return;
+
+    lastLevelSent = level;
+    lastLevelCount = count;
+
+    juce::Array<juce::var> values;
+    for (int ch = 0; ch < count; ++ch)
+        values.add (level[(size_t) ch]);
+
+    webView->emitEventIfBrowserIsVisible ("outputLevel", juce::var (values));
+
+   #if defined (OPEQ_EDITOR_BENCH)
+    if (opeq::bench::hooks().onOutputLevel)
+    {
+        juce::Array<int> ints;
+        for (int ch = 0; ch < count; ++ch)
+            ints.add (level[(size_t) ch]);
+        opeq::bench::hooks().onOutputLevel (ints);
+    }
+   #endif
 }
 
 //==============================================================================
@@ -738,10 +870,6 @@ Editor::getResource (const juce::String& url)
     // Shared modules, embedded from modules/ (not the configure-time copies).
     if (url == "/modules/preset-manager.js")
         return makeBinaryResource (UIBinaryData::presetmanager_js, UIBinaryData::presetmanager_jsSize,
-                                   "application/javascript; charset=utf-8");
-
-    if (url == "/modules/vu-meter.js")
-        return makeBinaryResource (UIBinaryData::vumeter_js, UIBinaryData::vumeter_jsSize,
                                    "application/javascript; charset=utf-8");
 
     // Shared EB Garamond face (modules/ui/eb-garamond): stylesheet under /css/,

@@ -20,8 +20,8 @@
    196 host parameters, all bound through the JUCE 8 relay-state API. The C++
    NormalisableRange is the only range: this page holds no parameter ranges.
 
-   One documented placeholder remains for Stage 3:
-     #meter-mount - the vu-meter 1.0.0 module mount point (Phase 3.3)
+   The output meter is drawn by this page (#meter, Phase 3.3; CONTEXT U7 as
+   amended, call C1): fed by the editor's outputLevel event, no shared module.
 -->
 <!-- eb-garamond 1.0.0 (modules/ui/eb-garamond), served at /css/ and /fonts/ -->
 <link rel="stylesheet" href="css/eb-garamond.css">
@@ -45,6 +45,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
   --sage-border: #3C5C1A;
   --green-mid: #6B8E4E;
   --madder: #A23B2E;
+  /* Output meter zones (from v1-ui-test.html drawMeter): sap below -6 dB,
+     ochre -6 to 0 dB, madder above 0 dB. */
+  --meter-sap: #55703E;
+  --meter-ochre: #8F6212;
   --shadow-medium: rgba(0, 0, 0, 0.25);
   --knob-ring:    #C9A27B;
   --knob-seg-1:   #F5DEB3;
@@ -302,9 +306,10 @@ button { cursor: pointer; }
 }
 #output .sec { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); height: 12px; line-height: 12px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 #output .sec::after { content: ''; flex: 1; height: 1px; background: rgba(139, 115, 85, 0.6); }
-/* vu-meter 1.0.0 mount point. The ruler belongs INSIDE this bordered box, in
-   the same element as the bars it measures. */
+/* Output meter (page-drawn, Phase 3.3). The ruler is drawn INSIDE this
+   bordered box, on the same canvas as the bars it measures. */
 #meter-mount { position: relative; flex: 1 1 auto; min-height: 60px; border: 1px solid var(--rule); border-radius: 2px; background: var(--paper-light); box-shadow: inset 0 1px 3px rgba(60, 47, 47, 0.16); overflow: hidden; }
+#meter { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .knob-cell { flex: none; }
 .knob-cell .row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 
@@ -559,8 +564,8 @@ button { cursor: pointer; }
 
   <aside id="output">
     <div class="sec" data-i18n="label.output">Output</div>
-    <!-- MODULE MOUNT: vu-meter 1.0.0. Vertical, -60 to +6 dB, ruler inside this box. -->
-    <div id="meter-mount" role="img" data-i18n-aria="meter" aria-label="Output level"></div>
+    <!-- Output meter: two bars, -60 to +6 dB, ruler inside this box (page-drawn). -->
+    <div id="meter-mount" role="img" data-i18n-aria="meter" aria-label="Output level"><canvas id="meter"></canvas></div>
     <div class="knob-cell">
       <span class="cap knob-label" data-i18n="knob-output_gain">Output gain</span>
       <div class="row">
@@ -659,6 +664,7 @@ const AXIS_LOG_MIN  = Math.log(AXIS_FMIN);
 const AXIS_LOG_SPAN = Math.log(AXIS_FMAX / AXIS_FMIN);
 const PLOT_MARGIN = { l: 38, r: 14, t: 12, b: 22 };   // axis gutters, inside the bordered box
 const ANALYZER_FLOOR_DB = -96;                    // analyzer scale: 0 dBFS top, floor at the bottom
+const LISTEN_DISABLE_SETTLE_MS = 80;               // see the enabled hook in bindBandStates
 const NODE_HIT_PX = 14;
 
 const KNOB_MIN_DEG       = -135;  // normalised 0.0
@@ -692,8 +698,10 @@ const comboState  = {};           // id -> Juce ComboBoxState (72)
 let paramDefaults = null;         // { id: engineeringDefault } from getParameterDefaults
 
 // Session UI state (NOT host parameters). Persisted by C++ through setUiState,
-// except listen, which is transient.
-const ui = { analyzer: 2, range: 12, selected: 0, listen: 0, hover: 0, drag: null, createdAt: 0 };
+// except listen, which is transient. Listen (PLAN-3.3 P6): `latch` is the strip
+// button's band, `dragListen` the band of a node drag past the threshold;
+// `listen` is derived (dragListen || latch) by syncListen() only.
+const ui = { analyzer: 2, range: 12, selected: 0, listen: 0, latch: 0, dragListen: 0, hover: 0, drag: null, createdAt: 0 };
 let setUiStateNative  = null;
 let setListenNative   = null;
 let resizeNative      = null;
@@ -703,7 +711,7 @@ let curveEl = null, curveCtx = null;
 let plotW = 0, plotH = 0, canvasW = 0, canvasH = 0;
 const bandPackets = new Array(NB + 1).fill(null);   // [band] -> { sections, onePoles, active } from eqSections
 let displaySampleRate = 0;        // from eqSections; 0 = no curve data yet
-let analyzerPre = null, analyzerPost = null;         // arrays of dBFS, log-spaced over the plot axis
+let analyzerPre = null, analyzerPost = null;         // 256 dBFS points (span p: 10 x 3000^(p/256) Hz), NaN above Nyquist
 let renderQueued = false;
 let pulseRaf = 0;
 let reducedMotion = false;
@@ -982,6 +990,15 @@ function bindBandStates(juce) {
             toggleState[bid(b, k)] = st;
             st.valueChangedEvent.addListener(requestRender);
             st.propertiesChangedEvent.addListener(requestRender);
+            // Listen ends when its band is disabled from ANY source: the
+            // page's delete (echoed back by the attachment), a chip, host
+            // automation, a preset load (PLAN-3.3 P6). Bypass does not end it.
+            // Checked again after LISTEN_DISABLE_SETTLE_MS: a preset load
+            // resets every parameter to its default before applying the
+            // preset, so a band the preset keeps enabled passes through false.
+            if (k === 'enabled') st.valueChangedEvent.addListener(() => {
+                if (!st.getValue()) setTimeout(() => { if (!st.getValue()) endListenOn(b); }, LISTEN_DISABLE_SETTLE_MS);
+            });
         }
         for (const k of BAND_COMBOS) {
             const st = juce.getComboBoxState(bid(b, k));
@@ -1239,7 +1256,7 @@ function initStrip() {
     });
     $('btn-listen').addEventListener('click', () => {
         const b = selectedBand();
-        if (b) setListen(ui.listen === b ? 0 : b);
+        if (b) { ui.latch = ui.latch === b ? 0 : b; syncListen(); }
     });
     $('btn-delete').addEventListener('click', () => deleteBand(selectedBand()));
 
@@ -1295,11 +1312,20 @@ function selectBand(b) {
     setUi('selected', 'selectedBand', b);
 }
 
-function setListen(b) {
-    if (ui.listen === b) return;
-    ui.listen = b;
-    if (setListenNative) setListenNative(b).catch(() => {});   // 1 ... 24, 0 = off; never saved
-    requestRender();
+// The one writer of setListenBand (PLAN-3.3 P6): the effective band is the
+// drag's while a node drag is past its threshold, else the latch, else off.
+function syncListen() {
+    const want = ui.dragListen || ui.latch;
+    if (ui.listen === want) return;
+    ui.listen = want;
+    if (setListenNative) setListenNative(want).catch(() => {});   // 1 ... 24, 0 = off; never saved
+    requestRender();                                              // strip button, halo, listenPulse()
+}
+
+function endListenOn(b) {
+    if (ui.latch === b) ui.latch = 0;
+    if (ui.dragListen === b) ui.dragListen = 0;
+    syncListen();
 }
 
 // b: band index, or 0 for the next free one. freq / gain: null keeps the stored
@@ -1325,8 +1351,7 @@ function createBand(b, freq, gain) {
 
 function deleteBand(b) {
     if (!b || !bandOn(b)) return;
-    toggleState[bid(b, 'enabled')].setValue(false);
-    if (ui.listen === b) setListen(0);
+    toggleState[bid(b, 'enabled')].setValue(false);   // listen ends through the enabled hook
     let next = 0;
     for (let i = b - 1; i >= 1 && !next; i--) if (bandOn(i)) next = i;
     for (let i = b + 1; i <= NB && !next; i++) if (bandOn(i)) next = i;
@@ -1338,10 +1363,10 @@ function deleteBand(b) {
 function requestRender() {
     if (renderQueued) return;
     renderQueued = true;
-    requestAnimationFrame(() => {
+    requestAnimationFrame((ts) => {
         renderQueued = false;
         try { render(); } catch (e) { console.error('render failed:', e); }
-        try { draw(); }   catch (e) { console.error('draw failed:', e); }
+        drawOncePerFrame(ts);
     });
 }
 
@@ -1384,7 +1409,7 @@ function render() {
 
         paintSegment('seg-placement', bandChoice(s, 'placement'));
         $('btn-band-bypass').setAttribute('aria-pressed', bandBool(s, 'bypass') ? 'true' : 'false');
-        $('btn-listen').setAttribute('aria-pressed', ui.listen === s ? 'true' : 'false');
+        $('btn-listen').setAttribute('aria-pressed', ui.latch === s ? 'true' : 'false');
     }
 
     const chips = $('chips').children;
@@ -1603,7 +1628,8 @@ function tracePath(cx, xs, ys, closeY) {
 function drawAnalyzerTrace(cx, data, fillTop, lineAlpha, dashed) {
     if (!data || data.length < 2) return;
     const n = data.length, xs = new Array(n), ys = new Array(n), bottom = PLOT_MARGIN.t + plotH;
-    for (let i = 0; i < n; i++) { xs[i] = PLOT_MARGIN.l + i / (n - 1) * plotW; ys[i] = ay(data[i]); }
+    // Point i spans [f_i, f_i+1): drawn at the span's centre (PLAN-3.3 P3).
+    for (let i = 0; i < n; i++) { xs[i] = PLOT_MARGIN.l + (i + 0.5) / n * plotW; ys[i] = ay(data[i]); }
     const g = cx.createLinearGradient(0, PLOT_MARGIN.t, 0, bottom);
     g.addColorStop(0, `rgba(72,66,62,${fillTop})`); g.addColorStop(1, 'rgba(72,66,62,0.03)');
     tracePath(cx, xs, ys, bottom); cx.fillStyle = g; cx.fill();
@@ -1759,20 +1785,149 @@ function draw() {
     if (ro && bandOn(ro)) drawReadout(cx, ro);
 }
 
+// One draw() per animation frame: requestRender's callback and the listen
+// pulse share the frame's timestamp, so whichever runs second skips (both
+// drawing doubled the frame time during a drag with listen on, PLAN-3.3 E-fps).
+let lastDrawFrame = -1;
+function drawOncePerFrame(ts) {
+    if (ts === lastDrawFrame) return;
+    lastDrawFrame = ts;
+    try { draw(); } catch (e) { console.error('draw failed:', e); }
+}
+
 // The listen halo is the page's only animation. It runs only while a band is
 // listening, and not at all under prefers-reduced-motion (the halo is then
 // drawn static and dotted, so the state stays visible).
 function listenPulse() {
     const want = ui.listen > 0 && !reducedMotion;
     if (want && !pulseRaf) {
-        const tick = () => {
+        const tick = (ts) => {
             pulseRaf = 0;
             if (!(ui.listen > 0) || reducedMotion) return;
-            try { draw(); } catch (e) { console.error('draw failed:', e); }
+            drawOncePerFrame(ts);
             pulseRaf = requestAnimationFrame(tick);
         };
         pulseRaf = requestAnimationFrame(tick);
     }
+}
+
+// ── Output meter (PLAN-3.3 P5; CONTEXT U7 as amended, call C1) ──────────────
+// Ported from v1-ui-test.html drawMeter: one canvas, two bars, -60 to +6 dB,
+// zones fixed by dB (drawn as clipped segments, never a stretched gradient),
+// the peak line, and the ruler inside the same box and canvas as the bars.
+// Fed by outputLevel (tenths of a dB, held by the editor over PeakHold). Its
+// own rAF loop runs only while something is above -60 dB; it never calls
+// requestRender. The bars move under reduced motion too: it is a measurement.
+const METER_LO = -60, METER_HI = 6;
+const meter = {
+    el: null, cx: null, w: 0, h: 0, colors: null,
+    target: [METER_LO, METER_LO],
+    st: [{ level: METER_LO, peak: METER_LO, hold: 0 }, { level: METER_LO, peak: METER_LO, hold: 0 }],
+    raf: 0, lastT: -1
+};
+
+// Ballistics in dB per second, from the frame's dt (s), so 60 Hz and 120 Hz
+// displays agree. Pure and self-contained: tests/meter-ballistics lifts it by
+// name. Attack instant; release 20 dB/s; the peak holds 1 s, then falls at
+// 20 dB/s, never below the level. Floor -60 dB.
+function meterStep(state, target, dt) {
+    const floor = -60, rate = 20, holdS = 1;
+    const t = Number.isFinite(target) ? target : floor;
+    const level = Math.max(floor, t, state.level - rate * dt);
+    let peak = state.peak, hold = state.hold + dt;
+    if (level >= peak) { peak = level; hold = 0; }
+    else if (hold > holdS) peak = Math.max(level, peak - rate * Math.min(dt, hold - holdS));
+    return { level, peak, hold };
+}
+
+function decodeAnalyzer(a) {
+    return Array.isArray(a) ? a.map((v) => (v === null || v === undefined) ? NaN : v / 10) : null;
+}
+
+function onOutputLevel(a) {
+    if (!Array.isArray(a) || a.length < 1) return;
+    const l = Number(a[0]) / 10, r = a.length > 1 ? Number(a[1]) / 10 : l;   // mono: two equal bars
+    meter.target[0] = Number.isFinite(l) ? l : METER_LO;
+    meter.target[1] = Number.isFinite(r) ? r : METER_LO;
+    meterKick();
+}
+
+function meterActive() {
+    for (let c = 0; c < 2; c++)
+        if (meter.target[c] > METER_LO || meter.st[c].level > METER_LO || meter.st[c].peak > METER_LO) return true;
+    return false;
+}
+
+function meterKick() {
+    if (meter.raf || !meter.cx) return;
+    meter.lastT = -1;
+    const tick = (ts) => {
+        const dt = meter.lastT < 0 ? 0 : clamp((ts - meter.lastT) / 1000, 0, 0.1);
+        meter.lastT = ts;
+        for (let c = 0; c < 2; c++) meter.st[c] = meterStep(meter.st[c], meter.target[c], dt);
+        try { meterDraw(); } catch (e) { console.error('meter draw failed:', e); }
+        meter.raf = meterActive() ? requestAnimationFrame(tick) : 0;   // stops at rest
+    };
+    meter.raf = requestAnimationFrame(tick);
+}
+
+function meterColors() {
+    const cs = getComputedStyle(document.documentElement);
+    const tok = (n, f) => (cs.getPropertyValue(n) || '').trim() || f;
+    return {
+        sap: tok('--meter-sap', '#55703E'), ochre: tok('--meter-ochre', '#8F6212'), madder: tok('--madder', '#A23B2E'),
+        ink: tok('--ink', '#3C2F2F'), ink3: tok('--ink-3', '#6A5641'), frame: tok('--frame', '#5C4033'), rule: tok('--rule', '#8B7355')
+    };
+}
+
+function meterSize() {
+    const r = meter.el.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+    if (meter.el.width !== Math.round(w * d) || meter.el.height !== Math.round(h * d)) {
+        meter.el.width = Math.round(w * d); meter.el.height = Math.round(h * d);
+    }
+    meter.cx.setTransform(d, 0, 0, d, 0, 0);
+    meter.w = w; meter.h = h;
+}
+
+function meterDraw() {
+    if (!meter.cx) return;
+    meterSize();
+    const mx = meter.cx, w = meter.w, h = meter.h, C = meter.colors || (meter.colors = meterColors());
+    mx.clearRect(0, 0, w, h);
+    const top = 9, bot = h - 9, lo = METER_LO, hi = METER_HI;
+    const my = (db) => top + (hi - clamp(db, lo, hi)) / (hi - lo) * (bot - top);
+    const barW = Math.max(8, Math.min(13, (w - 44) / 2)), bx0 = w - 8 - barW * 2 - 3;
+    // Ruler: inside the same bordered box (and the same canvas) as the bars.
+    mx.font = canvasFont(9.5); mx.textAlign = 'right'; mx.textBaseline = 'middle';
+    for (const d of [6, 0, -6, -12, -24, -36, -48, -60]) {
+        if (d !== 6 && d !== -60 && (my(d) - my(d + (d > -12 ? 6 : 12))) < 11) continue;
+        const y = Math.round(my(d)) + 0.5;
+        mx.fillStyle = d === 0 ? C.ink : C.ink3; mx.fillText(signed(d, 0), bx0 - 9, y);
+        mx.strokeStyle = d === 0 ? rgba(C.frame, 0.9) : rgba(C.rule, 0.6); mx.lineWidth = 1;
+        mx.beginPath(); mx.moveTo(bx0 - 6, y); mx.lineTo(bx0 - 2, y); mx.stroke();
+    }
+    for (let c = 0; c < 2; c++) {
+        const x = bx0 + c * (barW + 3), lvl = meter.st[c].level, pk = meter.st[c].peak;
+        mx.fillStyle = rgba(C.rule, 0.16); mx.fillRect(x, top, barW, bot - top);
+        // Fixed zones, each clipped at the level.
+        const seg = (a, b, col) => { const l = Math.min(lvl, b); if (l > a) { mx.fillStyle = col; mx.fillRect(x, my(l), barW, my(a) - my(l)); } };
+        seg(lo, -6, C.sap); seg(-6, 0, C.ochre); seg(0, hi, C.madder);
+        if (pk > lo) { mx.fillStyle = pk > 0 ? C.madder : C.ink; mx.fillRect(x, Math.round(my(pk)), barW, 1.5); }
+        mx.strokeStyle = rgba(C.rule, 0.8); mx.lineWidth = 1; mx.strokeRect(x - 0.5, top - 0.5, barW + 1, bot - top + 1);
+    }
+}
+
+function initMeter() {
+    meter.el = $('meter');
+    if (!meter.el) { console.error('Missing meter canvas'); return; }
+    meter.cx = meter.el.getContext('2d');
+    meter.colors = meterColors();
+    const repaint = () => { if (!meter.raf) { try { meterDraw(); } catch (e) { console.error('meter draw failed:', e); } } };
+    if (typeof ResizeObserver === 'function') new ResizeObserver(repaint).observe($('meter-mount'));
+    // Ruler digits keep the fallback face unless the font is loaded first.
+    if (document.fonts && document.fonts.load) document.fonts.load('9.5px "EB Garamond"').catch(() => {}).then(repaint);
+    repaint();
 }
 
 // ── Naturalist plate: emperor dragonfly, dorsal view (Stage 3 U4) ───────────
@@ -1841,6 +1996,10 @@ function initDisplay() {
             wheelEnd(fSt); wheelEnd(gSt);
             fSt.sliderDragStarted();                             // gesture begin: freq
             if (d.gain) gSt.sliderDragStarted();                 // and gain, when it moves
+            // Listen follows the drag from here, never at pointerdown: a click
+            // to select must not solo the band (PLAN-3.3 P6).
+            ui.dragListen = d.b;
+            syncListen();
         }
         setScaled(fSt, xf(x - d.ox));
         if (d.gain) {
@@ -1866,6 +2025,8 @@ function initDisplay() {
             try { curveEl.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
         }
         curveEl.style.cursor = ui.hover ? 'grab' : 'crosshair';
+        ui.dragListen = 0;                      // back to the latch, or off
+        syncListen();
         requestRender();
     };
 
@@ -1972,9 +2133,13 @@ function initBridge(juce) {
     const backend = window.__JUCE__ && window.__JUCE__.backend;
     if (backend && typeof backend.addEventListener === 'function') {
         backend.addEventListener('eqSections', onEqSections);
-        backend.addEventListener('analyzerPre',  (a) => { analyzerPre  = Array.isArray(a) ? a : null; if (ui.analyzer) requestRender(); });
-        backend.addEventListener('analyzerPost', (a) => { analyzerPost = Array.isArray(a) ? a : null; if (ui.analyzer) requestRender(); });
-        // 'outputLevel' belongs to the vu-meter mount (Stage 3).
+        // Analyzer frames: 256 tenths of a dB; null (a span above Nyquist) is
+        // mapped to NaN explicitly: ay(null) would read 0 dBFS, a wall at the
+        // right edge (PLAN-3.3 P3). tracePath skips NaN.
+        backend.addEventListener('analyzerPre',  (a) => { analyzerPre  = decodeAnalyzer(a); if (ui.analyzer) requestRender(); });
+        backend.addEventListener('analyzerPost', (a) => { analyzerPost = decodeAnalyzer(a); if (ui.analyzer) requestRender(); });
+        // Output meter: [L, R] (mono [M]) tenths of a dB, sent on change.
+        backend.addEventListener('outputLevel', onOutputLevel);
     } else {
         console.warn('JUCE backend events unavailable: no response curve, no analyzer');
     }
@@ -2427,6 +2592,7 @@ function init() {
     try { buildPlate(); }      catch (e) { console.error('plate build failed:', e); }
     try { initStrip(); }       catch (e) { console.error('strip init failed:', e); }
     try { initDisplay(); }     catch (e) { console.error('display init failed:', e); }
+    try { initMeter(); }       catch (e) { console.error('meter init failed:', e); }
     try { initBridge(Juce); }  catch (e) { console.error('bridge init failed:', e); }
     try { initGrip(); }        catch (e) { console.error('grip init failed:', e); }
 

@@ -4,7 +4,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Single source of truth for the version. The test consoles derive
 # JucePlugin_VersionString from the plugin target, so nothing mirrors it.
-set(OPEQ_VERSION 0.8.0)
+set(OPEQ_VERSION 0.9.0)
 
 # Plugin formats: VST3, AU, Standalone. Effect, no MIDI.
 # NOTE: no comment in this file may spell the plugin-declaration command name
@@ -72,12 +72,9 @@ juce_generate_juce_header(OuariconParametricEQ)
 #   preset-manager 1.1.1: the processor owns an OuariconPresetManager (Phase
 #                         3.1, user presets; factory presets in Stage 4);
 #                         preset-manager.js mounts the page's preset bar.
-#   vu-meter 1.0.0:       header compiled from PluginProcessor.h as a proof;
-#                         vu-meter.js is embedded now, mounted in Phase 3.3.
 #   eb-garamond 1.0.0:    has no helper. Its stylesheet and fonts are a direct
 #                         embed into the UI binary-data target below.
 ouaricon_add_module(OuariconParametricEQ preset-manager)
-ouaricon_add_module(OuariconParametricEQ vu-meter)
 
 # WebView UI resources (Phase 3.1, from .planning/mockups/v1-CMakeLists-SNIPPET.txt):
 # ONE binary-data target. NAMESPACE and HEADER_NAME are both distinct from the
@@ -95,7 +92,6 @@ juce_add_binary_data(OuariconParametricEQ_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
-        ${CMAKE_SOURCE_DIR}/modules/metering/vu-meter/js/vu-meter.js
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
         ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
@@ -108,7 +104,6 @@ juce_add_binary_data(OuariconParametricEQ_UIResources
 #   js/juce/index.js            UIBinaryData::index_js
 #   check_native_interop.js     UIBinaryData::check_native_interop_js
 #   preset-manager.js           UIBinaryData::presetmanager_js   served at /modules/preset-manager.js
-#   vu-meter.js                 UIBinaryData::vumeter_js         served at /modules/vu-meter.js
 #   eb-garamond.css             UIBinaryData::ebgaramond_css     served at /css/eb-garamond.css
 #   EBGaramond-Regular.woff2    UIBinaryData::EBGaramondRegular_woff2   served at /fonts/
 #   EBGaramond-Italic.woff2     UIBinaryData::EBGaramondItalic_woff2

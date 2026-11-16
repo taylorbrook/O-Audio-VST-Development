@@ -286,6 +286,16 @@ void SpectrumAnalyzer::process (double dtSeconds)
         // 1.
         const int appended = drainTap (t);
 
+        // 1b. analyzerMode has this tap's bit off: the processor writes
+        // nothing, so the history is no longer contiguous with what the tap
+        // will carry when it is switched back on. No window may straddle that
+        // gap (PLAN-3.3 execute: without this, a tap switched back on drew a
+        // frame of pre-Off audio). A host that stops calling processBlock is
+        // not a gap here: re-entry attacks at once (XR-anrel).
+        const int tapBit = (&t == &taps[0]) ? 1 : 2;
+        if ((processor.analyzerMode.load (std::memory_order_acquire) & tapBit) == 0)
+            t.valid = 0;
+
         // 2. and 3.
         float* const held = t.held.data();
 

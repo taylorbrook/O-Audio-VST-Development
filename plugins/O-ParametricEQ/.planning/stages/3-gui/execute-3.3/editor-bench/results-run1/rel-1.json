@@ -1,0 +1,7691 @@
+{
+  "cycles": [
+    {
+      "cycle": 0,
+      "ctorMs": 59.029208332300186,
+      "shownMs": 64.974124997854233,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 103.167416661977768,
+      "dclMs": 190.851541668176651,
+      "loadMs": 195.200374990701675,
+      "allPropsMs": 195.074541658163071,
+      "firstPaintMs": 218.595083326101303,
+      "secondFrameMs": 233.833541661500931,
+      "pageReadyMs": 233.804541647434235,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 96,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 92,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 135,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 135,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 151,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            4,
+            3,
+            2,
+            1,
+            0,
+            4,
+            3,
+            2,
+            1,
+            0,
+            4,
+            3,
+            2,
+            1,
+            0,
+            4,
+            3,
+            2,
+            1,
+            0,
+            4,
+            3,
+            2,
+            1
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 192
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 1.819708317518234,
+      "cycleMs": 22183.659750014543533
+    },
+    {
+      "cycle": 1,
+      "ctorMs": 56.290875017642975,
+      "shownMs": 56.827666670084,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 87.557916671037674,
+      "dclMs": 113.347416669130325,
+      "loadMs": 118.09137499332428,
+      "allPropsMs": 117.929583340883255,
+      "firstPaintMs": 120.32745835185051,
+      "secondFrameMs": 132.605500012636185,
+      "pageReadyMs": 132.569041669368744,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 49,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 49,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 66,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.525708347558975,
+      "cycleMs": 260.445916682481766
+    },
+    {
+      "cycle": 2,
+      "ctorMs": 56.561875015497208,
+      "shownMs": 57.05779168009758,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 88.242291688919067,
+      "dclMs": 114.369500011205673,
+      "loadMs": 119.029875010251999,
+      "allPropsMs": 118.863541662693024,
+      "firstPaintMs": 121.787083357572556,
+      "secondFrameMs": 137.050958335399628,
+      "pageReadyMs": 137.02012500166893,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 53,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 53,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 68,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.528708308935165,
+      "cycleMs": 260.45929166674614
+    },
+    {
+      "cycle": 3,
+      "ctorMs": 57.408875018358231,
+      "shownMs": 57.936958342790604,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 88.614374995231628,
+      "dclMs": 114.114666670560837,
+      "loadMs": 118.972083330154419,
+      "allPropsMs": 118.81725001335144,
+      "firstPaintMs": 121.185208350419998,
+      "secondFrameMs": 132.754375010728836,
+      "pageReadyMs": 132.726666688919067,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 49,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 49,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 65,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.457708328962326,
+      "cycleMs": 259.539333343505859
+    },
+    {
+      "cycle": 4,
+      "ctorMs": 56.589625000953674,
+      "shownMs": 57.114041686058044,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 88.230916678905487,
+      "dclMs": 113.779458343982697,
+      "loadMs": 118.686291664838791,
+      "allPropsMs": 118.539000004529953,
+      "firstPaintMs": 130.284208327531815,
+      "secondFrameMs": 145.89679166674614,
+      "pageReadyMs": 145.868083328008652,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 62,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 62,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 78,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.553375005722046,
+      "cycleMs": 272.243458330631256
+    },
+    {
+      "cycle": 5,
+      "ctorMs": 54.731499999761581,
+      "shownMs": 55.254124999046326,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 86.554458349943161,
+      "dclMs": 111.980916678905487,
+      "loadMs": 117.00925001502037,
+      "allPropsMs": 116.851166665554047,
+      "firstPaintMs": 119.226833343505859,
+      "secondFrameMs": 131.363000005483627,
+      "pageReadyMs": 131.331541687250137,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 49,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 49,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 66,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.464541643857956,
+      "cycleMs": 256.61983335018158
+    },
+    {
+      "cycle": 6,
+      "ctorMs": 54.456958323717117,
+      "shownMs": 54.952791661024094,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 85.629583328962326,
+      "dclMs": 111.246958345174789,
+      "loadMs": 116.204750001430511,
+      "allPropsMs": 116.048624992370605,
+      "firstPaintMs": 118.409000009298325,
+      "secondFrameMs": 131.001749992370605,
+      "pageReadyMs": 130.971708327531815,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 50,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 50,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 65,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.531333327293396,
+      "cycleMs": 255.975041657686234
+    },
+    {
+      "cycle": 7,
+      "ctorMs": 51.711750000715256,
+      "shownMs": 52.215208351612091,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 82.829166680574417,
+      "dclMs": 107.940125018358231,
+      "loadMs": 112.649208337068558,
+      "allPropsMs": 112.511416673660278,
+      "firstPaintMs": 116.215666681528091,
+      "secondFrameMs": 131.105041682720184,
+      "pageReadyMs": 131.078291684389114,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 34,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 53,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 53,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 70,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.519708335399628,
+      "cycleMs": 257.972625017166138
+    },
+    {
+      "cycle": 8,
+      "ctorMs": 56.30183333158493,
+      "shownMs": 56.787041664123535,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 87.251833349466324,
+      "dclMs": 112.565583348274231,
+      "loadMs": 117.384499996900558,
+      "allPropsMs": 117.223458349704742,
+      "firstPaintMs": 131.043999999761581,
+      "secondFrameMs": 146.652125000953674,
+      "pageReadyMs": 146.620375007390976,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 34,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 64,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 64,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 78,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.516208350658417,
+      "cycleMs": 271.757875025272369
+    },
+    {
+      "cycle": 9,
+      "ctorMs": 44.290416687726974,
+      "shownMs": 44.79925000667572,
+      "openWidth": 960,
+      "openHeight": 600,
+      "scriptStartMs": 76.101916670799255,
+      "dclMs": 102.436750024557114,
+      "loadMs": 106.701499998569489,
+      "allPropsMs": 106.546166688203812,
+      "firstPaintMs": 108.851541668176651,
+      "secondFrameMs": 124.062583357095718,
+      "pageReadyMs": 124.025166690349579,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 391,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 30,
+        "evals": 0,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 52.000000000000007,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": [],
+        "natives": {
+          "getUiState": 1,
+          "requestEqSections": 1,
+          "getParameterDefaults": 1,
+          "getUiLanguage": 1,
+          "getCurrentPreset": 1,
+          "getPresetList": 1,
+          "pageReady": 1
+        },
+        "nativeOrder": [
+          "getUiState",
+          "requestEqSections",
+          "getParameterDefaults",
+          "getUiLanguage",
+          "getCurrentPreset",
+          "getPresetList",
+          "pageReady"
+        ]
+      },
+      "pageReadyPnow": 52.000000000000007,
+      "eqInit": {
+        "first": {
+          "idx": 0,
+          "t": 67,
+          "n": 24,
+          "bands": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "sampleRate": 48000,
+          "stereo": true,
+          "rateKnown": true,
+          "placement": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "active": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "sections": 24
+        },
+        "eventsSoFar": 1,
+        "cppEmits": 1,
+        "pass": true
+      },
+      "close33": {
+        "listenBefore": -1,
+        "consumerBefore": true,
+        "modeBefore": 2,
+        "feeding": false,
+        "listenAfter": -1,
+        "consumerAfter": false
+      },
+      "closeMs": 0.543541669845581,
+      "cycleMs": 248.936458349227905
+    }
+  ],
+  "presets": [
+    {
+      "method": "single",
+      "rep": 0,
+      "id": 1,
+      "expected": 1,
+      "applyMs": 0.104458332061768,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677137792224583e8,
+      "settledRecvMs": 1.505583316087723,
+      "settled": {
+        "type": "settled",
+        "pnow": 12953,
+        "id": 1,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 18.744458317756653,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 12971,
+        "id": 1,
+        "msArmToPaint": 18,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "msgLoop",
+      "rep": 0,
+      "id": 2,
+      "expected": 196,
+      "applyMs": 3.447458326816559,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.6771406912575e8,
+      "settledRecvMs": 10.527916640043259,
+      "settled": {
+        "type": "settled",
+        "pnow": 13252,
+        "id": 2,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 9,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 3.000000000001819,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 26.565749973058701,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13269,
+        "id": 2,
+        "msArmToPaint": 26,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 0,
+      "id": 3,
+      "expected": 196,
+      "applyMs": 3.892500013113022,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677143670827917e8,
+      "settledRecvMs": 8.130833327770233,
+      "settled": {
+        "type": "settled",
+        "pnow": 13548,
+        "id": 3,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.999999999998181,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 13.112458348274231,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13553,
+        "id": 3,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 0,
+      "id": 4,
+      "expected": 196,
+      "applyMs": 0.513374984264374,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677146510509167e8,
+      "settledRecvMs": 7.852291643619537,
+      "settled": {
+        "type": "settled",
+        "pnow": 13832,
+        "id": 4,
+        "nEvents": 196,
+        "msArmToFirst": 1.000000000001819,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0.999999999998181,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 24.369499981403351,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 13848,
+        "id": 4,
+        "msArmToPaint": 24,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 0,
+      "id": 5,
+      "expected": 194,
+      "applyMs": 6.189333319664001,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677149514839583e8,
+      "settledRecvMs": 12.896874994039536,
+      "settled": {
+        "type": "settled",
+        "pnow": 14137,
+        "id": 5,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 12,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 14.595916658639908,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14139.000000000001819,
+        "id": 5,
+        "msArmToPaint": 14.000000000001819,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 1,
+      "id": 6,
+      "expected": 1,
+      "applyMs": 0.062624990940094,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.6771523237025e8,
+      "settledRecvMs": 0.880666673183441,
+      "settled": {
+        "type": "settled",
+        "pnow": 14406,
+        "id": 6,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 14.504916667938232,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14420,
+        "id": 6,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 1,
+      "id": 7,
+      "expected": 194,
+      "applyMs": 3.752875000238419,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677155207714167e8,
+      "settledRecvMs": 7.672208338975906,
+      "settled": {
+        "type": "settled",
+        "pnow": 14701,
+        "id": 7,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.999999999998181,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 18.32316666841507,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 14712,
+        "id": 7,
+        "msArmToPaint": 18,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 1,
+      "id": 8,
+      "expected": 196,
+      "applyMs": 3.673416644334793,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67715815565375e8,
+      "settledRecvMs": 6.652500003576279,
+      "settled": {
+        "type": "settled",
+        "pnow": 14995.000000000001819,
+        "id": 8,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 6.000000000001819,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 14.82145830988884,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15003,
+        "id": 8,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 1,
+      "id": 9,
+      "expected": 196,
+      "applyMs": 0.528000026941299,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67716100158625e8,
+      "settledRecvMs": 10.506833344697952,
+      "settled": {
+        "type": "settled",
+        "pnow": 15283,
+        "id": 9,
+        "nEvents": 196,
+        "msArmToFirst": 3.000000000001819,
+        "msArmToLast": 9,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 34657
+      },
+      "settledPaintRecvMs": 21.637583345174789,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15295,
+        "id": 9,
+        "msArmToPaint": 21,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 1,
+      "id": 10,
+      "expected": 194,
+      "applyMs": 6.096166670322418,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677164030919167e8,
+      "settledRecvMs": 11.983375012874603,
+      "settled": {
+        "type": "settled",
+        "pnow": 15588.000000000001819,
+        "id": 10,
+        "nEvents": 388,
+        "msArmToFirst": 1.000000000001819,
+        "msArmToLast": 11.000000000001819,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.000000000001819,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 13.698666661977768,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15590,
+        "id": 10,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 2,
+      "id": 11,
+      "expected": 1,
+      "applyMs": 0.053833335638046,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67716684078e8,
+      "settledRecvMs": 0.759375005960464,
+      "settled": {
+        "type": "settled",
+        "pnow": 15858,
+        "id": 11,
+        "nEvents": 1,
+        "msArmToFirst": 0.999999999998181,
+        "msArmToLast": 0.999999999998181,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 12.843875020742416,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 15870.000000000001819,
+        "id": 11,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 2,
+      "id": 12,
+      "expected": 194,
+      "applyMs": 0.916333317756653,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677169672755833e8,
+      "settledRecvMs": 2.558916658163071,
+      "settled": {
+        "type": "settled",
+        "pnow": 16143,
+        "id": 12,
+        "nEvents": 194,
+        "msArmToFirst": 1.000000000001819,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 14.97370833158493,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16155.000000000001819,
+        "id": 12,
+        "msArmToPaint": 15.000000000001819,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 2,
+      "id": 13,
+      "expected": 196,
+      "applyMs": 4.688416689634323,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677172500315416e8,
+      "settledRecvMs": 8.847166687250137,
+      "settled": {
+        "type": "settled",
+        "pnow": 16430,
+        "id": 13,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.000000000003638,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 12.695791691541672,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16436,
+        "id": 13,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 2,
+      "id": 14,
+      "expected": 196,
+      "applyMs": 0.508500009775162,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677175341735833e8,
+      "settledRecvMs": 9.233500003814697,
+      "settled": {
+        "type": "settled",
+        "pnow": 16716,
+        "id": 14,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 7.999999999996362,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 21.497208327054977,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 16729,
+        "id": 14,
+        "msArmToPaint": 20.999999999996362,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 2,
+      "id": 15,
+      "expected": 194,
+      "applyMs": 6.554833322763443,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677178344136667e8,
+      "settledRecvMs": 11.756791651248932,
+      "settled": {
+        "type": "settled",
+        "pnow": 17019.000000000003638,
+        "id": 15,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 11.000000000003638,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 13.355625003576279,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17021,
+        "id": 15,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 3,
+      "id": 16,
+      "expected": 1,
+      "applyMs": 0.052583336830139,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677181171135e8,
+      "settledRecvMs": 0.773708313703537,
+      "settled": {
+        "type": "settled",
+        "pnow": 17291,
+        "id": 16,
+        "nEvents": 1,
+        "msArmToFirst": 1,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 13.087041646242142,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17303,
+        "id": 16,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 3,
+      "id": 17,
+      "expected": 194,
+      "applyMs": 3.97491666674614,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677184010425e8,
+      "settledRecvMs": 7.880166679620743,
+      "settled": {
+        "type": "settled",
+        "pnow": 17582,
+        "id": 17,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 8,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 22.952958345413208,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17597,
+        "id": 17,
+        "msArmToPaint": 23,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 3,
+      "id": 18,
+      "expected": 196,
+      "applyMs": 4.11554166674614,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.6771870324175e8,
+      "settledRecvMs": 7.859833329916,
+      "settled": {
+        "type": "settled",
+        "pnow": 17884,
+        "id": 18,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 10.676041662693024,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 17887,
+        "id": 18,
+        "msArmToPaint": 10,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 3,
+      "id": 19,
+      "expected": 196,
+      "applyMs": 0.275875002145767,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67718982860625e8,
+      "settledRecvMs": 5.496250003576279,
+      "settled": {
+        "type": "settled",
+        "pnow": 18161,
+        "id": 19,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 2,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 21.405083328485489,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18177,
+        "id": 19,
+        "msArmToPaint": 21,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 3,
+      "id": 20,
+      "expected": 194,
+      "applyMs": 5.888791650533676,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677192846787917e8,
+      "settledRecvMs": 11.804916650056839,
+      "settled": {
+        "type": "settled",
+        "pnow": 18469,
+        "id": 20,
+        "nEvents": 388,
+        "msArmToFirst": 0.999999999996362,
+        "msArmToLast": 10.999999999996362,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 19.495749980211258,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18477,
+        "id": 20,
+        "msArmToPaint": 18.999999999996362,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 4,
+      "id": 21,
+      "expected": 1,
+      "applyMs": 0.051916658878326,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67719583864375e8,
+      "settledRecvMs": 0.755666673183441,
+      "settled": {
+        "type": "settled",
+        "pnow": 18757,
+        "id": 21,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 12.843416661024094,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 18769.000000000003638,
+        "id": 21,
+        "msArmToPaint": 12.000000000003638,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 4,
+      "id": 22,
+      "expected": 194,
+      "applyMs": 3.503916651010513,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67719870369625e8,
+      "settledRecvMs": 7.583666652441025,
+      "settled": {
+        "type": "settled",
+        "pnow": 19050,
+        "id": 22,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 20.300833314657211,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19063,
+        "id": 22,
+        "msArmToPaint": 19,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 4,
+      "id": 23,
+      "expected": 196,
+      "applyMs": 4.36579167842865,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67720165774e8,
+      "settledRecvMs": 6.698583334684372,
+      "settled": {
+        "type": "settled",
+        "pnow": 19345,
+        "id": 23,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 3,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 10.281416654586792,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19349,
+        "id": 23,
+        "msArmToPaint": 10,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 4,
+      "id": 24,
+      "expected": 196,
+      "applyMs": 0.517500013113022,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677204462329583e8,
+      "settledRecvMs": 11.015208333730698,
+      "settled": {
+        "type": "settled",
+        "pnow": 19630,
+        "id": 24,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 10,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 21.570708334445953,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19641,
+        "id": 24,
+        "msArmToPaint": 21,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 4,
+      "id": 25,
+      "expected": 194,
+      "applyMs": 6.349375009536743,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677207499434583e8,
+      "settledRecvMs": 13.542500019073486,
+      "settled": {
+        "type": "settled",
+        "pnow": 19936,
+        "id": 25,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 13,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 2.999999999992724,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 15.840291678905487,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 19939,
+        "id": 25,
+        "msArmToPaint": 16,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 5,
+      "id": 26,
+      "expected": 1,
+      "applyMs": 0.058208346366882,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677210465421667e8,
+      "settledRecvMs": 0.694458335638046,
+      "settled": {
+        "type": "settled",
+        "pnow": 20220,
+        "id": 26,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 11.50641667842865,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20231,
+        "id": 26,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 5,
+      "id": 27,
+      "expected": 194,
+      "applyMs": 1.44225001335144,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677213295605833e8,
+      "settledRecvMs": 3.602083325386047,
+      "settled": {
+        "type": "settled",
+        "pnow": 20506,
+        "id": 27,
+        "nEvents": 194,
+        "msArmToFirst": 0,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 21.242583334445953,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20524,
+        "id": 27,
+        "msArmToPaint": 21,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 5,
+      "id": 28,
+      "expected": 196,
+      "applyMs": 4.150249987840652,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67721627517375e8,
+      "settledRecvMs": 7.095458328723907,
+      "settled": {
+        "type": "settled",
+        "pnow": 20807.000000000003638,
+        "id": 28,
+        "nEvents": 196,
+        "msArmToFirst": 0.999999999996362,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 11.343458324670792,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 20812,
+        "id": 28,
+        "msArmToPaint": 10.999999999996362,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 5,
+      "id": 29,
+      "expected": 196,
+      "applyMs": 0.166166663169861,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677219077042917e8,
+      "settledRecvMs": 4.02224999666214,
+      "settled": {
+        "type": "settled",
+        "pnow": 21085,
+        "id": 29,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 4,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 17.500749975442886,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 21098,
+        "id": 29,
+        "msArmToPaint": 17,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 5,
+      "id": 30,
+      "expected": 194,
+      "applyMs": 6.330541670322418,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677222078712917e8,
+      "settledRecvMs": 12.240458309650421,
+      "settled": {
+        "type": "settled",
+        "pnow": 21392,
+        "id": 30,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 11,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 13.744249999523163,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 21395,
+        "id": 30,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 6,
+      "id": 31,
+      "expected": 1,
+      "applyMs": 0.020916670560837,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677224913045833e8,
+      "settledRecvMs": 0.399291694164276,
+      "settled": {
+        "type": "settled",
+        "pnow": 21665,
+        "id": 31,
+        "nEvents": 1,
+        "msArmToFirst": 1,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 11.949916690587997,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 21676.000000000003638,
+        "id": 31,
+        "msArmToPaint": 12.000000000003638,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 6,
+      "id": 32,
+      "expected": 194,
+      "applyMs": 2.906583338975906,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677227770175e8,
+      "settledRecvMs": 6.341458350419998,
+      "settled": {
+        "type": "settled",
+        "pnow": 21956,
+        "id": 32,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 20.540291666984558,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 21970,
+        "id": 32,
+        "msArmToPaint": 20,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 6,
+      "id": 33,
+      "expected": 196,
+      "applyMs": 3.933249980211258,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677230769032917e8,
+      "settledRecvMs": 6.609541654586792,
+      "settled": {
+        "type": "settled",
+        "pnow": 22256,
+        "id": 33,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 12.69433331489563,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 22262,
+        "id": 33,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 6,
+      "id": 34,
+      "expected": 196,
+      "applyMs": 0.51987498998642,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677233589400833e8,
+      "settledRecvMs": 10.465249985456467,
+      "settled": {
+        "type": "settled",
+        "pnow": 22542,
+        "id": 34,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 10,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 20.70100000500679,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 22552,
+        "id": 34,
+        "msArmToPaint": 20,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 6,
+      "id": 35,
+      "expected": 194,
+      "applyMs": 5.878625005483627,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677236610308333e8,
+      "settledRecvMs": 13.398000001907349,
+      "settled": {
+        "type": "settled",
+        "pnow": 22847,
+        "id": 35,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 13,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 14.862333327531815,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 22849,
+        "id": 35,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 7,
+      "id": 36,
+      "expected": 1,
+      "applyMs": 0.056250005960464,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677239590281667e8,
+      "settledRecvMs": 0.777166664600372,
+      "settled": {
+        "type": "settled",
+        "pnow": 23133,
+        "id": 36,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 11.945958346128464,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 23144.000000000003638,
+        "id": 36,
+        "msArmToPaint": 12.000000000003638,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 7,
+      "id": 37,
+      "expected": 194,
+      "applyMs": 3.174416661262512,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677242398676667e8,
+      "settledRecvMs": 7.063833326101303,
+      "settled": {
+        "type": "settled",
+        "pnow": 23420,
+        "id": 37,
+        "nEvents": 194,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 22.68087500333786,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 23435,
+        "id": 37,
+        "msArmToPaint": 22,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 7,
+      "id": 38,
+      "expected": 196,
+      "applyMs": 4.387291669845581,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677245422957083e8,
+      "settledRecvMs": 7.58666667342186,
+      "settled": {
+        "type": "settled",
+        "pnow": 23723,
+        "id": 38,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 7,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 11.494166672229767,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 23727,
+        "id": 38,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 7,
+      "id": 39,
+      "expected": 196,
+      "applyMs": 0.511833339929581,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67724825343e8,
+      "settledRecvMs": 10.386833339929581,
+      "settled": {
+        "type": "settled",
+        "pnow": 24008,
+        "id": 39,
+        "nEvents": 196,
+        "msArmToFirst": 2,
+        "msArmToLast": 9,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 34657
+      },
+      "settledPaintRecvMs": 20.054916650056839,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 24018,
+        "id": 39,
+        "msArmToPaint": 19,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 7,
+      "id": 40,
+      "expected": 194,
+      "applyMs": 6.266208350658417,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67725129170125e8,
+      "settledRecvMs": 11.647791683673859,
+      "settled": {
+        "type": "settled",
+        "pnow": 24314,
+        "id": 40,
+        "nEvents": 388,
+        "msArmToFirst": 0,
+        "msArmToLast": 11,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 13.358500003814697,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 24315,
+        "id": 40,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 8,
+      "id": 41,
+      "expected": 1,
+      "applyMs": 0.053874999284744,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677254264832917e8,
+      "settledRecvMs": 0.831208348274231,
+      "settled": {
+        "type": "settled",
+        "pnow": 24600,
+        "id": 41,
+        "nEvents": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 11.170125007629395,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 24610,
+        "id": 41,
+        "msArmToPaint": 10,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 8,
+      "id": 42,
+      "expected": 194,
+      "applyMs": 3.503791660070419,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677257091432083e8,
+      "settledRecvMs": 6.467458337545395,
+      "settled": {
+        "type": "settled",
+        "pnow": 24888,
+        "id": 42,
+        "nEvents": 194,
+        "msArmToFirst": 0,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 22.118041664361954,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 24904,
+        "id": 42,
+        "msArmToPaint": 21,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 8,
+      "id": 43,
+      "expected": 196,
+      "applyMs": 3.870666652917862,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.67726010840875e8,
+      "settledRecvMs": 6.990958333015442,
+      "settled": {
+        "type": "settled",
+        "pnow": 25190,
+        "id": 43,
+        "nEvents": 196,
+        "msArmToFirst": 1.000000000003638,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 12.740249991416931,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 25196,
+        "id": 43,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 8,
+      "id": 44,
+      "expected": 196,
+      "applyMs": 0.509499996900558,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677263089651667e8,
+      "settledRecvMs": 9.287999987602234,
+      "settled": {
+        "type": "settled",
+        "pnow": 25491,
+        "id": 44,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 9,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 15.85062500834465,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 25498,
+        "id": 44,
+        "msArmToPaint": 16,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 8,
+      "id": 45,
+      "expected": 194,
+      "applyMs": 2.934541672468185,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677265951955e8,
+      "settledRecvMs": 5.201708346605301,
+      "settled": {
+        "type": "settled",
+        "pnow": 25773,
+        "id": 45,
+        "nEvents": 388,
+        "msArmToFirst": 1.000000000003638,
+        "msArmToLast": 5,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 12.571833342313766,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 25781,
+        "id": 45,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "single",
+      "rep": 9,
+      "id": 46,
+      "expected": 1,
+      "applyMs": 0.057208359241486,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677268790932083e8,
+      "settledRecvMs": 0.706875026226044,
+      "settled": {
+        "type": "settled",
+        "pnow": 26053,
+        "id": 46,
+        "nEvents": 1,
+        "msArmToFirst": 1,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 12.879666686058044,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 26065,
+        "id": 46,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 1,
+      "eqBandsSeen": 1,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    },
+    {
+      "method": "msgLoop",
+      "rep": 9,
+      "id": 47,
+      "expected": 194,
+      "applyMs": 3.962833344936371,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677271623751667e8,
+      "settledRecvMs": 7.723833322525024,
+      "settled": {
+        "type": "settled",
+        "pnow": 26343,
+        "id": 47,
+        "nEvents": 194,
+        "msArmToFirst": 0.999999999996362,
+        "msArmToLast": 6.999999999996362,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10110
+      },
+      "settledPaintRecvMs": 22.91479167342186,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 26358,
+        "id": 47,
+        "msArmToPaint": 21.999999999996362,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "setState",
+      "rep": 9,
+      "id": 48,
+      "expected": 196,
+      "applyMs": 4.110500007867813,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677274641747917e8,
+      "settledRecvMs": 6.551666647195816,
+      "settled": {
+        "type": "settled",
+        "pnow": 26644.000000000003638,
+        "id": 48,
+        "nEvents": 196,
+        "msArmToFirst": 1,
+        "msArmToLast": 6.000000000003638,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 11.793999999761581,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 26649,
+        "id": 48,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 6,
+      "probeHits": 6,
+      "probeBypass": true
+    },
+    {
+      "method": "offThread",
+      "rep": 9,
+      "id": 49,
+      "expected": 196,
+      "applyMs": 0.516791671514511,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677277443180833e8,
+      "settledRecvMs": 6.792083352804184,
+      "settled": {
+        "type": "settled",
+        "pnow": 26924,
+        "id": 49,
+        "nEvents": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 24.151958346366882,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 26941,
+        "id": 49,
+        "msArmToPaint": 23,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 7,
+      "probeHits": 7,
+      "probeBypass": false
+    },
+    {
+      "method": "preset",
+      "rep": 9,
+      "id": 50,
+      "expected": 194,
+      "applyMs": 6.393416672945023,
+      "applyOk": true,
+      "hostMismatch": 0,
+      "t0": 2.677280502950417e8,
+      "settledRecvMs": 12.576375007629395,
+      "settled": {
+        "type": "settled",
+        "pnow": 27236,
+        "id": 50,
+        "nEvents": 388,
+        "msArmToFirst": 1,
+        "msArmToLast": 12,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 3,
+        "bytes": 19222
+      },
+      "settledPaintRecvMs": 14.257666677236557,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 27237.000000000003638,
+        "id": 50,
+        "msArmToPaint": 13.000000000003638,
+        "framesArmToPaint": 1
+      },
+      "eqChangedBands": 24,
+      "eqBandsSeen": 24,
+      "eqMissing": 0,
+      "eqEvents": 1,
+      "probeValid": 11,
+      "probeHits": 11,
+      "probeBypass": false
+    }
+  ],
+  "rows": {
+    "E-res": {
+      "resourceNotFoundBeforeBenchFetch": [],
+      "fetch": {
+        "type": "res",
+        "pnow": 569.000000000000114,
+        "id": "r0",
+        "origin": "juce://juce.backend",
+        "href": "juce://juce.backend/",
+        "referenced": [
+          "juce://juce.backend/",
+          "juce://juce.backend/css/eb-garamond.css",
+          "juce://juce.backend/js/juce/index.js",
+          "juce://juce.backend/js/i18n.js",
+          "juce://juce.backend/modules/preset-manager.js",
+          "juce://juce.backend/fonts/EBGaramond-Regular.woff2",
+          "juce://juce.backend/fonts/EBGaramond-Italic.woff2",
+          "juce://juce.backend/fonts/EBGaramond-Bold.woff2"
+        ],
+        "rows": [
+          {
+            "url": "juce://juce.backend/",
+            "status": 200,
+            "type": "text/html; charset=utf-8",
+            "bytes": 127310,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/css/eb-garamond.css",
+            "status": 200,
+            "type": "text/css; charset=utf-8",
+            "bytes": 7490,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/js/juce/index.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 17959,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/js/i18n.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 26462,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/modules/preset-manager.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 17058,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/fonts/EBGaramond-Regular.woff2",
+            "status": 200,
+            "type": "font/woff2",
+            "bytes": 37656,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/fonts/EBGaramond-Italic.woff2",
+            "status": 200,
+            "type": "font/woff2",
+            "bytes": 38892,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/fonts/EBGaramond-Bold.woff2",
+            "status": 200,
+            "type": "font/woff2",
+            "bytes": 41276,
+            "referenced": true
+          },
+          {
+            "url": "juce://juce.backend/index.html",
+            "status": 200,
+            "type": "text/html; charset=utf-8",
+            "bytes": 127310,
+            "referenced": false
+          },
+          {
+            "url": "juce://juce.backend/js/juce/check_native_interop.js",
+            "status": 200,
+            "type": "application/javascript; charset=utf-8",
+            "bytes": 4376,
+            "referenced": false
+          }
+        ]
+      },
+      "fonts": {
+        "type": "fonts",
+        "pnow": 592,
+        "id": "f0",
+        "check16": true,
+        "check105": true,
+        "checkItalic": true,
+        "faces": [
+          "EB Garamond normal 400 loaded",
+          "EB Garamond italic 400 loaded",
+          "EB Garamond normal 700 unloaded"
+        ],
+        "dpr": 2,
+        "cssW": 818,
+        "cssH": 438,
+        "labelX": 478.594356012331559,
+        "labelBase": 431,
+        "page": {
+          "w": 9,
+          "n": 87
+        },
+        "refEBG": {
+          "ink": {
+            "w": 9,
+            "n": 87
+          },
+          "adv": 9.964500427246094,
+          "font": "10.5px \"EB Garamond\", Garamond, \"Times New Roman\", serif",
+          "diffVsPage": {
+            "sumAbsAlpha": 0,
+            "pixelsOver32": 0
+          }
+        },
+        "refFallback": {
+          "ink": {
+            "w": 9.5,
+            "n": 110
+          },
+          "adv": 10.5,
+          "font": "10.5px Garamond, \"Times New Roman\", serif",
+          "diffVsPage": {
+            "sumAbsAlpha": 9118,
+            "pixelsOver32": 101
+          }
+        },
+        "refSerif": {
+          "ink": {
+            "w": 9.5,
+            "n": 107
+          },
+          "adv": 10.5,
+          "font": "10.5px serif",
+          "diffVsPage": {
+            "sumAbsAlpha": 9108,
+            "pixelsOver32": 99
+          }
+        },
+        "dEBG": 0,
+        "dFallback": 0.5,
+        "dRefs": 0.5
+      },
+      "resourceNotFoundLogAll": []
+    },
+    "E-idle": {
+      "type": "idle",
+      "pnow": 12633,
+      "ms": 10001,
+      "evals": {
+      },
+      "posts": {
+      },
+      "input": []
+    },
+    "E-eq-idle": {
+      "cppEmits": 0,
+      "jsEqSections": 0,
+      "jsAllEvents": 0,
+      "idleSec": 10,
+      "pass": true
+    },
+    "E-bind-in": {
+      "type": "bindIn",
+      "pnow": 27512,
+      "id": "bi",
+      "n": 196,
+      "nSlider": 74,
+      "nScaledExact": 70,
+      "nBad": 0,
+      "bad": [],
+      "maxNormErr": 5.960464499743523e-8,
+      "maxScaledErr": 0.00006103515625,
+      "maxTextErr": 0.000061071093796
+    },
+    "E-bind-out": {
+      "normErrOver1e6": 2,
+      "normErrOver1e6List": [
+        "b17_q target=0.032839 normErr=0.000009555 scaledErr=0.000000000702 tol=0.000000007453",
+        "b22_q target=0.050550 normErr=0.000001781 scaledErr=0.000000000856 tol=0.000000007475"
+      ],
+      "maxScaledErrOverTol": 0.114454116699508,
+      "n": 196,
+      "valueBad": 0,
+      "gestureBad": 0,
+      "beginTotal": 196,
+      "endTotal": 196,
+      "maxNormErr": 9.55536961555481e-6,
+      "settleMs": 7.812583357095718,
+      "bad": []
+    },
+    "E-disabled": {
+      "chip": {
+        "type": "chip",
+        "pnow": 27756,
+        "id": "c1",
+        "found": true,
+        "stripEmpty": false,
+        "loz": "01"
+      },
+      "selectedBandAtomic": 1,
+      "d0_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28481,
+          "id": "d0_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "passCount": 64,
+      "d0_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28514,
+          "id": "d0_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28547,
+          "id": "d0_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28581,
+          "id": "d0_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28614,
+          "id": "d0_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28647.000000000003638,
+          "id": "d0_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28680,
+          "id": "d0_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d0_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28714.000000000003638,
+          "id": "d0_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 0,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28747,
+          "id": "d1_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28780,
+          "id": "d1_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28814,
+          "id": "d1_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28847,
+          "id": "d1_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28881,
+          "id": "d1_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28914,
+          "id": "d1_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28947,
+          "id": "d1_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d1_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 28981,
+          "id": "d1_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 1,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29014,
+          "id": "d2_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29047,
+          "id": "d2_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29081,
+          "id": "d2_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29114,
+          "id": "d2_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29147.000000000003638,
+          "id": "d2_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29181,
+          "id": "d2_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29214.000000000003638,
+          "id": "d2_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d2_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29247,
+          "id": "d2_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 2,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29281.000000000003638,
+          "id": "d3_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29314,
+          "id": "d3_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29347,
+          "id": "d3_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29381,
+          "id": "d3_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29414,
+          "id": "d3_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29447,
+          "id": "d3_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29481,
+          "id": "d3_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d3_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29514,
+          "id": "d3_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 3,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29547,
+          "id": "d4_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29581,
+          "id": "d4_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29614,
+          "id": "d4_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29647.000000000003638,
+          "id": "d4_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29681,
+          "id": "d4_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29714.000000000003638,
+          "id": "d4_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29747,
+          "id": "d4_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d4_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29781.000000000003638,
+          "id": "d4_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 4,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29814,
+          "id": "d5_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29847,
+          "id": "d5_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29881,
+          "id": "d5_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29914,
+          "id": "d5_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29947,
+          "id": "d5_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 29981,
+          "id": "d5_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30014,
+          "id": "d5_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d5_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30047,
+          "id": "d5_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 5,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30081,
+          "id": "d6_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 0,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30114,
+          "id": "d6_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 1,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30147.000000000003638,
+          "id": "d6_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 2,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30180,
+          "id": "d6_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 3,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30214.000000000003638,
+          "id": "d6_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 4,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30247,
+          "id": "d6_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 5,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30281.000000000003638,
+          "id": "d6_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 6,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d6_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30314,
+          "id": "d6_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 6,
+          "slopeIndex": 7,
+          "gainOff": true,
+          "gainAria": "true",
+          "slopeDisabled": true,
+          "slopeWrapOff": true,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_0": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30347,
+          "id": "d7_0",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 0,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": true,
+          "qAria": "true",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_1": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30381,
+          "id": "d7_1",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 1,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_2": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30414,
+          "id": "d7_2",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 2,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_3": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30447,
+          "id": "d7_3",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 3,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_4": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30481,
+          "id": "d7_4",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 4,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_5": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30514,
+          "id": "d7_5",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 5,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_6": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30547,
+          "id": "d7_6",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 6,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      },
+      "d7_7": {
+        "dom": {
+          "type": "disabled",
+          "pnow": 30581,
+          "id": "d7_7",
+          "stripEmpty": false,
+          "loz": "01",
+          "typeIndex": 7,
+          "slopeIndex": 7,
+          "gainOff": false,
+          "gainAria": "false",
+          "slopeDisabled": false,
+          "slopeWrapOff": false,
+          "qOff": false,
+          "qAria": "false",
+          "freqOff": false
+        },
+        "pass": true
+      }
+    },
+    "E-type": {
+      "1000": {
+        "typed": "1000",
+        "hostNorm": 0.5,
+        "expectNorm": 0.499999996960923,
+        "normErr": 3.039077101085752e-9,
+        "planExpectNorm": 0.5,
+        "normErrVsPlan": 0.0,
+        "hostHz": 999.9998779296875,
+        "hostText": "999.9998779",
+        "gestureBegin": 1,
+        "gestureEnd": 1,
+        "page": {
+          "type": "typeEntry",
+          "pnow": 27789,
+          "id": "t0",
+          "text": "1000",
+          "fieldOff": false,
+          "inputOpened": true,
+          "inputInitial": "10012",
+          "inputClosed": true,
+          "pageScaled": 999.9998779296875,
+          "pageNorm": 0.49999998443241,
+          "fieldText": "1.00kHz"
+        }
+      },
+      "42.7": {
+        "typed": "42.7",
+        "hostNorm": 0.250029683113098,
+        "expectNorm": 0.250029691580097,
+        "normErr": 8.466998435707751e-9,
+        "planExpectNorm": 0.25,
+        "normErrVsPlan": 0.000029683113098,
+        "hostHz": 42.699996948242188,
+        "hostText": "42.6999969",
+        "gestureBegin": 1,
+        "gestureEnd": 1,
+        "page": {
+          "type": "typeEntry",
+          "pnow": 28022.000000000003638,
+          "id": "t1",
+          "text": "42.7",
+          "fieldOff": false,
+          "inputOpened": true,
+          "inputInitial": "10012",
+          "inputClosed": true,
+          "pageScaled": 42.699996948242188,
+          "pageNorm": 0.250029686838238,
+          "fieldText": "42.7Hz"
+        }
+      },
+      "42.68090": {
+        "typed": "42.68090",
+        "hostNorm": 0.249999985098839,
+        "expectNorm": 0.25,
+        "normErr": 1.490116119384766e-8,
+        "planExpectNorm": 0.25,
+        "normErrVsPlan": 1.490116119384766e-8,
+        "hostHz": 42.680885314941406,
+        "hostText": "42.6808853",
+        "gestureBegin": 1,
+        "gestureEnd": 1,
+        "page": {
+          "type": "typeEntry",
+          "pnow": 28255,
+          "id": "t2",
+          "text": "42.68090",
+          "fieldOff": false,
+          "inputOpened": true,
+          "inputInitial": "10012",
+          "inputClosed": true,
+          "pageScaled": 42.680885314941406,
+          "pageNorm": 0.249999984032984,
+          "fieldText": "42.7Hz"
+        }
+      }
+    },
+    "E-ui": {
+      "getUiState-initial": {
+        "report": {
+          "type": "native",
+          "pnow": 30584,
+          "id": "ui0",
+          "name": "getUiState",
+          "result": {
+            "analyzerMode": 2,
+            "displayRange": 12,
+            "selectedBand": 1
+          }
+        },
+        "atomics": {
+          "analyzerMode": 2,
+          "displayRange": 12,
+          "selectedBand": 1,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "passCount": "14/14",
+      "ui-set0 analyzerMode=3": {
+        "report": {
+          "type": "native",
+          "pnow": 30585,
+          "id": "ui-set0",
+          "name": "setUiState",
+          "result": true
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 12,
+          "selectedBand": 1,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set1 displayRange=30": {
+        "report": {
+          "type": "native",
+          "pnow": 30587,
+          "id": "ui-set1",
+          "name": "setUiState",
+          "result": true
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 1,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set2 selectedBand=7": {
+        "report": {
+          "type": "native",
+          "pnow": 30589.000000000003638,
+          "id": "ui-set2",
+          "name": "setUiState",
+          "result": true
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set3 analyzerMode=4": {
+        "report": {
+          "type": "native",
+          "pnow": 30591,
+          "id": "ui-set3",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set4 analyzerMode=-1": {
+        "report": {
+          "type": "native",
+          "pnow": 30594,
+          "id": "ui-set4",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set5 displayRange=7": {
+        "report": {
+          "type": "native",
+          "pnow": 30596,
+          "id": "ui-set5",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set6 displayRange=0": {
+        "report": {
+          "type": "native",
+          "pnow": 30603,
+          "id": "ui-set6",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set7 selectedBand=25": {
+        "report": {
+          "type": "native",
+          "pnow": 30604,
+          "id": "ui-set7",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set8 selectedBand=-1": {
+        "report": {
+          "type": "native",
+          "pnow": 30605,
+          "id": "ui-set8",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "ui-set9 foo=1": {
+        "report": {
+          "type": "native",
+          "pnow": 30608,
+          "id": "ui-set9",
+          "name": "setUiState",
+          "result": false
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "getUiState-after": {
+        "report": {
+          "type": "native",
+          "pnow": 30611,
+          "id": "ui1",
+          "name": "getUiState",
+          "result": {
+            "analyzerMode": 3,
+            "displayRange": 30,
+            "selectedBand": 7
+          }
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "absentFromGetParameters": {
+        "report": {
+          "numParameters": 196,
+          "hits": []
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      },
+      "unchangedByPresetLoad": {
+        "report": {
+          "loadOk": true,
+          "before": "{\"analyzerMode\": 3, \"displayRange\": 30, \"selectedBand\": 7, \"uiLanguage\": 0, \"editorWidth\": 960, \"editorHeight\": 600}",
+          "after": "{\"analyzerMode\": 3, \"displayRange\": 30, \"selectedBand\": 7, \"uiLanguage\": 0, \"editorWidth\": 960, \"editorHeight\": 600}",
+          "listenBand": -1
+        },
+        "atomics": {
+          "analyzerMode": 3,
+          "displayRange": 30,
+          "selectedBand": 7,
+          "uiLanguage": 0,
+          "editorWidth": 960,
+          "editorHeight": 600
+        },
+        "pass": true
+      }
+    },
+    "E-listen": {
+      "ls0": {
+        "arg": 5,
+        "listenBand": 4,
+        "expect": 4,
+        "report": {
+          "type": "native",
+          "pnow": 30632,
+          "id": "ls0",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls1": {
+        "arg": 0,
+        "listenBand": -1,
+        "expect": -1,
+        "report": {
+          "type": "native",
+          "pnow": 30642,
+          "id": "ls1",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls2": {
+        "arg": 5,
+        "listenBand": 4,
+        "expect": 4,
+        "report": {
+          "type": "native",
+          "pnow": 30645,
+          "id": "ls2",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls3": {
+        "arg": 25,
+        "listenBand": -1,
+        "expect": -1,
+        "report": {
+          "type": "native",
+          "pnow": 30647.000000000003638,
+          "id": "ls3",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls4": {
+        "arg": 5,
+        "listenBand": 4,
+        "expect": 4,
+        "report": {
+          "type": "native",
+          "pnow": 30650.000000000003638,
+          "id": "ls4",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls5": {
+        "arg": -3,
+        "listenBand": -1,
+        "expect": -1,
+        "report": {
+          "type": "native",
+          "pnow": 30652,
+          "id": "ls5",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls6": {
+        "arg": 1,
+        "listenBand": 0,
+        "expect": 0,
+        "report": {
+          "type": "native",
+          "pnow": 30655,
+          "id": "ls6",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls7": {
+        "arg": 24,
+        "listenBand": 23,
+        "expect": 23,
+        "report": {
+          "type": "native",
+          "pnow": 30657,
+          "id": "ls7",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      },
+      "ls8": {
+        "arg": 7,
+        "listenBand": 6,
+        "expect": 6,
+        "report": {
+          "type": "native",
+          "pnow": 30660,
+          "id": "ls8",
+          "name": "setListenBand",
+          "result": null
+        },
+        "pass": true
+      }
+    },
+    "E-eq-reload": {
+      "a reloaded page gets all 24 bands": {
+        "pass": true,
+        "detail": {
+          "eventsOnNewPage": 1,
+          "firstN": 24,
+          "cppEmitsSinceReload": 1
+        }
+      }
+    },
+    "E-create": {
+      "click creates band 1 there": {
+        "pass": true,
+        "detail": {
+          "expF": 245.950948584936242,
+          "hostF": 245.950912475585938,
+          "expG": 12.0,
+          "hostG": 11.999999046325684,
+          "qDef": 0.999999761581421,
+          "hostQ": 0.999999761581421,
+          "type": 0,
+          "placement": 0,
+          "bypass": false,
+          "enabled": true,
+          "slope": 3,
+          "gestures freq/gain/q": "1/1 1/1 1/1",
+          "gesturesOutsideBand1": 0
+        }
+      },
+      "with 1 - 23 enabled the click creates band 24": {
+        "pass": true,
+        "detail": "b24 enabled 1"
+      }
+    },
+    "E-full": {
+      "en: refused click shows the tip": {
+        "pass": true,
+        "detail": {
+          "tip": {
+            "type": "tip",
+            "pnow": 1549,
+            "id": "j4",
+            "visible": true,
+            "opacity": "1",
+            "text": "All 24 bands are in use",
+            "i18n": "bands-full",
+            "rect": {
+              "l": 378.015625,
+              "t": 224,
+              "r": 497.984375,
+              "b": 255,
+              "w": 119.96875,
+              "h": 31
+            },
+            "vw": 960,
+            "vh": 600,
+            "lang": "en",
+            "tipsOn": "true"
+          },
+          "gestures": 0,
+          "valueChanges": 0,
+          "click": "421.0,214.0",
+          "inside": true
+        }
+      },
+      "en text is LABELS bands-full en": {
+        "pass": true,
+        "detail": "All 24 bands are in use | All 24 bands are in use"
+      },
+      "hidden by the next pointerdown": {
+        "pass": true,
+        "detail": {
+          "type": "tip",
+          "pnow": 1860,
+          "id": "j7",
+          "visible": false,
+          "opacity": "0",
+          "text": "All 24 bands are in use",
+          "i18n": null,
+          "rect": {
+            "l": 378.015625,
+            "t": 224,
+            "r": 497.984375,
+            "b": 270,
+            "w": 119.96875,
+            "h": 46
+          },
+          "vw": 960,
+          "vh": 600,
+          "lang": "en",
+          "tipsOn": "true"
+        }
+      },
+      "bottom-right edge: tip stays inside the window": {
+        "pass": true,
+        "detail": {
+          "tip": {
+            "type": "tip",
+            "pnow": 2019.000000000000227,
+            "id": "j8",
+            "visible": true,
+            "opacity": "1",
+            "text": "All 24 bands are in use",
+            "i18n": "bands-full",
+            "rect": {
+              "l": 745.6875,
+              "t": 405.796875,
+              "r": 865.65625,
+              "b": 436.796875,
+              "w": 119.96875,
+              "h": 31
+            },
+            "vw": 960,
+            "vh": 600,
+            "lang": "en",
+            "tipsOn": "true"
+          },
+          "gestures": 0,
+          "valueChanges": 0,
+          "click": "788.7,395.8",
+          "inside": true
+        }
+      },
+      "hover help off: tip still shows": {
+        "pass": true,
+        "detail": {
+          "tip": {
+            "type": "tip",
+            "pnow": 2251,
+            "id": "j11",
+            "visible": true,
+            "opacity": "1",
+            "text": "All 24 bands are in use",
+            "i18n": "bands-full",
+            "rect": {
+              "l": 224.8125,
+              "t": 264.390625,
+              "r": 344.78125,
+              "b": 295.390625,
+              "w": 119.96875,
+              "h": 31
+            },
+            "vw": 960,
+            "vh": 600,
+            "lang": "en",
+            "tipsOn": "false"
+          },
+          "gestures": 0,
+          "valueChanges": 0,
+          "click": "267.8,254.4",
+          "inside": true
+        }
+      },
+      "hover help was off for that click": {
+        "pass": true,
+        "detail": "false"
+      },
+      "fr: refused click shows the tip": {
+        "pass": true,
+        "detail": {
+          "tip": {
+            "type": "tip",
+            "pnow": 2650,
+            "id": "j16",
+            "visible": true,
+            "opacity": "1",
+            "text": "Les 24 bandes sont toutes utilisées",
+            "i18n": "bands-full",
+            "rect": {
+              "l": 314.46875,
+              "t": 183.59375,
+              "r": 484.921875,
+              "b": 214.59375,
+              "w": 170.453125,
+              "h": 31
+            },
+            "vw": 960,
+            "vh": 600,
+            "lang": "fr",
+            "tipsOn": "true"
+          },
+          "gestures": 0,
+          "valueChanges": 0,
+          "click": "382.7,173.6",
+          "inside": true
+        }
+      },
+      "fr text is that language's entry": {
+        "pass": true,
+        "detail": "Les 24 bandes sont toutes utilisées | Les 24 bandes sont toutes utilisées"
+      },
+      "zh-Hans: refused click shows the tip": {
+        "pass": true,
+        "detail": {
+          "tip": {
+            "type": "tip",
+            "pnow": 3018.000000000000455,
+            "id": "j20",
+            "visible": true,
+            "opacity": "1",
+            "text": "全部 24 个频段均已使用",
+            "i18n": "bands-full",
+            "rect": {
+              "l": 329.125,
+              "t": 183.59375,
+              "r": 470.265625,
+              "b": 214.59375,
+              "w": 141.140625,
+              "h": 31
+            },
+            "vw": 960,
+            "vh": 600,
+            "lang": "zh-Hans",
+            "tipsOn": "true"
+          },
+          "gestures": 0,
+          "valueChanges": 0,
+          "click": "382.7,173.6",
+          "inside": true
+        }
+      },
+      "zh-Hans text is that language's entry": {
+        "pass": true,
+        "detail": "全部 24 个频段均已使用 | 全部 24 个频段均已使用"
+      }
+    },
+    "E-drag": {
+      "Bell: one pair on freq and on gain, values follow": {
+        "pass": true,
+        "detail": {
+          "freq b/e": "1/1",
+          "gain b/e": "1/1",
+          "gainValueChanges": 10,
+          "outside": 0,
+          "expF": 2307.521854681651348,
+          "hostF": 2307.521728515625,
+          "g0": 6.000001430511475,
+          "expG": 11.940594059405939,
+          "hostG": 11.940597534179688
+        }
+      },
+      "Low Cut: one pair on freq, none on gain": {
+        "pass": true,
+        "detail": {
+          "freq b/e": "1/1",
+          "gain b/e": "0/0",
+          "gainValueChanges": 0,
+          "outside": 0,
+          "expF": 2307.521854681651348,
+          "hostF": 2307.521728515625,
+          "g0": 6.000001430511475,
+          "expG": 5.940594059405939,
+          "hostG": 6.000001430511475
+        }
+      },
+      "Bell at gain scale 0 %: none on gain": {
+        "pass": true,
+        "detail": {
+          "freq b/e": "1/1",
+          "gain b/e": "0/0",
+          "gainValueChanges": 0,
+          "outside": 0,
+          "expF": 2307.521854681651348,
+          "hostF": 2307.521728515625,
+          "g0": 6.000001430511475,
+          "expG": 6.000001430511475,
+          "hostG": 6.000001430511475
+        }
+      },
+      "Bell, pointercancel closes both pairs": {
+        "pass": true,
+        "detail": {
+          "freq b/e": "1/1",
+          "gain b/e": "1/1",
+          "gainValueChanges": 10,
+          "outside": 0,
+          "expF": 2307.521854681651348,
+          "hostF": 2307.521728515625,
+          "g0": 6.000001430511475,
+          "expG": 11.940594059405939,
+          "hostG": 11.940597534179688
+        }
+      },
+      "Bell, lostpointercapture closes both pairs": {
+        "pass": true,
+        "detail": {
+          "freq b/e": "1/1",
+          "gain b/e": "1/1",
+          "gainValueChanges": 10,
+          "outside": 0,
+          "expF": 2307.521854681651348,
+          "hostF": 2307.521728515625,
+          "g0": 6.000001430511475,
+          "expG": 11.940594059405939,
+          "hostG": 11.940597534179688
+        }
+      },
+      "Bell -> Low Cut by automation mid-drag: pairs stay balanced": {
+        "pass": true,
+        "detail": {
+          "freq b/e": "1/1",
+          "gain b/e": "1/1",
+          "gainValueChanges": 10,
+          "outside": 0,
+          "expF": 2307.521854681651348,
+          "hostF": 2307.521728515625,
+          "g0": 6.000001430511475,
+          "expG": 11.940594059405939,
+          "hostG": 11.940597534179688
+        }
+      }
+    },
+    "E-wheel": {
+      "10 events, one burst: one pair on q, log domain": {
+        "pass": true,
+        "detail": {
+          "q b/e": "1/1",
+          "lnRatio": 2.499999546953402,
+          "expLn": 2.5,
+          "outside": 0
+        }
+      },
+      "Shift: finer": {
+        "pass": true,
+        "detail": {
+          "q b/e": "1/1",
+          "lnRatio": 0.600000108216508,
+          "expLn": 0.6,
+          "outside": 0
+        }
+      }
+    },
+    "E-dblclick": {
+      "node: gain to its default": {
+        "pass": true,
+        "detail": {
+          "defaultScaled": 0.0,
+          "hostScaled": 0.0,
+          "normErr": 0.0,
+          "exact": true,
+          "b/e": "1/1"
+        }
+      },
+      "strip freq field": {
+        "pass": true,
+        "detail": {
+          "defaultScaled": 999.9998779296875,
+          "hostScaled": 999.9998779296875,
+          "normErr": 0.0,
+          "exact": true,
+          "b/e": "1/1"
+        }
+      },
+      "strip gain field": {
+        "pass": true,
+        "detail": {
+          "defaultScaled": 0.0,
+          "hostScaled": 0.0,
+          "normErr": 0.0,
+          "exact": true,
+          "b/e": "1/1"
+        }
+      },
+      "strip Q field": {
+        "pass": true,
+        "detail": {
+          "defaultScaled": 0.999999761581421,
+          "hostScaled": 0.999999761581421,
+          "normErr": 0.0,
+          "exact": true,
+          "b/e": "1/1"
+        }
+      },
+      "output gain knob": {
+        "pass": true,
+        "detail": {
+          "defaultScaled": 0.0,
+          "hostScaled": 0.0,
+          "normErr": 0.0,
+          "exact": true,
+          "b/e": "1/1"
+        }
+      },
+      "gain scale knob": {
+        "pass": true,
+        "detail": {
+          "defaultScaled": 100.0,
+          "hostScaled": 100.0,
+          "normErr": 0.0,
+          "exact": true,
+          "b/e": "1/1"
+        }
+      },
+      "a node created within 450 ms keeps its gain": {
+        "pass": true,
+        "detail": "gain 6.000 expected 6.000"
+      }
+    },
+    "E-delete": {
+      "Delete key: band 5 off, one gesture, band 3 selected": {
+        "pass": true,
+        "detail": "enabled 0 b/e 1/1 selected 3"
+      },
+      "strip button: band 8 off, one gesture, band 3 selected": {
+        "pass": true,
+        "detail": "enabled 0 b/e 1/1 selected 3"
+      }
+    },
+    "E-ends": {
+      "field-freq \"10\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": 10.0,
+          "want": 10.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 15533,
+            "id": "j68",
+            "text": "10",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "10.0Hz"
+          }
+        }
+      },
+      "field-freq \"30k\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 30000.0,
+          "want": 30000.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 15617,
+            "id": "j69",
+            "text": "30k",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "30.0kHz"
+          }
+        }
+      },
+      "field-freq \"30000\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 30000.0,
+          "want": 30000.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 15699,
+            "id": "j70",
+            "text": "30000",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "30.0kHz"
+          }
+        }
+      },
+      "field-freq \"5\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": 10.0,
+          "want": 10.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 15783,
+            "id": "j71",
+            "text": "5",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "10.0Hz"
+          }
+        }
+      },
+      "field-freq \"99k\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 30000.0,
+          "want": 30000.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 15867,
+            "id": "j72",
+            "text": "99k",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "30.0kHz"
+          }
+        }
+      },
+      "field-freq \"0\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": 10.0,
+          "want": 10.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 15950.000000000001819,
+            "id": "j73",
+            "text": "0",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "10.0Hz"
+          }
+        }
+      },
+      "field-freq \"1e9\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 30000.0,
+          "want": 30000.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16033.000000000001819,
+            "id": "j74",
+            "text": "1e9",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "30.0kHz"
+          }
+        }
+      },
+      "field-freq \"-99\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": 10.0,
+          "want": 10.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16117,
+            "id": "j75",
+            "text": "-99",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "10.0Hz"
+          }
+        }
+      },
+      "field-gain \"-30\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": -30.0,
+          "want": -30.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16200,
+            "id": "j76",
+            "text": "-30",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "−30.0dB"
+          }
+        }
+      },
+      "field-gain \"30\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 30.0,
+          "want": 30.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16283.000000000001819,
+            "id": "j77",
+            "text": "30",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "+30.0dB"
+          }
+        }
+      },
+      "field-gain \"-99\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": -30.0,
+          "want": -30.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16366,
+            "id": "j78",
+            "text": "-99",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "−30.0dB"
+          }
+        }
+      },
+      "field-gain \"99k\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 30.0,
+          "want": 30.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16450,
+            "id": "j79",
+            "text": "99k",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "+30.0dB"
+          }
+        }
+      },
+      "field-gain \"1e9\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 30.0,
+          "want": 30.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16533,
+            "id": "j80",
+            "text": "1e9",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "+30.0dB"
+          }
+        }
+      },
+      "field-gain \"-1e9\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": -30.0,
+          "want": -30.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16616,
+            "id": "j81",
+            "text": "-1e9",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "−30.0dB"
+          }
+        }
+      },
+      "field-q \"0.025\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": 0.025000000372529,
+          "want": 0.025000000372529,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16700,
+            "id": "j82",
+            "text": "0.025",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "0.025"
+          }
+        }
+      },
+      "field-q \"40\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 40.0,
+          "want": 40.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16783,
+            "id": "j83",
+            "text": "40",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "40.0"
+          }
+        }
+      },
+      "field-q \"0\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": 0.025000000372529,
+          "want": 0.025000000372529,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16867,
+            "id": "j84",
+            "text": "0",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "0.025"
+          }
+        }
+      },
+      "field-q \"99k\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 40.0,
+          "want": 40.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 16950,
+            "id": "j85",
+            "text": "99k",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "40.0"
+          }
+        }
+      },
+      "field-q \"1e9\" -> end": {
+        "pass": true,
+        "detail": {
+          "host": 40.0,
+          "want": 40.0,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 17033,
+            "id": "j86",
+            "text": "1e9",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "40.0"
+          }
+        }
+      },
+      "field-q \"-99\" -> start": {
+        "pass": true,
+        "detail": {
+          "host": 0.025000000372529,
+          "want": 0.025000000372529,
+          "diff": 0.0,
+          "page": {
+            "type": "typed",
+            "pnow": 17116,
+            "id": "j87",
+            "text": "-99",
+            "fieldOff": false,
+            "inputOpened": true,
+            "inputClosed": true,
+            "fieldText": "0.025"
+          }
+        }
+      }
+    },
+    "E-stopped": {
+      "curve before the edit matches the engine": {
+        "pass": true,
+        "detail": {
+          "valid": 9,
+          "hits": 9,
+          "view": 0,
+          "pass": true,
+          "cols": [
+            {
+              "x": 70.0,
+              "f": 13.971992028277576,
+              "expY": 213.985935272183099,
+              "runs": [
+                [
+                  213.5,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 504.0,
+              "f": 1304.140609786526511,
+              "expY": 167.959451409825277,
+              "runs": [
+                [
+                  167,
+                  168.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 236.0,
+              "f": 79.211075822369111,
+              "expY": 213.546819764580789,
+              "runs": [
+                [
+                  213,
+                  214
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 669.0,
+              "f": 7316.656703847121207,
+              "expY": 212.642567131226571,
+              "runs": [
+                [
+                  212,
+                  213
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 401.0,
+              "f": 444.400124177980899,
+              "expY": 198.805990915126102,
+              "runs": [
+                [
+                  198,
+                  199
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 134.0,
+              "f": 27.275642374086178,
+              "expY": 213.946387868072151,
+              "runs": [
+                [
+                  213,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 567.0,
+              "f": 2519.426854845681646,
+              "expY": 202.00837556170967,
+              "runs": [
+                [
+                  201.5,
+                  202.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 299.0,
+              "f": 153.025302739986955,
+              "expY": 212.297006005861164,
+              "runs": [
+                [
+                  211.5,
+                  212.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 733.0,
+              "f": 14283.325614858402332,
+              "expY": 213.644028076348945,
+              "runs": [
+                [
+                  213,
+                  214
+                ]
+              ],
+              "hit": true
+            }
+          ]
+        }
+      },
+      "eqSections for band 3 within 2 ticks": {
+        "pass": true,
+        "detail": {
+          "msToEmit": 14.252250015735626,
+          "nthEmitAfterEdit": 1,
+          "processBlockCalls": 0
+        }
+      },
+      "curve after the edit matches the engine": {
+        "pass": true,
+        "detail": {
+          "valid": 9,
+          "hits": 9,
+          "view": 0,
+          "pass": true,
+          "cols": [
+            {
+              "x": 70.0,
+              "f": 13.971992028277576,
+              "expY": 213.998437303541351,
+              "runs": [
+                [
+                  213.5,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 504.0,
+              "f": 1304.140609786526511,
+              "expY": 199.492142930870727,
+              "runs": [
+                [
+                  198.5,
+                  199.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 236.0,
+              "f": 79.211075822369111,
+              "expY": 213.949759845184076,
+              "runs": [
+                [
+                  213,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 669.0,
+              "f": 7316.656703847121207,
+              "expY": 201.152336068807585,
+              "runs": [
+                [
+                  200.5,
+                  201.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 401.0,
+              "f": 444.400124177980899,
+              "expY": 212.405015581312341,
+              "runs": [
+                [
+                  211.5,
+                  212.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 134.0,
+              "f": 27.275642374086178,
+              "expY": 213.994044490943537,
+              "runs": [
+                [
+                  213.5,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 299.0,
+              "f": 153.025302739986955,
+              "expY": 213.812350908913629,
+              "runs": [
+                [
+                  213,
+                  214
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 733.0,
+              "f": 14283.325614858402332,
+              "expY": 210.746595544199494,
+              "runs": [
+                [
+                  210,
+                  211
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 465.0,
+              "f": 867.542640558776156,
+              "expY": 207.781120646632132,
+              "runs": [
+                [
+                  207,
+                  208
+                ]
+              ],
+              "hit": true
+            }
+          ]
+        }
+      },
+      "the painted curve changed (columns whose expected y moved > 3 px)": {
+        "pass": true,
+        "detail": 5
+      }
+    },
+    "E-mono": {
+      "packets carry Stereo on mono (relays still Left / Right)": {
+        "pass": true,
+        "detail": {
+          "placement b04": 0,
+          "placement b05": 0,
+          "stereoHeader": false,
+          "all24AfterLayoutChange": true,
+          "relay b04": 1,
+          "relay b05": 2
+        }
+      },
+      "painted curve = the Stereo-placement curve, and differs from the relay-placement curve": {
+        "pass": true,
+        "detail": {
+          "valid": 9,
+          "hits": 9,
+          "view": 0,
+          "pass": true,
+          "wrongDiffers": 3,
+          "cols": [
+            {
+              "x": 70.0,
+              "f": 13.971992028277576,
+              "expY": 213.765842429616924,
+              "runs": [
+                [
+                  213,
+                  214
+                ]
+              ],
+              "hit": true,
+              "wrongY": 213.763476274821556
+            },
+            {
+              "x": 504.0,
+              "f": 1304.140609786526511,
+              "expY": 228.524351529793336,
+              "runs": [
+                [
+                  228,
+                  229
+                ]
+              ],
+              "hit": true,
+              "wrongY": 208.261118469388009
+            },
+            {
+              "x": 236.0,
+              "f": 79.211075822369111,
+              "expY": 206.527723995699148,
+              "runs": [
+                [
+                  206,
+                  206.5
+                ]
+              ],
+              "hit": true,
+              "wrongY": 206.451680134040259
+            },
+            {
+              "x": 669.0,
+              "f": 7316.656703847121207,
+              "expY": 231.882783870643266,
+              "runs": [
+                [
+                  231,
+                  232
+                ]
+              ],
+              "hit": true,
+              "wrongY": 213.816465165208314
+            },
+            {
+              "x": 401.0,
+              "f": 444.400124177980899,
+              "expY": 168.524533582307697,
+              "runs": [
+                [
+                  168,
+                  169.5
+                ]
+              ],
+              "hit": true,
+              "wrongY": 166.136725825805144
+            },
+            {
+              "x": 134.0,
+              "f": 27.275642374086178,
+              "expY": 213.108265579531803,
+              "runs": [
+                [
+                  212.5,
+                  213.5
+                ]
+              ],
+              "hit": true,
+              "wrongY": 213.099248344616257
+            },
+            {
+              "x": 299.0,
+              "f": 153.025302739986955,
+              "expY": 186.523131867463491,
+              "runs": [
+                [
+                  185.5,
+                  186.5
+                ]
+              ],
+              "hit": true,
+              "wrongY": 186.239390356838896
+            },
+            {
+              "x": 733.0,
+              "f": 14283.325614858402332,
+              "expY": 218.768121790041505,
+              "runs": [
+                [
+                  218,
+                  219
+                ]
+              ],
+              "hit": true,
+              "wrongY": 213.951594599334243
+            },
+            {
+              "x": 465.0,
+              "f": 867.542640558776156,
+              "expY": 210.153637610819544,
+              "runs": [
+                [
+                  209.5,
+                  210.5
+                ]
+              ],
+              "hit": true,
+              "wrongY": 201.110016100728529
+            }
+          ]
+        }
+      }
+    },
+    "E-lag": {
+      "p99 node-to-curve lag <= 2 ticks + 1 frame": {
+        "pass": true,
+        "detail": {
+          "freqChanges": 119,
+          "matched": 119,
+          "paramIndex": 15,
+          "medianMs": 17.735333353281021,
+          "p99Ms": 31.469916641712189,
+          "maxMs": 32.114791691303253,
+          "boundMs": 50.033333333333331
+        }
+      }
+    },
+    "E-draw": {
+      "result": {
+        "type": "drawTiming",
+        "pnow": 25963,
+        "id": "j98",
+        "n": 120,
+        "median": 10,
+        "p99": 12,
+        "max": 26,
+        "geom": {
+          "left": 17,
+          "top": 49,
+          "w": 1458,
+          "h": 838,
+          "plotW": 1406,
+          "plotH": 804,
+          "range": 30,
+          "dpr": 2,
+          "vw": 1600,
+          "vh": 1000
+        },
+        "sections": 192
+      },
+      "recorded (not gated): draw() median / p99 ms": {
+        "pass": true,
+        "detail": "10.00 / 12.00 ms over 120 draws, 192 sections, 1458 x 838"
+      }
+    },
+    "E-an-modes": {
+      "mode 0: taps emitted and written": {
+        "pass": true,
+        "detail": {
+          "preEmits": 0,
+          "postEmits": 0,
+          "preWritten": 0,
+          "postWritten": 0,
+          "processorMode": 0
+        }
+      },
+      "mode 1: taps emitted and written": {
+        "pass": true,
+        "detail": {
+          "preEmits": 61,
+          "postEmits": 0,
+          "preWritten": 48128,
+          "postWritten": 0,
+          "processorMode": 1
+        }
+      },
+      "mode 2: taps emitted and written": {
+        "pass": true,
+        "detail": {
+          "preEmits": 0,
+          "postEmits": 61,
+          "preWritten": 0,
+          "postWritten": 48128,
+          "processorMode": 2
+        }
+      },
+      "mode 3: taps emitted and written": {
+        "pass": true,
+        "detail": {
+          "preEmits": 61,
+          "postEmits": 61,
+          "preWritten": 48128,
+          "postWritten": 48128,
+          "processorMode": 3
+        }
+      },
+      "a mode change adding Post emits it within one tick": {
+        "pass": true,
+        "detail": "first Post emit 12.7 ms after the change (gate 25 ms)"
+      }
+    },
+    "E-an-stale": {
+      "first Post frame after Off -> Post is <= -1000 everywhere (and every frame in 0.6 s)": {
+        "pass": true,
+        "detail": {
+          "noiseTopTenths": -324,
+          "postFramesAfterSwitch": 1,
+          "firstFrameTop": -1200,
+          "allFramesTop": -1200
+        }
+      }
+    },
+    "E-an-nyq": {
+      "null exactly from the first span >= 24 kHz; no analyzer ink right of fx(24 kHz)": {
+        "pass": true,
+        "detail": {
+          "points": 256,
+          "nulls": 7,
+          "firstNull": 249,
+          "mismatched": 0,
+          "diff": {
+            "type": "anDiff",
+            "pnow": 40542,
+            "id": "nyq",
+            "n": 710888,
+            "right": 0,
+            "topY": 144.5,
+            "topX": 778.25,
+            "baseOk": true,
+            "w": 818,
+            "h": 438,
+            "plotW": 766
+          },
+          "xLimit": 784.650997613784398
+        }
+      }
+    },
+    "E-an-peak": {
+      "span-centre sine: highest trace pixel within 1 px of fx(f)": {
+        "pass": true,
+        "detail": {
+          "f": 18475.339546005885495,
+          "fx": 1358.871093750000227,
+          "topX": 1358.5,
+          "offsetPx": -0.371093750000227,
+          "topY": 62,
+          "plotW": 1406
+        }
+      },
+      "1 kHz (recorded)": {
+        "f": 1000.0,
+        "fx": 846.714966779814858,
+        "topX": 847.75,
+        "offsetPx": 1.035033220185142,
+        "topY": 62,
+        "plotW": 1406
+      }
+    },
+    "E-meter": {
+      "48 k / 512: both bar tops at my(-6) +- 1 px after 0.5 s": {
+        "pass": true,
+        "detail": {
+          "type": "meterTops",
+          "pnow": 45034,
+          "id": "j121",
+          "tops": [
+            57.5,
+            57.5
+          ],
+          "m6": 57.727272727272727,
+          "h": 286,
+          "w": 94
+        }
+      },
+      "44.1 k / 2048: bar-top range <= 1 px over 2 s (no sawtooth), at my(-6) +- 1 px": {
+        "pass": true,
+        "detail": {
+          "type": "meterTrack",
+          "pnow": 48351,
+          "id": "j123",
+          "n": 121,
+          "min0": 57.5,
+          "max0": 57.5,
+          "min1": 57.5,
+          "max1": 57.5,
+          "m6": 57.727272727272727
+        }
+      },
+      "mono: two equal bars at my(-6) +- 1 px": {
+        "pass": true,
+        "detail": {
+          "type": "meterTops",
+          "pnow": 49184,
+          "id": "j124",
+          "tops": [
+            57.5,
+            57.5
+          ],
+          "m6": 57.727272727272727,
+          "h": 286,
+          "w": 94
+        }
+      }
+    },
+    "E-meter-rest": {
+      "framesWhilePlaying": {
+        "type": "meterClears",
+        "pnow": 45337,
+        "id": "j122",
+        "n": 18,
+        "ms": 300
+      },
+      "no meter frames for 2 s at rest (frames while playing > 5)": {
+        "pass": true,
+        "detail": {
+          "type": "meterClears",
+          "pnow": 56187.000000000007276,
+          "id": "j125",
+          "n": 0,
+          "ms": 2000
+        }
+      }
+    },
+    "E-idle33": {
+      "after audio and decay: 0 relay / eqSections / analyzer / outputLevel messages": {
+        "pass": true,
+        "detail": {
+          "eqSections": 0,
+          "analyzer": 0,
+          "outputLevel": 0,
+          "jsEvents": 0,
+          "jsPosts": 0,
+          "idleSec": 10
+        }
+      }
+    },
+    "E-fills": {
+      "band 1 wash hue within 15 deg of its pigment": {
+        "pass": true,
+        "detail": {
+          "rgba": [
+            137.666666666666657,
+            98.444444444444443,
+            20,
+            25.888888888888889
+          ],
+          "hue": 40.000000000000007,
+          "pigmentHue": 38.399999999999999
+        }
+      },
+      "band 2 wash hue within 15 deg of its pigment": {
+        "pass": true,
+        "detail": {
+          "rgba": [
+            160.333333333333343,
+            59.333333333333336,
+            46.333333333333336,
+            38.666666666666664
+          ],
+          "hue": 6.842105263157895,
+          "pigmentHue": 6.724137931034483
+        }
+      },
+      "band 3 wash hue within 15 deg of its pigment": {
+        "pass": true,
+        "detail": {
+          "rgba": [
+            39.222222222222221,
+            111.777777777777771,
+            98.444444444444443,
+            25.888888888888889
+          ],
+          "hue": 168.973966309341506,
+          "pigmentHue": 168.857142857142833
+        }
+      },
+      "band 2 bypassed: that pixel is the background (alpha < 6)": {
+        "pass": true,
+        "detail": {
+          "x": 517.38676345385079,
+          "y": 244.299999999999983,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "E-listen33": {
+      "(a) drag band 3: listenBand 2 during the drag": {
+        "pass": true,
+        "detail": 2
+      },
+      "(a) release: -1": {
+        "pass": true,
+        "detail": "listenBand -1 (want -1)"
+      },
+      "(b) click on node 5 without movement: 0 setListenBand writes, listen off": {
+        "pass": true,
+        "detail": "writes 0, listenBand -1"
+      },
+      "(c) latch band 3: 2": {
+        "pass": true,
+        "detail": "listenBand 2 (want 2)"
+      },
+      "(c) latched 3, drag band 5: 4 during": {
+        "pass": true,
+        "detail": 4
+      },
+      "(c) release returns to the latch: 2": {
+        "pass": true,
+        "detail": "listenBand 2 (want 2)"
+      },
+      "(d) host disables band 3: -1": {
+        "pass": true,
+        "detail": "listenBand -1 (want -1)"
+      },
+      "(e) re-latched 3: 2": {
+        "pass": true,
+        "detail": "listenBand 2 (want 2)"
+      },
+      "(e) preset load disabling band 3: -1": {
+        "pass": true,
+        "detail": "listenBand -1 (want -1)"
+      },
+      "(f) preset load keeping band 3 enabled: 2": {
+        "pass": true,
+        "detail": "listenBand 2 (want 2)"
+      },
+      "(g) bypass band 3: 2": {
+        "pass": true,
+        "detail": "listenBand 2 (want 2)"
+      },
+      "(h) Delete key on band 3: -1": {
+        "pass": true,
+        "detail": "listenBand -1 (want -1)"
+      },
+      "(i) strip Listen: 2": {
+        "pass": true,
+        "detail": "listenBand 2 (want 2)"
+      },
+      "(i) strip Listen again: -1": {
+        "pass": true,
+        "detail": "listenBand -1 (want -1)"
+      },
+      "(j) cancel: band 3 during": {
+        "pass": true,
+        "detail": 2
+      },
+      "(j) cancel ends it: -1": {
+        "pass": true,
+        "detail": "listenBand -1 (want -1)"
+      },
+      "(j) lost: band 3 during": {
+        "pass": true,
+        "detail": 2
+      },
+      "(j) lost ends it: -1": {
+        "pass": true,
+        "detail": "listenBand -1 (want -1)"
+      }
+    },
+    "E-create-seeded": {
+      "band 1 seeded High Shelf / Side / bypassed / disabled -> Bell / Stereo / not bypassed": {
+        "pass": true,
+        "detail": {
+          "enabled": true,
+          "type": 0,
+          "placement": 0,
+          "bypass": false
+        }
+      }
+    },
+    "E-gbypass": {
+      "global bypass: every ink run on gy(0) +- 1 px (the curve was not flat before)": {
+        "pass": true,
+        "detail": {
+          "columnsOffZeroBeforeBypass": 6,
+          "valid": 7,
+          "onZero": 7,
+          "gy0": 214.0,
+          "probe": {
+            "type": "probe",
+            "pnow": 82117,
+            "id": "gb-on",
+            "geom": {
+              "left": 17,
+              "top": 49,
+              "w": 818,
+              "h": 438,
+              "plotW": 766,
+              "plotH": 404,
+              "range": 30,
+              "dpr": 2,
+              "vw": 960,
+              "vh": 600
+            },
+            "cols": [
+              {
+                "x": 70,
+                "runs": [
+                  [
+                    213.5,
+                    214.5
+                  ]
+                ]
+              },
+              {
+                "x": 504,
+                "runs": [
+                  [
+                    213.5,
+                    214.5
+                  ]
+                ]
+              },
+              {
+                "x": 236,
+                "runs": []
+              },
+              {
+                "x": 669,
+                "runs": [
+                  [
+                    213.5,
+                    214.5
+                  ]
+                ]
+              },
+              {
+                "x": 134,
+                "runs": [
+                  [
+                    214,
+                    214
+                  ]
+                ]
+              },
+              {
+                "x": 567,
+                "runs": [
+                  [
+                    213.5,
+                    214.5
+                  ]
+                ]
+              },
+              {
+                "x": 299,
+                "runs": []
+              },
+              {
+                "x": 733,
+                "runs": [
+                  [
+                    214,
+                    214
+                  ]
+                ]
+              },
+              {
+                "x": 465,
+                "runs": [
+                  [
+                    213.5,
+                    214.5
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "E-sumview": {
+      "Side band selected: ink matches the SS composition": {
+        "pass": true,
+        "detail": {
+          "valid": 9,
+          "hits": 9,
+          "view": 3,
+          "pass": true,
+          "cols": [
+            {
+              "x": 70.0,
+              "f": 13.971992028277576,
+              "expY": 214.000879429640065,
+              "runs": [
+                [
+                  213.5,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 504.0,
+              "f": 1304.140609786526511,
+              "expY": 221.968050079752032,
+              "runs": [
+                [
+                  221.5,
+                  222
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 236.0,
+              "f": 79.211075822369111,
+              "expY": 214.028269894644666,
+              "runs": [
+                [
+                  213.5,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 669.0,
+              "f": 7316.656703847121207,
+              "expY": 237.485360715047619,
+              "runs": [
+                [
+                  236.5,
+                  237.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 134.0,
+              "f": 27.275642374086178,
+              "expY": 214.003351510228043,
+              "runs": [
+                [
+                  213.5,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 567.0,
+              "f": 2519.426854845681646,
+              "expY": 245.502846849894013,
+              "runs": [
+                [
+                  245,
+                  246
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 299.0,
+              "f": 153.025302739986955,
+              "expY": 214.10555288949854,
+              "runs": [
+                [
+                  213.5,
+                  214.5
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 733.0,
+              "f": 14283.325614858402332,
+              "expY": 219.849971613924481,
+              "runs": [
+                [
+                  219,
+                  220
+                ]
+              ],
+              "hit": true
+            },
+            {
+              "x": 465.0,
+              "f": 867.542640558776156,
+              "expY": 217.453714279486832,
+              "runs": [
+                [
+                  216.5,
+                  217.5
+                ]
+              ],
+              "hit": true
+            }
+          ]
+        }
+      },
+      "vacuity: SS and MM differ by > 6 px at >= 1 probed column; view is SS": {
+        "pass": true,
+        "detail": "columns differing 5"
+      }
+    },
+    "E-fps": {
+      "rAF intervals during the drag: median <= 17.5 ms, p99 <= 25 ms (draw() recorded)": {
+        "pass": true,
+        "detail": {
+          "type": "dragFor",
+          "pnow": 88617,
+          "id": "fps",
+          "moves": 240,
+          "n": 300,
+          "median": 17,
+          "p99": 18,
+          "max": 18,
+          "drawN": 300,
+          "drawMedian": 7,
+          "drawP99": 8.000000000014552
+        }
+      }
+    },
+    "E-rate": {
+      "median interval between eqSections emits during the drag <= 20 ms": {
+        "pass": true,
+        "detail": {
+          "n": 218,
+          "median": 16.66312500834465,
+          "p99": 33.34825000166893,
+          "max": 33.875541657209396
+        }
+      }
+    },
+    "E-audio": {
+      "run1": {
+        "n": 938,
+        "median": 298.165999999999997,
+        "p99": 342.541999999999973,
+        "max": 371.790999999999997,
+        "rtPolicy": 0
+      },
+      "run2": {
+        "n": 938,
+        "median": 316.75,
+        "p99": 398.916999999999973,
+        "max": 423.208000000000027,
+        "rtPolicy": 0
+      },
+      "run3": {
+        "n": 942,
+        "median": 323.584000000000003,
+        "p99": 406.709000000000003,
+        "max": 425.541999999999973,
+        "rtPolicy": 0
+      },
+      "attempt1": {
+        "median closed / open+drag us": "298.2 / 323.6",
+        "p99 closed / open+drag us": "342.5 / 406.7"
+      },
+      "run 3 median within 10 % of run 1, p99 within 25 %": {
+        "pass": true,
+        "detail": {
+          "median closed / open+drag us": "298.2 / 323.6",
+          "p99 closed / open+drag us": "342.5 / 406.7"
+        }
+      }
+    },
+    "consoleAfterTests": {
+      "type": "console",
+      "pnow": 22122,
+      "nWarn": 0,
+      "nErr": 0,
+      "unknownWarn": 0,
+      "warns": [],
+      "input": [
+        {
+          "type": "pointerdown",
+          "trusted": false,
+          "x": 814,
+          "y": 561,
+          "t": 11508,
+          "idle": false
+        },
+        {
+          "type": "pointerup",
+          "trusted": false,
+          "x": 814,
+          "y": 561,
+          "t": 21526,
+          "idle": false
+        }
+      ],
+      "natives": {
+        "getUiState": 1,
+        "requestEqSections": 1,
+        "getParameterDefaults": 1,
+        "getUiLanguage": 1,
+        "getCurrentPreset": 1,
+        "getPresetList": 1,
+        "pageReady": 1,
+        "setUiState": 3,
+        "setListenBand": 3,
+        "resizeEditor": 1
+      }
+    },
+    "E-size": {
+      "firstOpenCycle0": {
+        "editor": "960x600",
+        "expect": "960x600",
+        "atomics": "960x600",
+        "pass": true
+      },
+      "open": {
+        "editor": "960x600",
+        "expect": "960x600",
+        "atomics": "960x600",
+        "pass": true
+      },
+      "resize700x400": {
+        "editor": "800x500",
+        "expect": "800x500",
+        "atomics": "800x500",
+        "pass": true
+      },
+      "resize2000x2000": {
+        "editor": "1600x1000",
+        "expect": "1600x1000",
+        "atomics": "1600x1000",
+        "pass": true
+      },
+      "resize1234x777": {
+        "editor": "1234x777",
+        "expect": "1234x777",
+        "atomics": "1234x777",
+        "pass": true
+      },
+      "reopenRestores": {
+        "editor": "1234x777",
+        "expect": "1234x777",
+        "atomics": "1234x777",
+        "pass": true
+      },
+      "backTo960x600": {
+        "editor": "960x600",
+        "expect": "960x600",
+        "atomics": "960x600",
+        "pass": true
+      }
+    }
+  },
+  "raf": {
+    "type": "raf",
+    "pnow": 2631,
+    "median": 17,
+    "mean": 16.916666666666668,
+    "max": 57
+  },
+  "timeouts": [],
+  "home": "/var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/opeq-editor-bench-home | presets /var/folders/z3/8kxfht9j7cg1ymgv69stdvwc0000gn/T/opeq-editor-bench-home/Library/O-ParametricEQ/Presets",
+  "presetsSaved": true,
+  "listenBandAtEnd": -1,
+  "failedChecks": [],
+  "build": "Release"
+}

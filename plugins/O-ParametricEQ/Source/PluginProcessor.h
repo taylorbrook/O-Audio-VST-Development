@@ -180,11 +180,6 @@
 #include "dsp/SlotBand.h"
 #include "dsp/SpectrumTap.h"
 
-// vu-meter 1.0.0 compile proof (Stage 1 plan, P6): the header is included so
-// that its first build inside a plugin happens now. No member is declared;
-// the meter itself is mounted in Stage 3.
-#include "VUMeterBridge.h"
-
 // preset-manager 1.1.1 (Phase 3.1, call C2): the processor owns the manager.
 #include "OuariconPresetManager.h"
 
