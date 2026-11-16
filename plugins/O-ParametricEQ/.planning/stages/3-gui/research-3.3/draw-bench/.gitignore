@@ -1,0 +1,9 @@
+build-rel/
+build-dbg/
+results/*.log
+results-dev/
+lockstate
+build-cache/
+results/*.log
+*.cfg.log
+build-*.log

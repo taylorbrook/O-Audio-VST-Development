@@ -1,0 +1,49 @@
+case                             n  median     p99     max    mean  per-run median/p99
+heavy/off                      450    10.0    13.0    29.0   10.47  cache-1 10/13, cache-2 10/11, cache-3 10/12
+heavy/post-nodata              450    10.0    11.0    11.0   10.33  cache-1 10/11, cache-2 10/11, cache-3 10/11
+heavy/post                     450    10.0    11.0    12.0   10.41  cache-1 10/11, cache-2 10/11, cache-3 11/11
+heavy/prepost                  450    10.0    12.0    12.0   10.42  cache-1 10/12, cache-2 10/12, cache-3 10/12
+heavy/post-every2              450     8.0     9.0     9.0    8.27  cache-1 8/9, cache-2 8/9, cache-3 8/9
+heavy/post-1f                  450     8.0     9.0     9.0    8.30  cache-1 8/9, cache-2 8/9, cache-3 8/9
+heavy/off+cache                450     8.0     9.0    10.0    8.43  cache-1 8/9, cache-2 9/10, cache-3 8/9
+heavy/post+cache               450     9.0    10.0    10.0    8.57  cache-1 9/10, cache-2 9/9, cache-3 9/10
+heavy/prepost+cache            450     9.0    10.0    10.0    8.58  cache-1 8/10, cache-2 9/10, cache-3 9/10
+heavy/post-1f+cache            450     7.0     8.0     8.0    6.74  cache-1 7/8, cache-2 7/8, cache-3 7/7
+heavy/post+pkdrag12            450     8.0     9.0     9.0    8.33  cache-1 8/9, cache-2 8/9, cache-3 8/9
+heavy/post+pkdrag12+cache      450     7.0     8.0     8.0    6.78  cache-1 7/8, cache-2 7/8, cache-3 7/8
+heavy/off+phases               450    10.0    11.0    11.0   10.27  cache-1 10/11, cache-2 10/11, cache-3 10/11
+    phases cache-1: grid 0.01, analyzer 0.00, eval 2.76, bandsY 0.61, bandsPaint 1.45, sum 5.29, nodes 0.13
+    phases cache-2: grid 0.04, analyzer 0.00, eval 2.89, bandsY 0.52, bandsPaint 1.56, sum 5.23, nodes 0.11
+    phases cache-3: grid 0.02, analyzer 0.00, eval 2.75, bandsY 0.51, bandsPaint 1.54, sumCompose 5.17, sumBleed 0.05, sumInk 0.01, nodes 0.17
+heavy/post+phases              450    10.0    11.0    11.0   10.42  cache-1 10/11, cache-2 11/11, cache-3 10/11
+    phases cache-1: grid 0.01, analyzer 0.01, eval 2.83, bandsY 0.45, bandsPaint 1.60, sum 5.24, nodes 0.15
+    phases cache-2: grid 0.00, analyzer 0.02, eval 2.95, bandsY 0.45, bandsPaint 1.57, sum 5.37, nodes 0.14
+    phases cache-3: grid 0.04, analyzer 0.09, eval 2.83, bandsY 0.65, bandsPaint 1.40, sumCompose 5.23, sumBleed 0.03, sumInk 0.05, nodes 0.14
+heavy/prepost+phases           450    10.0    12.0    12.0   10.42  cache-1 10/12, cache-2 11/12, cache-3 10/11
+    phases cache-1: grid 0.03, analyzer 0.10, eval 2.79, bandsY 0.47, bandsPaint 1.60, sum 5.24, nodes 0.15
+    phases cache-2: grid 0.01, analyzer 0.07, eval 2.93, bandsY 0.53, bandsPaint 1.57, sum 5.32, nodes 0.12
+    phases cache-3: grid 0.01, analyzer 0.01, eval 2.79, bandsY 0.62, bandsPaint 1.50, sumCompose 5.14, sumBleed 0.06, sumInk 0.02, nodes 0.17
+heavy/post+cache+phases        450     9.0    10.0    10.0    8.61  cache-1 9/10, cache-2 9/10, cache-3 9/10
+    phases cache-1: grid 0.02, analyzer 0.04, eval 0.18, bandsY 0.60, bandsPaint 1.61, sum 5.89, nodes 0.23
+    phases cache-2: grid 0.07, analyzer 0.04, eval 0.00, bandsY 0.56, bandsPaint 1.75, sum 6.05, nodes 0.17
+    phases cache-3: grid 0.01, analyzer 0.05, eval 0.19, bandsY 0.53, bandsPaint 1.67, sumCompose 5.91, sumBleed 0.03, sumInk 0.03, nodes 0.21
+heavy/post+cache+gradc         450     9.0    10.0    12.0    8.51  cache-1 9/11, cache-2 9/10, cache-3 8/10
+heavy/post+cache+gradc+ph      450     9.0    10.0    10.0    8.61  cache-1 9/10, cache-2 9/10, cache-3 9/10
+    phases cache-1: grid 0.05, analyzer 0.04, eval 0.15, bandsY 0.57, bandsPaint 1.61, sum 6.03, nodes 0.25
+    phases cache-2: grid 0.01, analyzer 0.02, eval 0.10, bandsY 0.70, bandsPaint 1.60, sum 5.99, nodes 0.15
+    phases cache-3: grid 0.04, analyzer 0.07, eval 0.13, bandsY 0.58, bandsPaint 1.60, sumCompose 5.86, sumBleed 0.01, sumInk 0.03, nodes 0.20
+heavy/post+freqDrag12          453     8.0    11.0    19.0    8.04  cache-1 8/12, cache-2 8/11, cache-3 8/11
+heavy/post+gainDrag12          453     8.0    13.0    20.0    7.99  cache-1 8/13, cache-2 8/13, cache-3 8/11
+heavy/post+freqDrag12+cache    453     8.0    10.0    21.0    7.97  cache-1 8/10, cache-2 8/11, cache-3 8/10
+heavy/post+gainDrag12+cache    453     6.0    10.0    16.0    6.38  cache-1 6/12, cache-2 6/10, cache-3 6/10
+heavy/post+listen             1350     7.0     8.0     9.0    7.29  cache-1 7/9, cache-2 7/8, cache-3 7/8
+heavy/post+listen+cache       1350     6.0     7.0     7.0    5.58  cache-1 6/7, cache-2 6/7, cache-3 6/7
+light/off                      450     4.0     5.0     5.0    3.82  cache-1 4/5, cache-2 4/5, cache-3 4/5
+light/post                     450     4.0     5.0     5.0    3.46  cache-1 4/5, cache-2 4/5, cache-3 3/5
+light/prepost                  450     4.0     5.0     5.0    3.84  cache-1 4/5, cache-2 4/5, cache-3 4/5
+light/post+cache               450     4.0     5.0     5.0    3.47  cache-1 4/5, cache-2 4/5, cache-3 4/5
+light/post+phases              450     4.0     5.0     6.0    3.85  cache-1 4/5, cache-2 4/5, cache-3 4/5
+    phases cache-1: grid 0.21, analyzer 0.16, eval 0.63, bandsY 0.36, bandsPaint 0.74, sum 1.71, nodes 0.10
+    phases cache-2: grid 0.25, analyzer 0.11, eval 0.73, bandsY 0.31, bandsPaint 0.82, sum 1.63, nodes 0.13
+    phases cache-3: grid 0.19, analyzer 0.15, eval 0.54, bandsY 0.36, bandsPaint 0.72, sumCompose 1.31, sumBleed 0.07, sumInk 0.07, nodes 0.11
+heavy/off-end                  450    10.0    11.0    11.0    9.84  cache-1 10/11, cache-2 10/11, cache-3 10/11

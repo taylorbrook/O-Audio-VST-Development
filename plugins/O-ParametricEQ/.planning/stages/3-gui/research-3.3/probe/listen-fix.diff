@@ -1,0 +1,55 @@
+--- /Users/taylorbrook/Dev/VST-development/plugins/O-ParametricEQ/Source/dsp/Listen.h	2026-11-15 12:58:26
++++ src-fix/dsp/Listen.h	2026-11-16 08:32:55
+@@ -414,6 +414,7 @@
+         request and the wish are kept (startSettled seeds the restart). */
+     void goIdle() noexcept
+     {
++        nonFiniteVoice = false;
+         moveKind = ListenMove::none;
+         movePos = 0;
+         retire (0);
+@@ -437,6 +438,10 @@
+     // Queries
+     //==========================================================================
+ 
++    /** A voice rendered a non-finite last sample since the previous call;
++        clears the report. Step 8 calls it once per chunk, unconditionally. */
++    bool takeNonFiniteVoice() noexcept { const bool r = nonFiniteVoice; nonFiniteVoice = false; return r; }
++
+     /** The pending wish differs from the request. */
+     bool hasPending() const noexcept
+     {
+@@ -793,6 +798,11 @@
+ 
+         soloRender (vc.band, vc.placement, dryL, dryR, outL, outR, count, stereo, g);
+ 
++        // RESEARCH-3.3 fix: a voice whose output is non-finite (its state took a
++        // NaN, possibly while it is not yet heard) is reported to step 8.
++        if (count > 0 && (! std::isfinite (outL[count - 1]) || (stereo && outR != nullptr && ! std::isfinite (outR[count - 1]))))
++            nonFiniteVoice = true;
++
+         const int next = vc.rampPos + count;
+         vc.rampPos = (next < rampLength) ? next : rampLength;
+     }
+@@ -921,6 +931,7 @@
+     int target = -1;
+     ListenMove moveKind = ListenMove::none;
+     int movePos = 0;
++    bool nonFiniteVoice = false;
+ 
+     int pendingIndex = -1;
+     BandInput pendingInput;
+--- /Users/taylorbrook/Dev/VST-development/plugins/O-ParametricEQ/Source/PluginProcessor.cpp	2026-11-15 20:34:46
++++ src-fix/PluginProcessor.cpp	2026-11-16 08:32:55
+@@ -1221,6 +1221,11 @@
+             if (io[lane] != nullptr && ! std::isfinite (work[lane][n - 1]))
+                 finite = false;
+ 
++        // RESEARCH-3.3: listen's voices report their own non-finite output
++        // (a NaN inside an input ramp is not yet heard). Taken every chunk.
++        if (listen.takeNonFiniteVoice())
++            finite = false;
++
+         if (! finite)
+         {
+             for (auto& band : bands)

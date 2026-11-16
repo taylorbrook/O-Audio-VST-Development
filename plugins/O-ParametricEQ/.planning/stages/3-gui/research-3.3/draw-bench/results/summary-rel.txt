@@ -1,0 +1,14 @@
+case                             n  median     p99     max    mean  per-run median/p99
+heavy/off                      300    10.0    11.0    11.0   10.07  rel-1 10/11, rel-2 10/11
+heavy/post-nodata              300    10.0    11.0    11.0    9.72  rel-1 10/11, rel-2 10/11
+heavy/post                     300    10.0    11.0    11.0   10.03  rel-1 10/11, rel-2 10/11
+heavy/prepost                  300    10.0    11.0    12.0   10.09  rel-1 10/11, rel-2 10/11
+heavy/post-every2              300     8.0     9.0     9.0    8.06  rel-1 8/9, rel-2 8/9
+heavy/post-1f                  300     8.0     9.0     9.0    8.12  rel-1 8/9, rel-2 8/9
+heavy/post+freqDrag12          302     8.0    11.0    18.0    7.75  rel-1 8/11, rel-2 8/11
+heavy/post+gainDrag12          302     8.0    12.0    19.0    7.71  rel-1 8/12, rel-2 8/12
+heavy/post+listen              900     7.0     8.0     9.0    6.99  rel-1 7/8, rel-2 7/8
+light/off                      300     4.0     5.0     5.0    3.72  rel-1 4/5, rel-2 4/5
+light/post                     300     4.0     5.0     6.0    3.48  rel-1 4/5, rel-2 4/5
+light/prepost                  300     4.0     5.0     5.0    3.68  rel-1 4/5, rel-2 4/5
+heavy/off-end                  300    10.0    11.0    11.0    9.56  rel-1 10/11, rel-2 10/11

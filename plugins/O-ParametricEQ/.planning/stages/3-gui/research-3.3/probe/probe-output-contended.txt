@@ -1,0 +1,32 @@
+=== O-ParametricEQ research-3.3 probe ===
+[PASS] M1      -6 dBFS sine: 3-tick hold within 0.5 dB for blocks <= 50 ms 44.1k B 1024 (23.2 ms): raw -200.00 .. -6.00 dB, empty ticks 47/165; 3-tick hold min -6.00
+        44.1k B 2048 (46.4 ms): raw -200.00 .. -6.00 dB, empty ticks 106/165; 3-tick hold min -6.00
+        44.1k B 4096 (92.9 ms): raw -200.00 .. -6.00 dB, empty ticks 135/165; 3-tick hold min -200.00
+        48.0k B 1024 (21.3 ms): raw -200.00 .. -6.00 dB, empty ticks 36/165; 3-tick hold min -6.00
+        48.0k B 2048 (42.7 ms): raw -200.00 .. -6.00 dB, empty ticks 101/165; 3-tick hold min -6.00
+        48.0k B 4096 (85.3 ms): raw -200.00 .. -6.00 dB, empty ticks 133/165; 3-tick hold min -200.00
+        96.0k B 2048 (21.3 ms): raw -200.00 .. -6.00 dB, empty ticks 36/165; 3-tick hold min -6.00
+        96.0k B 4096 (42.7 ms): raw -200.00 .. -6.00 dB, empty ticks 101/165; 3-tick hold min -6.00
+        192.0k B 2048 (10.7 ms): raw -6.00 .. -6.00 dB, empty ticks 0/165; 3-tick hold min -6.00
+        192.0k B 4096 (21.3 ms): raw -200.00 .. -6.00 dB, empty ticks 36/165; 3-tick hold min -6.00
+        
+
+1 PASS, 0 FAIL
+=== O-ParametricEQ research-3.3 probe ===
+[PASS] AO1     Off: no tap writes; Post on resumes post only            off drained 0/0, post on: pre 0 post 48000
+[INFO] AC1     analyzer tick cost (process, 60 Hz) + payload            44.1k mode 2 N 4096: med 189.2 p99 204.7 max 212.7 (n 300) us
+        44.1k mode 3 N 4096: med 344.7 p99 364.4 max 378.5 (n 300) us
+        48.0k mode 2 N 4096: med 189.2 p99 230.9 max 250.0 (n 300) us
+        48.0k mode 3 N 4096: med 344.5 p99 360.0 max 384.7 (n 300) us
+        96.0k mode 2 N 8192: med 362.5 p99 423.3 max 580.2 (n 300) us
+        96.0k mode 3 N 8192: med 682.1 p99 1013.7 max 1709.0 (n 300) us
+        192.0k mode 2 N 16384: med 749.7 p99 1290.1 max 2101.4 (n 300) us
+        192.0k mode 3 N 16384: med 1692.1 p99 3878.6 max 4443.5 (n 300) us
+        payload full double: med 191.7 p99 276.0 max 308.0 (n 400) us, 5241 B; tenths int (floor -120): med 24.0 p99 34.9 max 99.0 (n 400) us, 1543 B
+[INFO] AT1     processBlock time vs analyzer mode (tap cost)            4 bells 48.0k blk 512: no consumer 47.25 / p99 56.54 us; [drained 0/0] mode 0 47.29 / p99 56.67 us; mode 2 53.42 / p99 223.29 us; mode 3 62.79 / p99 124.17 us; 
+        4 bells 192.0k blk 512: no consumer 65.58 / p99 180.42 us; [drained 0/0] mode 0 52.04 / p99 264.21 us; mode 2 52.04 / p99 97.46 us; mode 3 39.71 / p99 72.17 us; 
+        24 x 96 dB/oct 48.0k blk 512: no consumer 1111.21 / p99 1718.12 us; [drained 0/0] mode 0 1129.92 / p99 53352.25 us; mode 2 1140.71 / p99 60961.29 us; mode 3 1134.75 / p99 23800.75 us; 
+        24 x 96 dB/oct 192.0k blk 512: no consumer 1067.71 / p99 6875.12 us; [drained 0/0] mode 0 1048.42 / p99 3113.67 us; mode 2 583.62 / p99 9755.29 us; mode 3 1069.50 / p99 36246.62 us; 
+        
+
+1 PASS, 0 FAIL

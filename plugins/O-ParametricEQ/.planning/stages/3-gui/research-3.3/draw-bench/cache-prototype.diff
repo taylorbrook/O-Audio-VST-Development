@@ -1,0 +1,110 @@
+--- /Users/taylorbrook/Dev/VST-development/plugins/O-ParametricEQ/Source/ui/public/index.html	2026-11-15 23:00:16
++++ peq-src/ui/public/index.html	2026-11-16 09:29:15
+@@ -1677,6 +1677,8 @@
+     cx.fillText(s, Math.round(bx) + 7.5, Math.round(by) + th / 2 + 1);
+ }
+ 
++const respCache = { key: '', m: new Map() };   // [research-3.3 CACHE PROTOTYPE]
++const gradCache = new Map();                   // [research-3.3 GRADIENT CACHE A/B]
+ function draw() {
+     if (!curveEl || !curveCtx) return;
+     const cx = curveCtx, M = PLOT_MARGIN, t = performance.now() / 1000;
+@@ -1687,10 +1689,15 @@
+     const bands = activeBands();
+     const globalBypass = !!(toggleState.bypass && toggleState.bypass.getValue());
+ 
+-    drawGrid(cx);
++    // [research-3.3 PHASE MARKS] accumulate per-phase ms into window.__peqPhases when set
++    const PH = window.__peqPhases;
++    let tm = PH ? performance.now() : 0;
++    const mk = PH ? (k) => { const t2 = performance.now(); PH[k] = (PH[k] || 0) + (t2 - tm); tm = t2; } : () => {};
++    if (PH) PH.draws = (PH.draws || 0) + 1;
++    drawGrid(cx); mk('grid');
+     cx.save();
+     cx.beginPath(); cx.rect(M.l + 1, M.t + 1, plotW - 2, plotH - 2); cx.clip();
+-    drawAnalyzer(cx);
++    drawAnalyzer(cx); mk('analyzer');
+ 
+     if (displaySampleRate > 0) {
+         // One point per 2 px, plus every band frequency (keeps narrow notches honest).
+@@ -1703,15 +1710,25 @@
+ 
+         // Every band the page draws (relay-enabled) plus every band the engine
+         // runs (packet active): the two differ for one tick after an enable edit.
++        // [research-3.3 CACHE PROTOTYPE] per-band re / im reused while the
++        // packet object (identity) and the frequency grid are unchanged.
++        const cacheOn = window.__peqCache === true, cst = window.__peqCacheStats;
++        const gridKey = plotW + '|' + displaySampleRate + '|' + freqs.length + '|' + bands.map((b) => bandValue(b, 'freq')).join(',');
++        if (respCache.key !== gridKey) { respCache.key = gridKey; respCache.m.clear(); if (cst) cst.gridResets++; }
+         const responses = new Map(), running = [];
+         for (let b = 1; b <= NB; b++) {
+             const pk = bandPackets[b];
+             if (pk && pk.active) running.push(b);
+             if (!pk || !(pk.active || bands.includes(b))) continue;
++            const e = cacheOn ? respCache.m.get(b) : null;
++            if (e && e.pk === pk) { responses.set(b, e.R); if (cst) cst.hit++; continue; }
+             const R = { re: new Float64Array(n), im: new Float64Array(n) };
+             evalBand(pk, freqs, R.re, R.im);
+             responses.set(b, R);
++            if (cacheOn) respCache.m.set(b, { pk: pk, R: R });
++            if (cst) cst.miss++;
+         }
++        mk('eval');
+ 
+         const y0 = gy(0);
+         const order = bands.slice().sort((a, b) => (a === ui.selected) - (b === ui.selected));
+@@ -1721,6 +1738,7 @@
+             const c = pigment(b), sel = b === ui.selected, byp = bandBool(b, 'bypass');
+             const ys = new Array(n);
+             for (let i = 0; i < n; i++) ys[i] = lim(gy(magDb(R.re[i], R.im[i])));
++            mk('bandsY');
+             if (ui.listen === b) {
+                 const xc = fx(clamp(bandValue(b, 'freq'), AXIS_FMIN, AXIS_FMAX));
+                 const hw = clamp(plotW * 0.11 / Math.sqrt(Math.max(bandValue(b, 'q'), 1e-3)), 14, plotW * 0.3);
+@@ -1729,14 +1747,21 @@
+                 cx.fillStyle = g; cx.fillRect(xc - hw, M.t, 2 * hw, plotH);
+             }
+             if (!byp) {
+-                const k = sel ? 1.5 : 1, g = cx.createLinearGradient(0, M.t, 0, M.t + plotH);
+-                g.addColorStop(0, rgba(c, 0.27 * k)); g.addColorStop(0.5, rgba(c, 0.07 * k)); g.addColorStop(1, rgba(c, 0.27 * k));
++                // [research-3.3 GRADIENT CACHE A/B] reuse the gradient object per (band, sel, plot box) when window.__peqGradCache
++                const k = sel ? 1.5 : 1, gk = b + '|' + sel + '|' + M.t + '|' + plotH;
++                let g = window.__peqGradCache ? gradCache.get(gk) : null;
++                if (!g) {
++                    g = cx.createLinearGradient(0, M.t, 0, M.t + plotH);
++                    g.addColorStop(0, rgba(c, 0.27 * k)); g.addColorStop(0.5, rgba(c, 0.07 * k)); g.addColorStop(1, rgba(c, 0.27 * k));
++                    if (window.__peqGradCache) gradCache.set(gk, g);
++                }
+                 if (tracePath(cx, xs, ys, y0)) { cx.fillStyle = g; cx.fill(); }
+             }
+             tracePath(cx, xs, ys);
+             cx.strokeStyle = rgba(c, byp ? 0.7 : sel ? 0.95 : 0.72); cx.lineWidth = sel ? 1.4 : 1;
+             if (byp) cx.setLineDash([4, 3]);
+             cx.stroke(); cx.setLineDash([]);
++            mk('bandsPaint');
+         }
+ 
+         // Summed response: ink, with a soft bleed under the line. Flat and
+@@ -1745,11 +1770,14 @@
+         const sum = composeSum(globalBypass ? [] : running, responses, n, sumView());
+         const ys = new Array(n);
+         for (let i = 0; i < n; i++) ys[i] = lim(gy(sum[i]));
++        mk('sumCompose');
+         cx.lineJoin = 'round'; cx.lineCap = 'round';
+         tracePath(cx, xs, ys); cx.strokeStyle = 'rgba(60,47,47,0.13)'; cx.lineWidth = 5; cx.stroke();
++        mk('sumBleed');
+         tracePath(cx, xs, ys); cx.strokeStyle = '#3C2F2F'; cx.lineWidth = 1.9;
+         if (globalBypass) cx.setLineDash([6, 4]);
+         cx.stroke(); cx.setLineDash([]);
++        mk('sumInk');
+     }
+     cx.restore();
+ 
+@@ -1757,6 +1785,7 @@
+     for (const b of order) drawNode(cx, b, t);
+     const ro = ui.drag ? ui.drag.b : ui.hover;
+     if (ro && bandOn(ro)) drawReadout(cx, ro);
++    mk('nodes');
+ }
+ 
+ // The listen halo is the page's only animation. It runs only while a band is

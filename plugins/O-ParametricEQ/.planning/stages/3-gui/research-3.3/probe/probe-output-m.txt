@@ -1,0 +1,14 @@
+=== O-ParametricEQ research-3.3 probe ===
+[PASS] M1      -6 dBFS sine: 3-tick hold within 0.5 dB for blocks <= 50 ms 44.1k B 1024 (23.2 ms): raw -200.00 .. -6.00 dB, empty ticks 47/165; 3-tick hold min -6.00
+        44.1k B 2048 (46.4 ms): raw -200.00 .. -6.00 dB, empty ticks 106/165; 3-tick hold min -6.00
+        44.1k B 4096 (92.9 ms): raw -200.00 .. -6.00 dB, empty ticks 135/165; 3-tick hold min -200.00
+        48.0k B 1024 (21.3 ms): raw -200.00 .. -6.00 dB, empty ticks 36/165; 3-tick hold min -6.00
+        48.0k B 2048 (42.7 ms): raw -200.00 .. -6.00 dB, empty ticks 101/165; 3-tick hold min -6.00
+        48.0k B 4096 (85.3 ms): raw -200.00 .. -6.00 dB, empty ticks 133/165; 3-tick hold min -200.00
+        96.0k B 2048 (21.3 ms): raw -200.00 .. -6.00 dB, empty ticks 36/165; 3-tick hold min -6.00
+        96.0k B 4096 (42.7 ms): raw -200.00 .. -6.00 dB, empty ticks 101/165; 3-tick hold min -6.00
+        192.0k B 2048 (10.7 ms): raw -6.00 .. -6.00 dB, empty ticks 0/165; 3-tick hold min -6.00
+        192.0k B 4096 (21.3 ms): raw -200.00 .. -6.00 dB, empty ticks 36/165; 3-tick hold min -6.00
+        
+
+1 PASS, 0 FAIL

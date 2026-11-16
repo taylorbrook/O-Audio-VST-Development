@@ -1,0 +1,5 @@
+=== O-ParametricEQ research-3.3 probe ===
+[FAIL] N1e     NaN in listen's input ramp: caught at its own chunk      12 / 16  1ch blk 64 off engage: later non-finite [2448..2472] (t1+R 2448)  1ch blk 512 off engage: later non-finite [2448..2536] (t1+R 2448)  1ch blk 512 off change: later non-finite none (t1+R 2448)  1ch blk 512 on engage: later non-finite none (t1+R 2448)  1ch blk 512 on change: later non-finite none (t1+R 2448)  2ch blk 64 off engage: later non-finite [2448..2472] (t1+R 2448)  2ch blk 512 off engage: later non-finite [2448..2536] (t1+R 2448)  2ch blk 512 off change: later non-finite none (t1+R 2448)  2ch blk 512 on engage: later non-finite none (t1+R 2448)  2ch blk 512 on change: later non-finite none (t1+R 2448)  
+[INFO] HASH    listen renders without NaN (compare across builds)       6274ff9b5b0e488a (3362400 B)
+
+0 PASS, 1 FAIL

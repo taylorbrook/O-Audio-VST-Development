@@ -1,0 +1,18 @@
+=== O-ParametricEQ research-3.3 probe ===
+[PASS] AO1     Off: no tap writes; Post on resumes post only            off drained 0/0, post on: pre 0 post 48000
+[INFO] AC1     analyzer tick cost (process, 60 Hz) + payload            44.1k mode 2 N 4096: med 89.3 p99 108.5 max 111.5 (n 300) us
+        44.1k mode 3 N 4096: med 164.7 p99 179.8 max 180.5 (n 300) us
+        48.0k mode 2 N 4096: med 89.1 p99 97.9 max 108.8 (n 300) us
+        48.0k mode 3 N 4096: med 164.4 p99 179.8 max 181.1 (n 300) us
+        96.0k mode 2 N 8192: med 165.1 p99 185.0 max 186.2 (n 300) us
+        96.0k mode 3 N 8192: med 302.3 p99 332.6 max 339.7 (n 300) us
+        192.0k mode 2 N 16384: med 314.8 p99 356.9 max 357.1 (n 300) us
+        192.0k mode 3 N 16384: med 612.2 p99 653.5 max 656.3 (n 300) us
+        payload full double: med 85.2 p99 109.5 max 115.5 (n 400) us, 5241 B; tenths int (floor -120): med 9.1 p99 11.8 max 13.3 (n 400) us, 1543 B
+[INFO] AT1     processBlock time vs analyzer mode (tap cost)            4 bells 48.0k blk 512: no consumer 17.92 / p99 25.54 us; [drained 0/0] mode 0 14.46 / p99 20.42 us; mode 2 11.75 / p99 25.42 us; mode 3 11.79 / p99 21.96 us; 
+        4 bells 192.0k blk 512: no consumer 11.25 / p99 17.46 us; [drained 0/0] mode 0 11.38 / p99 16.29 us; mode 2 12.54 / p99 16.33 us; mode 3 11.29 / p99 19.00 us; 
+        24 x 96 dB/oct 48.0k blk 512: no consumer 258.79 / p99 296.00 us; [drained 0/0] mode 0 257.79 / p99 311.50 us; mode 2 259.00 / p99 311.96 us; mode 3 260.38 / p99 295.96 us; 
+        24 x 96 dB/oct 192.0k blk 512: no consumer 239.79 / p99 320.25 us; [drained 0/0] mode 0 238.79 / p99 313.29 us; mode 2 239.12 / p99 287.42 us; mode 3 244.54 / p99 286.29 us; 
+        
+
+1 PASS, 0 FAIL
