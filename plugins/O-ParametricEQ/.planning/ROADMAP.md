@@ -217,7 +217,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 
 **Test criteria:**
 - [ ] Gate G9 (a) as amended 2026-11-15: closed form from the processor's display packets vs the measured response on the damped circle at all five rates, LL / RR / MM / SS, within 80 dB of each response's maximum; confirming unit-circle row on decaying draws; packet = realised design bit for bit; four controls fire (UI-02)
-- [ ] Analyzer (Hann, zero-pad 4x, amended 2026-11-15): a -12 dBFS 1 kHz sine reads -12 ± 0.5 dB at 1 kHz at 44.1, 96 and 192 kHz; ring overflow keeps the newest samples and never blocks; a prepare between drains reaches no transform
+- [ ] Analyzer (Hann, zero-pad 4x, amended 2026-11-15): a -12 dBFS 1 kHz sine reads -12 ± 0.5 dB at 1 kHz at 44.1, 96 and 192 kHz; a ring push never overwrites unread data: it keeps its newest samples that fit (the processor offers each block's last 32 768) and never blocks (amended 2026-11-15, P2 / XR-ovf; wording fixed at Stage 3 discuss); a prepare between drains reaches no transform
 - [ ] Gate G6 with the analyzer on and the rings saturated, listen switching (PERF-01)
 - [ ] Listen on / off and listen band changes pass Gate G3, listen engaging over 30 ms input ramp + 20 ms crossfade (amended 2026-11-15, C2); listen sits after auto gain (C3); with listen off the output is bit-identical to the output of the 0.5.0 processor, which has no listen code path (FUNC-08 engine half)
 - [ ] The five rows owed by VERIFICATION-2.5 (PX17, PX11, PX4, AG3, OS18)
@@ -233,6 +233,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 **Components:**
 - Finalized mockup → `Source/ui/public/index.html`; EB Garamond; i18n scaffold
 - Relays for 196 parameters; `UI` state native functions (`getUiState`, `setUiState`)
+- Render harness: port the nine probe-only rows from `stages/2-dsp/verify-2.6/` (LS10, LS11, LS12, LS15 / PX26, PX27, PX38, PX39) plus DM2 (layout change at the same rate), AN1 (no frame straddles a drop), PX22 (mono placement edit while listening) (Stage 3 discuss, VERIFICATION-2.6 Issue 2)
 
 **Test criteria:**
 - [ ] Editor opens at the mockup size in VST3 and AU
@@ -264,11 +265,13 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 **Components:**
 - Analyzer canvas (pre / post), mode control bound to `UI` state
 - `vu-meter` output meter; per-band fills; listen while dragging
+- Listen fix: `Listen::process` reports a non-finite voice output, treated as a non-finite lane at step 8 (VERIFICATION-2.6 Issue 1)
 
 **Test criteria:**
 - [ ] Analyzer Off / Pre / Post / Pre+Post (UI-03); Off stops the audio-thread writes
 - [ ] Meter tracks a -6 dBFS sine within 0.5 dB (UI-06)
-- [ ] Fills coloured per band (UI-07); listen engages on the dragged band and releases cleanly (FUNC-08)
+- [ ] Fills coloured per band (UI-07); listen engages on the dragged band and releases cleanly, the strip's Listen button latches it, disabling or deleting the listened band ends it (FUNC-08)
+- [ ] A NaN inside listen's input ramp with no band running is caught at its own chunk (probe N1e row)
 - [ ] 60 fps redraw while dragging with the analyzer on does not raise audio-thread time
 
 ---
