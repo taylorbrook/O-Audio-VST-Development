@@ -1,0 +1,1207 @@
+{
+  "mode": "fallback",
+  "cycles": [
+    {
+      "cycle": 0,
+      "ctorMs": 58.054666668176651,
+      "shownMs": 64.775291681289673,
+      "relaysMs": 0.033125013113022,
+      "optionsMs": 0.481958329677582,
+      "webViewCtorMs": 29.72370833158493,
+      "attachMs": 0.122208327054977,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 102.813874989748001,
+      "dclMs": 189.064500004053116,
+      "loadMs": 189.20054167509079,
+      "allPropsMs": 189.158749997615814,
+      "firstPaintMs": 224.113583326339722,
+      "secondFrameMs": 237.312333345413208,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 87.000000000000014,
+        "n": 12,
+        "evals": 25,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 86,
+        "evals": 2,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 136,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.55204164981842,
+      "cycleMs": 6352.234874993562698
+    },
+    {
+      "cycle": 1,
+      "ctorMs": 35.293249994516373,
+      "shownMs": 35.953541666269302,
+      "relaysMs": 0.038374990224838,
+      "optionsMs": 0.514583349227905,
+      "webViewCtorMs": 8.832666665315628,
+      "attachMs": 0.146124988794327,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 66.974083334207535,
+      "dclMs": 92.656833320856094,
+      "loadMs": 93.32600000500679,
+      "allPropsMs": 92.827583342790604,
+      "firstPaintMs": 111.204458326101303,
+      "secondFrameMs": 125.276916652917862,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 27,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 59.000000000000007,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.453083336353302,
+      "cycleMs": 126.087708324193954
+    },
+    {
+      "cycle": 2,
+      "ctorMs": 48.329499989748001,
+      "shownMs": 48.827791661024094,
+      "relaysMs": 0.04666668176651,
+      "optionsMs": 0.47749999165535,
+      "webViewCtorMs": 22.460458338260651,
+      "attachMs": 0.121249973773956,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 79.354708343744278,
+      "dclMs": 104.636500000953674,
+      "loadMs": 105.504624992609024,
+      "allPropsMs": 104.73012501001358,
+      "firstPaintMs": 108.499000012874603,
+      "secondFrameMs": 124.066666662693024,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 26.000000000000004,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 46,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.389458328485489,
+      "cycleMs": 125.496833324432373
+    },
+    {
+      "cycle": 3,
+      "ctorMs": 39.259041666984558,
+      "shownMs": 39.741166651248932,
+      "relaysMs": 0.052000015974045,
+      "optionsMs": 0.514874994754791,
+      "webViewCtorMs": 12.68962499499321,
+      "attachMs": 0.140291661024094,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 69.303833335638046,
+      "dclMs": 94.763666659593582,
+      "loadMs": 94.900333315134048,
+      "allPropsMs": 94.861833333969116,
+      "firstPaintMs": 97.221249997615814,
+      "secondFrameMs": 112.731374979019165,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 24,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 24,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 44,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.395749986171722,
+      "cycleMs": 114.023083329200745
+    },
+    {
+      "cycle": 4,
+      "ctorMs": 29.228583335876465,
+      "shownMs": 29.717375010251999,
+      "relaysMs": 0.044166654348373,
+      "optionsMs": 0.477583348751068,
+      "webViewCtorMs": 3.852791666984558,
+      "attachMs": 0.118416666984558,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 56.392708331346512,
+      "dclMs": 81.218291670084,
+      "loadMs": 81.354541659355164,
+      "allPropsMs": 81.311333328485489,
+      "firstPaintMs": 88.83283331990242,
+      "secondFrameMs": 104.18512499332428,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 24,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 24,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 49,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.352875024080276,
+      "cycleMs": 106.917208343744278
+    },
+    {
+      "cycle": 5,
+      "ctorMs": 32.157708317041397,
+      "shownMs": 32.648958325386047,
+      "relaysMs": 0.049041658639908,
+      "optionsMs": 0.494249999523163,
+      "webViewCtorMs": 6.210791677236557,
+      "attachMs": 0.132666647434235,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 63.255083322525024,
+      "dclMs": 88.175291657447815,
+      "loadMs": 88.358249992132187,
+      "allPropsMs": 88.263958334922791,
+      "firstPaintMs": 96.287291675806046,
+      "secondFrameMs": 111.70100000500679,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 24,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 24,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 50,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.356291681528091,
+      "cycleMs": 112.506416648626328
+    },
+    {
+      "cycle": 6,
+      "ctorMs": 37.143166661262512,
+      "shownMs": 37.654666662216187,
+      "relaysMs": 0.049208343029022,
+      "optionsMs": 0.489791661500931,
+      "webViewCtorMs": 10.63333335518837,
+      "attachMs": 0.128583312034607,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 68.31462499499321,
+      "dclMs": 94.349624991416931,
+      "loadMs": 94.961624979972839,
+      "allPropsMs": 94.44412499666214,
+      "firstPaintMs": 97.451999992132187,
+      "secondFrameMs": 112.665833324193954,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 25,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 45,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.40366667509079,
+      "cycleMs": 113.916999995708466
+    },
+    {
+      "cycle": 7,
+      "ctorMs": 38.542708337306976,
+      "shownMs": 39.054333329200745,
+      "relaysMs": 0.043708324432373,
+      "optionsMs": 0.485125005245209,
+      "webViewCtorMs": 12.704333335161209,
+      "attachMs": 0.126749992370605,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 68.606708347797394,
+      "dclMs": 94.563791662454605,
+      "loadMs": 94.708333343267441,
+      "allPropsMs": 94.660958349704742,
+      "firstPaintMs": 99.640375018119812,
+      "secondFrameMs": 114.972250014543533,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 25,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 48,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.409458339214325,
+      "cycleMs": 116.49595832824707
+    },
+    {
+      "cycle": 8,
+      "ctorMs": 39.806416660547256,
+      "shownMs": 40.367833316326141,
+      "relaysMs": 0.043000012636185,
+      "optionsMs": 0.476333349943161,
+      "webViewCtorMs": 13.659833312034607,
+      "attachMs": 0.123125016689301,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 71.114250004291534,
+      "dclMs": 97.324624985456467,
+      "loadMs": 97.462874978780746,
+      "allPropsMs": 97.41520830988884,
+      "firstPaintMs": 115.069833338260651,
+      "secondFrameMs": 128.242749989032745,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 25,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 24,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 58,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.409833312034607,
+      "cycleMs": 130.69387498497963
+    },
+    {
+      "cycle": 9,
+      "ctorMs": 63.145374983549118,
+      "shownMs": 63.726416647434235,
+      "relaysMs": 0.043208330869675,
+      "optionsMs": 0.476083338260651,
+      "webViewCtorMs": 36.627750009298325,
+      "attachMs": 0.134375005960464,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 95.038666665554047,
+      "dclMs": 120.726749986410141,
+      "loadMs": 120.916999995708466,
+      "allPropsMs": 120.825708329677582,
+      "firstPaintMs": 124.549249976873398,
+      "secondFrameMs": 139.913958311080933,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 26.000000000000004,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 46,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.414291679859161,
+      "cycleMs": 141.240583330392838
+    }
+  ],
+  "presets": [
+    {
+      "method": "single",
+      "rep": 0,
+      "id": 1,
+      "expected": 1,
+      "applyMs": 0.040416657924652,
+      "t0": 2.3986725882625e8,
+      "settledRecvMs": 0.339083343744278,
+      "settled": {
+        "type": "settled",
+        "pnow": 2742,
+        "id": 1,
+        "n": 1,
+        "msArmToFirst": 1,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 0.843208342790604,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2742,
+        "id": 1,
+        "msArmToPaint": 1,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 0,
+      "id": 2,
+      "expected": 12,
+      "applyMs": 0.241583347320557,
+      "t0": 2.398674126108333e8,
+      "settledRecvMs": 0.625625014305115,
+      "settled": {
+        "type": "settled",
+        "pnow": 2896,
+        "id": 2,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 12.298083335161209,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2906,
+        "id": 2,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 26.92570835351944,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 2922,
+        "id": 2,
+        "msArmToCurvePaint": 27,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 0,
+      "id": 3,
+      "expected": 12,
+      "applyMs": 3.13824999332428,
+      "t0": 2.398675919919583e8,
+      "settledRecvMs": 3.306833326816559,
+      "settled": {
+        "type": "settled",
+        "pnow": 3078,
+        "id": 3,
+        "n": 12,
+        "msArmToFirst": 2,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 13.541000008583069,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3088,
+        "id": 3,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 46.781666666269302,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3121,
+        "id": 3,
+        "msArmToCurvePaint": 46,
+        "framesArmToCurvePaint": 3
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 0,
+      "id": 4,
+      "expected": 12,
+      "applyMs": 0.136749982833862,
+      "t0": 2.398677926110417e8,
+      "settledRecvMs": 0.812958329916,
+      "settled": {
+        "type": "settled",
+        "pnow": 3276.000000000000455,
+        "id": 4,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1.000000000000455,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 13.493666648864746,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3289,
+        "id": 4,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 46.612250000238419,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3322,
+        "id": 4,
+        "msArmToCurvePaint": 47,
+        "framesArmToCurvePaint": 3
+      }
+    },
+    {
+      "method": "single",
+      "rep": 1,
+      "id": 5,
+      "expected": 1,
+      "applyMs": 0.038583338260651,
+      "t0": 2.398679911971667e8,
+      "settledRecvMs": 0.321125000715256,
+      "settled": {
+        "type": "settled",
+        "pnow": 3474,
+        "id": 5,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 56
+      },
+      "settledPaintRecvMs": 14.527958333492279,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3488,
+        "id": 5,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 1,
+      "id": 6,
+      "expected": 12,
+      "applyMs": 0.223541676998138,
+      "t0": 2.398681571762083e8,
+      "settledRecvMs": 0.416999995708466,
+      "settled": {
+        "type": "settled",
+        "pnow": 3640,
+        "id": 6,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 14.975583344697952,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3655.000000000000455,
+        "id": 6,
+        "msArmToPaint": 15.000000000000455,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 48.328791677951813,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3688,
+        "id": 6,
+        "msArmToCurvePaint": 48,
+        "framesArmToCurvePaint": 3
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 1,
+      "id": 7,
+      "expected": 12,
+      "applyMs": 3.171375006437302,
+      "t0": 2.398683586774583e8,
+      "settledRecvMs": 3.391625016927719,
+      "settled": {
+        "type": "settled",
+        "pnow": 3844,
+        "id": 7,
+        "n": 12,
+        "msArmToFirst": 3,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 13.784250020980835,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3855,
+        "id": 7,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 46.867666661739349,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3888,
+        "id": 7,
+        "msArmToCurvePaint": 47,
+        "framesArmToCurvePaint": 3
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 1,
+      "id": 8,
+      "expected": 12,
+      "applyMs": 0.13850000500679,
+      "t0": 2.398685572446667e8,
+      "settledRecvMs": 0.851416647434235,
+      "settled": {
+        "type": "settled",
+        "pnow": 4041.000000000000455,
+        "id": 8,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1.000000000000455,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1.000000000000455,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 15.084041655063629,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 4054.999999999999545,
+        "id": 8,
+        "msArmToPaint": 14.999999999999545,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 48.128833323717117,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 4088,
+        "id": 8,
+        "msArmToCurvePaint": 48,
+        "framesArmToCurvePaint": 3
+      }
+    }
+  ],
+  "idle": {
+    "relaysOnly": {
+      "type": "idle",
+      "pnow": 5242,
+      "ms": 1001,
+      "evals": {
+      },
+      "posts": {
+      }
+    },
+    "with30HzTimer": {
+      "type": "idle",
+      "pnow": 6248,
+      "ms": 1003,
+      "evals": {
+        "outputLevel": 30
+      },
+      "posts": {
+      }
+    }
+  },
+  "raf": {
+    "type": "raf",
+    "pnow": 2438,
+    "median": 17,
+    "mean": 16.649999999999999,
+    "max": 18
+  },
+  "timeouts": [],
+  "build": "Debug"
+}

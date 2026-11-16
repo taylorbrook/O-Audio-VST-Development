@@ -1,0 +1,273 @@
+{
+  "mode": "full",
+  "cycles": [
+    {
+      "cycle": 0,
+      "ctorMs": 73.722124993801117,
+      "shownMs": 78.918958336114883,
+      "relaysMs": 0.083000004291534,
+      "optionsMs": 0.806791663169861,
+      "webViewCtorMs": 36.171000003814697,
+      "attachMs": 0.146208316087723,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 124.335583329200745,
+      "dclMs": 215.876708328723907,
+      "loadMs": 221.298958331346512,
+      "allPropsMs": 221.271833330392838,
+      "firstPaintMs": 260.597833335399628,
+      "secondFrameMs": 275.595375001430511,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 100,
+        "n": 196,
+        "evals": 393,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 96,
+        "evals": 2,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 156,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.572791665792465,
+      "cycleMs": 7557.614916652441025
+    }
+  ],
+  "presets": [
+    {
+      "method": "single",
+      "rep": 0,
+      "id": 1,
+      "expected": 1,
+      "applyMs": 0.014416664838791,
+      "t0": 2.39560901656375e8,
+      "settledRecvMs": 0.37474998831749,
+      "settled": {
+        "type": "settled",
+        "pnow": 2760.000000000000455,
+        "id": 1,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 0.91095831990242,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2761,
+        "id": 1,
+        "msArmToPaint": 0.999999999999545,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 0,
+      "id": 2,
+      "expected": 196,
+      "applyMs": 0.693250000476837,
+      "t0": 2.395610577093333e8,
+      "settledRecvMs": 3.049541652202606,
+      "settled": {
+        "type": "settled",
+        "pnow": 2919,
+        "id": 2,
+        "n": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 15.674166649580002,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2932,
+        "id": 2,
+        "msArmToPaint": 16,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 31.969541668891907,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 2948,
+        "id": 2,
+        "msArmToCurvePaint": 32,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 0,
+      "id": 3,
+      "expected": 196,
+      "applyMs": 1.090541690587997,
+      "t0": 2.39561244467e8,
+      "settledRecvMs": 2.047875016927719,
+      "settled": {
+        "type": "settled",
+        "pnow": 3105,
+        "id": 3,
+        "n": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 2,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 3.095375001430511,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3106,
+        "id": 3,
+        "msArmToPaint": 3,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 3.11366668343544,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3106,
+        "id": 3,
+        "msArmToCurvePaint": 3,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 0,
+      "id": 4,
+      "expected": 196,
+      "applyMs": 0.113499999046326,
+      "t0": 2.395614017355417e8,
+      "settledRecvMs": 1.821874976158142,
+      "settled": {
+        "type": "settled",
+        "pnow": 3262,
+        "id": 4,
+        "n": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 1.999999999999545,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 15.175291657447815,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3275,
+        "id": 4,
+        "msArmToPaint": 14.999999999999545,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 15.193749994039536,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3275,
+        "id": 4,
+        "msArmToCurvePaint": 14.999999999999545,
+        "framesArmToCurvePaint": 1
+      }
+    }
+  ],
+  "idle": {
+    "relaysOnly": {
+      "type": "idle",
+      "pnow": 5428,
+      "ms": 2000,
+      "evals": {
+      },
+      "posts": {
+      }
+    },
+    "with30HzTimer": {
+      "type": "idle",
+      "pnow": 7434,
+      "ms": 2003,
+      "evals": {
+        "outputLevel": 59
+      },
+      "posts": {
+      }
+    }
+  },
+  "raf": {
+    "type": "raf",
+    "pnow": 2456,
+    "median": 17,
+    "mean": 16.641666666666666,
+    "max": 19
+  },
+  "timeouts": [],
+  "build": "Release"
+}

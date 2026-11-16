@@ -1,0 +1,1277 @@
+{
+  "mode": "full",
+  "cycles": [
+    {
+      "cycle": 0,
+      "ctorMs": 96.626249998807907,
+      "shownMs": 110.278416663408279,
+      "relaysMs": 0.74979168176651,
+      "optionsMs": 11.374791651964188,
+      "webViewCtorMs": 54.213124990463257,
+      "attachMs": 1.533458352088928,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 156.524458318948746,
+      "dclMs": 259.487291663885117,
+      "loadMs": 260.175208330154419,
+      "allPropsMs": 260.123708337545395,
+      "firstPaintMs": 292.145374983549118,
+      "secondFrameMs": 305.805124998092651,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 108,
+        "n": 196,
+        "evals": 394,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 98,
+        "evals": 3,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 155,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.678791642189026,
+      "cycleMs": 6292.121874988079071
+    },
+    {
+      "cycle": 1,
+      "ctorMs": 64.25900000333786,
+      "shownMs": 64.866208344697952,
+      "relaysMs": 0.632333338260651,
+      "optionsMs": 11.245916664600372,
+      "webViewCtorMs": 25.704416662454605,
+      "attachMs": 1.534875005483627,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 97.385458320379257,
+      "dclMs": 130.476999998092651,
+      "loadMs": 131.507166653871536,
+      "allPropsMs": 131.467624992132187,
+      "firstPaintMs": 142.823708325624466,
+      "secondFrameMs": 157.665583342313766,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 37,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 27,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 65,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.567666679620743,
+      "cycleMs": 161.167958348989487
+    },
+    {
+      "cycle": 2,
+      "ctorMs": 62.549333333969116,
+      "shownMs": 63.066208332777023,
+      "relaysMs": 0.63166669011116,
+      "optionsMs": 11.138416647911072,
+      "webViewCtorMs": 24.206833332777023,
+      "attachMs": 1.508041679859161,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 95.204999983310699,
+      "dclMs": 128.487041652202606,
+      "loadMs": 129.483333319425583,
+      "allPropsMs": 129.432041674852371,
+      "firstPaintMs": 139.471249997615814,
+      "secondFrameMs": 154.376166671514511,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 37,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 63,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.554083347320557,
+      "cycleMs": 156.119125008583069
+    },
+    {
+      "cycle": 3,
+      "ctorMs": 62.538374990224838,
+      "shownMs": 63.042041659355164,
+      "relaysMs": 0.635374993085861,
+      "optionsMs": 11.371333360671997,
+      "webViewCtorMs": 24.348124980926514,
+      "attachMs": 1.517708331346512,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 95.368458330631256,
+      "dclMs": 127.286458343267441,
+      "loadMs": 128.322791665792465,
+      "allPropsMs": 128.279249995946884,
+      "firstPaintMs": 138.680375009775162,
+      "secondFrameMs": 154.285833328962326,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 35,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 63,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.591916650533676,
+      "cycleMs": 157.680500000715256
+    },
+    {
+      "cycle": 4,
+      "ctorMs": 64.063166677951813,
+      "shownMs": 64.554875016212463,
+      "relaysMs": 0.650375008583069,
+      "optionsMs": 11.468666672706604,
+      "webViewCtorMs": 25.245333343744278,
+      "attachMs": 1.547291666269302,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 96.675833344459534,
+      "dclMs": 129.485083341598511,
+      "loadMs": 130.510041683912277,
+      "allPropsMs": 130.468458324670792,
+      "firstPaintMs": 139.973166674375534,
+      "secondFrameMs": 154.839083343744278,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 36.000000000000007,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 62,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.57316666841507,
+      "cycleMs": 158.357791662216187
+    },
+    {
+      "cycle": 5,
+      "ctorMs": 62.780083328485489,
+      "shownMs": 63.267916679382324,
+      "relaysMs": 0.639999985694885,
+      "optionsMs": 11.23245832324028,
+      "webViewCtorMs": 24.323458343744278,
+      "attachMs": 1.518583327531815,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 95.132666677236557,
+      "dclMs": 128.397291660308838,
+      "loadMs": 129.38095834851265,
+      "allPropsMs": 129.342791676521301,
+      "firstPaintMs": 138.83429166674614,
+      "secondFrameMs": 153.747999995946884,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 37,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 63,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.574166655540466,
+      "cycleMs": 157.08970832824707
+    },
+    {
+      "cycle": 6,
+      "ctorMs": 62.554833322763443,
+      "shownMs": 63.065708339214325,
+      "relaysMs": 0.637333333492279,
+      "optionsMs": 11.312041670084,
+      "webViewCtorMs": 24.30845832824707,
+      "attachMs": 1.52179166674614,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 95.229499995708466,
+      "dclMs": 127.865875005722046,
+      "loadMs": 128.851708322763443,
+      "allPropsMs": 128.805541664361954,
+      "firstPaintMs": 138.236333340406418,
+      "secondFrameMs": 154.503833323717117,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 36.000000000000007,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 63,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.574000000953674,
+      "cycleMs": 157.905750006437302
+    },
+    {
+      "cycle": 7,
+      "ctorMs": 63.921875,
+      "shownMs": 64.418291658163071,
+      "relaysMs": 0.646291673183441,
+      "optionsMs": 11.340791672468185,
+      "webViewCtorMs": 25.129916667938232,
+      "attachMs": 1.518749982118607,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 96.973416656255722,
+      "dclMs": 130.308916658163071,
+      "loadMs": 131.340458333492279,
+      "allPropsMs": 131.298500001430511,
+      "firstPaintMs": 145.389833331108093,
+      "secondFrameMs": 160.520624995231628,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 37,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 68,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.540666669607162,
+      "cycleMs": 162.118000000715256
+    },
+    {
+      "cycle": 8,
+      "ctorMs": 65.324124991893768,
+      "shownMs": 65.814374983310699,
+      "relaysMs": 0.654208332300186,
+      "optionsMs": 11.606208324432373,
+      "webViewCtorMs": 26.378500014543533,
+      "attachMs": 1.53812500834465,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 98.00687500834465,
+      "dclMs": 130.576833337545395,
+      "loadMs": 131.561458319425583,
+      "allPropsMs": 131.520166665315628,
+      "firstPaintMs": 140.982208341360092,
+      "secondFrameMs": 156.007958322763443,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 36.000000000000007,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 62,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.518249988555908,
+      "cycleMs": 157.602083325386047
+    },
+    {
+      "cycle": 9,
+      "ctorMs": 63.751124978065491,
+      "shownMs": 64.246291667222977,
+      "relaysMs": 0.647791653871536,
+      "optionsMs": 11.402875006198883,
+      "webViewCtorMs": 25.116541653871536,
+      "attachMs": 1.492541670799255,
+      "numRelays": 196,
+      "numEventListeners": 198,
+      "estUserScriptBytes": 1065166,
+      "estEventIdScriptBytes": 1057122,
+      "estInitDataBytes": 2352,
+      "scriptStartMs": 96.024041652679443,
+      "dclMs": 129.142708331346512,
+      "loadMs": 130.132333308458328,
+      "allPropsMs": 130.090791642665863,
+      "firstPaintMs": 138.997291654348373,
+      "secondFrameMs": 152.190958321094513,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 36.000000000000007,
+        "n": 196,
+        "evals": 392,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b24_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B24 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          },
+          "b24_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 60,
+        "nWarn": 0,
+        "nErr": 0,
+        "unknownWarn": 0,
+        "warns": []
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.575374990701675,
+      "cycleMs": 153.272958308458328
+    }
+  ],
+  "presets": [
+    {
+      "method": "single",
+      "rep": 0,
+      "id": 1,
+      "expected": 1,
+      "applyMs": 0.041666656732559,
+      "t0": 2.398553966689167e8,
+      "settledRecvMs": 0.338541656732559,
+      "settled": {
+        "type": "settled",
+        "pnow": 2760.000000000000455,
+        "id": 1,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 0.847916662693024,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2760.000000000000455,
+        "id": 1,
+        "msArmToPaint": 0,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 0,
+      "id": 2,
+      "expected": 196,
+      "applyMs": 2.523874998092651,
+      "t0": 2.398555501984583e8,
+      "settledRecvMs": 3.308458358049393,
+      "settled": {
+        "type": "settled",
+        "pnow": 2916,
+        "id": 2,
+        "n": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 2.999999999999545,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 18.742750018835068,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2932,
+        "id": 2,
+        "msArmToPaint": 18.999999999999545,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 34.607625007629395,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 2948,
+        "id": 2,
+        "msArmToCurvePaint": 34.999999999999545,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 0,
+      "id": 3,
+      "expected": 196,
+      "applyMs": 5.47470834851265,
+      "t0": 2.398557393475833e8,
+      "settledRecvMs": 8.273291677236557,
+      "settled": {
+        "type": "settled",
+        "pnow": 3108,
+        "id": 3,
+        "n": 196,
+        "msArmToFirst": 3,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9874
+      },
+      "settledPaintRecvMs": 8.881000012159348,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3111,
+        "id": 3,
+        "msArmToPaint": 9,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 8.921916663646698,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3111,
+        "id": 3,
+        "msArmToCurvePaint": 9,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 0,
+      "id": 4,
+      "expected": 196,
+      "applyMs": 0.202499985694885,
+      "t0": 2.39855901553875e8,
+      "settledRecvMs": 3.646249979734421,
+      "settled": {
+        "type": "settled",
+        "pnow": 3268.000000000000455,
+        "id": 4,
+        "n": 196,
+        "msArmToFirst": 0.999999999999545,
+        "msArmToLast": 4,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10212
+      },
+      "settledPaintRecvMs": 12.09870833158493,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3276.000000000000455,
+        "id": 4,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 27.886166661977768,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3292.000000000000455,
+        "id": 4,
+        "msArmToCurvePaint": 28,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "single",
+      "rep": 1,
+      "id": 5,
+      "expected": 1,
+      "applyMs": 0.038458347320557,
+      "t0": 2.398560823238333e8,
+      "settledRecvMs": 0.17637500166893,
+      "settled": {
+        "type": "settled",
+        "pnow": 3445.000000000000455,
+        "id": 5,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 56
+      },
+      "settledPaintRecvMs": 12.937166661024094,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3458,
+        "id": 5,
+        "msArmToPaint": 12.999999999999545,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 1,
+      "id": 6,
+      "expected": 196,
+      "applyMs": 2.454750001430511,
+      "t0": 2.39856249433375e8,
+      "settledRecvMs": 2.749541670084,
+      "settled": {
+        "type": "settled",
+        "pnow": 3615,
+        "id": 6,
+        "n": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 9875
+      },
+      "settledPaintRecvMs": 16.924791663885117,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3629,
+        "id": 6,
+        "msArmToPaint": 17,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 33.568041652441025,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3646,
+        "id": 6,
+        "msArmToCurvePaint": 34,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 1,
+      "id": 7,
+      "expected": 196,
+      "applyMs": 5.656083315610886,
+      "t0": 2.398564344234583e8,
+      "settledRecvMs": 8.724333316087723,
+      "settled": {
+        "type": "settled",
+        "pnow": 3803,
+        "id": 7,
+        "n": 196,
+        "msArmToFirst": 3.000000000000455,
+        "msArmToLast": 6,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 10213
+      },
+      "settledPaintRecvMs": 18.364041656255722,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3816.000000000000455,
+        "id": 7,
+        "msArmToPaint": 19.000000000000455,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 18.409166663885117,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3816.000000000000455,
+        "id": 7,
+        "msArmToCurvePaint": 19.000000000000455,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 1,
+      "id": 8,
+      "expected": 196,
+      "applyMs": 0.198666661977768,
+      "t0": 2.398566036938333e8,
+      "settledRecvMs": 6.193875014781952,
+      "settled": {
+        "type": "settled",
+        "pnow": 3970,
+        "id": 8,
+        "n": 196,
+        "msArmToFirst": 0,
+        "msArmToLast": 3,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 9875
+      },
+      "settledPaintRecvMs": 12.857166677713394,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3979,
+        "id": 8,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 12.89962500333786,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3979,
+        "id": 8,
+        "msArmToCurvePaint": 12,
+        "framesArmToCurvePaint": 1
+      }
+    }
+  ],
+  "idle": {
+    "relaysOnly": {
+      "type": "idle",
+      "pnow": 5135,
+      "ms": 1003,
+      "evals": {
+      },
+      "posts": {
+      }
+    },
+    "with30HzTimer": {
+      "type": "idle",
+      "pnow": 6137,
+      "ms": 1000,
+      "evals": {
+        "outputLevel": 29
+      },
+      "posts": {
+      }
+    }
+  },
+  "raf": {
+    "type": "raf",
+    "pnow": 2454,
+    "median": 17,
+    "mean": 16.625,
+    "max": 19
+  },
+  "timeouts": [],
+  "build": "Debug"
+}

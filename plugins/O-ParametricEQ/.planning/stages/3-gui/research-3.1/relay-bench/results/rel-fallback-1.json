@@ -1,0 +1,2385 @@
+{
+  "mode": "fallback",
+  "cycles": [
+    {
+      "cycle": 0,
+      "ctorMs": 59.086208343505859,
+      "shownMs": 69.481708347797394,
+      "relaysMs": 0.007291674613953,
+      "optionsMs": 0.066583335399628,
+      "webViewCtorMs": 29.429958343505859,
+      "attachMs": 0.024208337068558,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 106.018791675567627,
+      "dclMs": 192.27866667509079,
+      "loadMs": 193.231666684150696,
+      "allPropsMs": 192.967249989509583,
+      "firstPaintMs": 239.542125016450882,
+      "secondFrameMs": 254.272375017404556,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 88,
+        "n": 12,
+        "evals": 25,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 87.000000000000014,
+        "evals": 2,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 149,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.525916665792465,
+      "cycleMs": 19989.992749989032745
+    },
+    {
+      "cycle": 1,
+      "ctorMs": 29.682208329439163,
+      "shownMs": 30.394583314657211,
+      "relaysMs": 0.008291661739349,
+      "optionsMs": 0.075708359479904,
+      "webViewCtorMs": 3.690666645765305,
+      "attachMs": 0.026875019073486,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 57.901708334684372,
+      "dclMs": 81.952333331108093,
+      "loadMs": 82.81700000166893,
+      "allPropsMs": 82.568583309650421,
+      "firstPaintMs": 107.24524998664856,
+      "secondFrameMs": 122.093374997377396,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 25,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 65,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.369000017642975,
+      "cycleMs": 123.570958316326141
+    },
+    {
+      "cycle": 2,
+      "ctorMs": 29.756583333015442,
+      "shownMs": 30.354291677474976,
+      "relaysMs": 0.010625004768372,
+      "optionsMs": 0.070833325386047,
+      "webViewCtorMs": 3.704499989748001,
+      "attachMs": 0.02037501335144,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 58.665166676044464,
+      "dclMs": 83.54475000500679,
+      "loadMs": 84.572666674852371,
+      "allPropsMs": 84.29858335852623,
+      "firstPaintMs": 89.111000001430511,
+      "secondFrameMs": 104.320541679859161,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 26.000000000000004,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 46,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.342833340167999,
+      "cycleMs": 105.555125027894974
+    },
+    {
+      "cycle": 3,
+      "ctorMs": 29.355374991893768,
+      "shownMs": 29.927208334207535,
+      "relaysMs": 0.011625021696091,
+      "optionsMs": 0.068333327770233,
+      "webViewCtorMs": 3.203374981880188,
+      "attachMs": 0.022875010967255,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 57.532333314418793,
+      "dclMs": 82.14770832657814,
+      "loadMs": 83.018166661262512,
+      "allPropsMs": 82.759999990463257,
+      "firstPaintMs": 91.973541647195816,
+      "secondFrameMs": 107.048458307981491,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 26.000000000000004,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 50,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.294833332300186,
+      "cycleMs": 110.077833324670792
+    },
+    {
+      "cycle": 4,
+      "ctorMs": 28.98504164814949,
+      "shownMs": 29.602583318948746,
+      "relaysMs": 0.010083317756653,
+      "optionsMs": 0.066500008106232,
+      "webViewCtorMs": 3.219958335161209,
+      "attachMs": 0.02079164981842,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 57.814749985933304,
+      "dclMs": 82.281583309173584,
+      "loadMs": 83.152500003576279,
+      "allPropsMs": 82.903458327054977,
+      "firstPaintMs": 89.721916645765305,
+      "secondFrameMs": 105.370624989271164,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 26.000000000000004,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 48,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.271499991416931,
+      "cycleMs": 107.628624975681305
+    },
+    {
+      "cycle": 5,
+      "ctorMs": 29.134791642427444,
+      "shownMs": 29.730874985456467,
+      "relaysMs": 0.01137501001358,
+      "optionsMs": 0.068958312273026,
+      "webViewCtorMs": 3.504541665315628,
+      "attachMs": 0.019500017166138,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 56.925208330154419,
+      "dclMs": 81.035416662693024,
+      "loadMs": 81.979708313941956,
+      "allPropsMs": 81.649999976158142,
+      "firstPaintMs": 88.018374979496002,
+      "secondFrameMs": 103.320541650056839,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 25,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 47,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.311583310365677,
+      "cycleMs": 105.377166658639908
+    },
+    {
+      "cycle": 6,
+      "ctorMs": 29.385250002145767,
+      "shownMs": 29.941333323717117,
+      "relaysMs": 0.011500000953674,
+      "optionsMs": 0.067291647195816,
+      "webViewCtorMs": 3.540000021457672,
+      "attachMs": 0.021666646003723,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 57.298958331346512,
+      "dclMs": 81.853458344936371,
+      "loadMs": 82.828624993562698,
+      "allPropsMs": 82.486874997615814,
+      "firstPaintMs": 89.540666669607162,
+      "secondFrameMs": 105.060833334922791,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 26.000000000000004,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 25,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 48,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.324833333492279,
+      "cycleMs": 105.407958328723907
+    },
+    {
+      "cycle": 7,
+      "ctorMs": 29.181291669607162,
+      "shownMs": 29.749750018119812,
+      "relaysMs": 0.011458337306976,
+      "optionsMs": 0.068625003099442,
+      "webViewCtorMs": 3.105208337306976,
+      "attachMs": 0.023666679859161,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 58.118291676044464,
+      "dclMs": 82.879833340644836,
+      "loadMs": 83.797875016927719,
+      "allPropsMs": 83.527916669845581,
+      "firstPaintMs": 89.510625004768372,
+      "secondFrameMs": 105.088916689157486,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 26.000000000000004,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 26.000000000000004,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 48,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.321375012397766,
+      "cycleMs": 108.124916672706604
+    },
+    {
+      "cycle": 8,
+      "ctorMs": 30.059750020503998,
+      "shownMs": 30.599416673183441,
+      "relaysMs": 0.010958343744278,
+      "optionsMs": 0.065416663885117,
+      "webViewCtorMs": 3.934958338737488,
+      "attachMs": 0.020291656255722,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 59.238916665315628,
+      "dclMs": 82.909041672945023,
+      "loadMs": 83.818625003099442,
+      "allPropsMs": 83.562083333730698,
+      "firstPaintMs": 89.500708341598511,
+      "secondFrameMs": 104.711958348751068,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 25,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 24,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 46,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.311125010251999,
+      "cycleMs": 107.978916674852371
+    },
+    {
+      "cycle": 9,
+      "ctorMs": 28.697750002145767,
+      "shownMs": 29.244583338499069,
+      "relaysMs": 0.009958326816559,
+      "optionsMs": 0.065791666507721,
+      "webViewCtorMs": 3.456458330154419,
+      "attachMs": 0.019125014543533,
+      "numRelays": 12,
+      "numEventListeners": 14,
+      "estUserScriptBytes": 11673,
+      "estEventIdScriptBytes": 5838,
+      "estInitDataBytes": 144,
+      "scriptStartMs": 56.486458331346512,
+      "dclMs": 80.102666676044464,
+      "loadMs": 80.963291674852371,
+      "allPropsMs": 80.719083338975906,
+      "firstPaintMs": 87.808624982833862,
+      "secondFrameMs": 103.743208318948746,
+      "allProps": {
+        "type": "allProps",
+        "pnow": 25,
+        "n": 12,
+        "evals": 24,
+        "posts": 200,
+        "check": {
+          "b01_freq": {
+            "start": 10,
+            "end": 30000,
+            "skew": 0.203214481472969,
+            "interval": 0,
+            "name": "B1 Freq"
+          },
+          "b01_type": {
+            "n": 8,
+            "choices": [
+              "Bell",
+              "Low Shelf",
+              "High Shelf",
+              "Low Cut",
+              "High Cut",
+              "Notch",
+              "Band Pass",
+              "Tilt Shelf"
+            ]
+          }
+        }
+      },
+      "dcl": {
+        "type": "dcl",
+        "pnow": 24,
+        "evals": 1,
+        "posts": 200,
+        "props": 0
+      },
+      "console": {
+        "type": "secondFrame",
+        "pnow": 48,
+        "nWarn": 184,
+        "nErr": 0,
+        "unknownWarn": 184,
+        "warns": [
+          "warn: Creating SliderState for 'b02_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b02_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_enabled', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b02_bypass', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_type', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_slope', which is unknown to the backend",
+          "warn: Creating ComboBoxState for 'b02_placement', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_freq', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_gain', which is unknown to the backend",
+          "warn: Creating SliderState for 'b03_q', which is unknown to the backend",
+          "warn: Creating ToggleState for 'b03_enabled', which is unknown to the backend"
+        ]
+      },
+      "nativeCalls": {
+        "getCurrentPreset": 1,
+        "getParameterDefaults": 1,
+        "getPresetList": 1,
+        "getUiLanguage": 1,
+        "getUiState": 1,
+        "requestEqSections": 1
+      },
+      "missingResources": [],
+      "resourceRequests": 8,
+      "closeMs": 0.288791656494141,
+      "cycleMs": 104.64466667175293
+    }
+  ],
+  "presets": [
+    {
+      "method": "single",
+      "rep": 0,
+      "id": 1,
+      "expected": 1,
+      "applyMs": 0.018250018358231,
+      "t0": 2.396283014730417e8,
+      "settledRecvMs": 0.415083348751068,
+      "settled": {
+        "type": "settled",
+        "pnow": 2746,
+        "id": 1,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 1.014291673898697,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2746,
+        "id": 1,
+        "msArmToPaint": 0,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 0,
+      "id": 2,
+      "expected": 12,
+      "applyMs": 0.085958331823349,
+      "t0": 2.39628455604e8,
+      "settledRecvMs": 0.619166642427444,
+      "settled": {
+        "type": "settled",
+        "pnow": 2900,
+        "id": 2,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 11.03787499666214,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 2910,
+        "id": 2,
+        "msArmToPaint": 10,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 11.058916658163071,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 2910,
+        "id": 2,
+        "msArmToCurvePaint": 10,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 0,
+      "id": 3,
+      "expected": 12,
+      "applyMs": 0.363124996423721,
+      "t0": 2.396286187602917e8,
+      "settledRecvMs": 0.819833338260651,
+      "settled": {
+        "type": "settled",
+        "pnow": 3063,
+        "id": 3,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 11.63137498497963,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3074,
+        "id": 3,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 28.719874978065491,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3091,
+        "id": 3,
+        "msArmToCurvePaint": 28,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 0,
+      "id": 4,
+      "expected": 12,
+      "applyMs": 0.0753333568573,
+      "t0": 2.39628798976e8,
+      "settledRecvMs": 0.971916675567627,
+      "settled": {
+        "type": "settled",
+        "pnow": 3243,
+        "id": 4,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 11.306374996900558,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3254,
+        "id": 4,
+        "msArmToPaint": 11,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 11.325750023126602,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3254,
+        "id": 4,
+        "msArmToCurvePaint": 11,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 1,
+      "id": 5,
+      "expected": 1,
+      "applyMs": 0.015791654586792,
+      "t0": 2.396289627200833e8,
+      "settledRecvMs": 0.273291677236557,
+      "settled": {
+        "type": "settled",
+        "pnow": 3407,
+        "id": 5,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 56
+      },
+      "settledPaintRecvMs": 12.340833336114883,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3419,
+        "id": 5,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 12.359874993562698,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3419,
+        "id": 5,
+        "msArmToCurvePaint": 12,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 1,
+      "id": 6,
+      "expected": 12,
+      "applyMs": 0.092875003814697,
+      "t0": 2.396291294564167e8,
+      "settledRecvMs": 0.487625002861023,
+      "settled": {
+        "type": "settled",
+        "pnow": 3574.000000000000455,
+        "id": 6,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1.000000000000455,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 13.109083324670792,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3586,
+        "id": 6,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.126874983310699,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3586,
+        "id": 6,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 1,
+      "id": 7,
+      "expected": 12,
+      "applyMs": 0.348749995231628,
+      "t0": 2.396292948191667e8,
+      "settledRecvMs": 0.803791671991348,
+      "settled": {
+        "type": "settled",
+        "pnow": 3739,
+        "id": 7,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 13.841666668653488,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3752,
+        "id": 7,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.863958328962326,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3752,
+        "id": 7,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 1,
+      "id": 8,
+      "expected": 12,
+      "applyMs": 0.083250015974045,
+      "t0": 2.39629462202125e8,
+      "settledRecvMs": 0.549208343029022,
+      "settled": {
+        "type": "settled",
+        "pnow": 3907,
+        "id": 8,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 11.951916664838791,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 3918,
+        "id": 8,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 11.968125015497208,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 3918,
+        "id": 8,
+        "msArmToCurvePaint": 12,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 2,
+      "id": 9,
+      "expected": 1,
+      "applyMs": 0.017166674137115,
+      "t0": 2.396296270219583e8,
+      "settledRecvMs": 0.303625017404556,
+      "settled": {
+        "type": "settled",
+        "pnow": 4070.999999999999545,
+        "id": 9,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 14.470750004053116,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 4085,
+        "id": 9,
+        "msArmToPaint": 14.000000000000455,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.490833342075348,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 4085,
+        "id": 9,
+        "msArmToCurvePaint": 14.000000000000455,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 2,
+      "id": 10,
+      "expected": 12,
+      "applyMs": 0.087541669607162,
+      "t0": 2.396297928144166e8,
+      "settledRecvMs": 0.491208344697952,
+      "settled": {
+        "type": "settled",
+        "pnow": 4237,
+        "id": 10,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 15.086000025272369,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 4252,
+        "id": 10,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 15.103500008583069,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 4252,
+        "id": 10,
+        "msArmToCurvePaint": 15,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 2,
+      "id": 11,
+      "expected": 12,
+      "applyMs": 0.343166679143906,
+      "t0": 2.39629961592e8,
+      "settledRecvMs": 0.626041680574417,
+      "settled": {
+        "type": "settled",
+        "pnow": 4406,
+        "id": 11,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 13.122750014066696,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 4418,
+        "id": 11,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.149291694164276,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 4419.000000000000909,
+        "id": 11,
+        "msArmToCurvePaint": 13.000000000000909,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 2,
+      "id": 12,
+      "expected": 12,
+      "applyMs": 0.065791666507721,
+      "t0": 2.396301277017916e8,
+      "settledRecvMs": 0.440791666507721,
+      "settled": {
+        "type": "settled",
+        "pnow": 4572,
+        "id": 12,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 14.23841667175293,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 4586,
+        "id": 12,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.259833335876465,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 4586,
+        "id": 12,
+        "msArmToCurvePaint": 14,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 3,
+      "id": 13,
+      "expected": 1,
+      "applyMs": 0.015208333730698,
+      "t0": 2.396302943795833e8,
+      "settledRecvMs": 0.212666660547256,
+      "settled": {
+        "type": "settled",
+        "pnow": 4738,
+        "id": 13,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 56
+      },
+      "settledPaintRecvMs": 14.07104167342186,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 4752,
+        "id": 13,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.08945831656456,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 4752,
+        "id": 13,
+        "msArmToCurvePaint": 14,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 3,
+      "id": 14,
+      "expected": 12,
+      "applyMs": 0.07574999332428,
+      "t0": 2.3963046170125e8,
+      "settledRecvMs": 0.483666658401489,
+      "settled": {
+        "type": "settled",
+        "pnow": 4906,
+        "id": 14,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 13.354291677474976,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 4919.000000000000909,
+        "id": 14,
+        "msArmToPaint": 13.000000000000909,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.372833341360092,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 4919.000000000000909,
+        "id": 14,
+        "msArmToCurvePaint": 13.000000000000909,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 3,
+      "id": 15,
+      "expected": 12,
+      "applyMs": 0.324458330869675,
+      "t0": 2.396306289616667e8,
+      "settledRecvMs": 0.628124982118607,
+      "settled": {
+        "type": "settled",
+        "pnow": 5073,
+        "id": 15,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 11.925374984741211,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 5085,
+        "id": 15,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 29.307916641235352,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 5102,
+        "id": 15,
+        "msArmToCurvePaint": 29,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 3,
+      "id": 16,
+      "expected": 12,
+      "applyMs": 0.054208338260651,
+      "t0": 2.396308129648333e8,
+      "settledRecvMs": 0.460416674613953,
+      "settled": {
+        "type": "settled",
+        "pnow": 5257,
+        "id": 16,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 13.127833336591721,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 5270.000000000000909,
+        "id": 16,
+        "msArmToPaint": 13.000000000000909,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 29.416000008583069,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 5286.000000000000909,
+        "id": 16,
+        "msArmToCurvePaint": 29.000000000000909,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "single",
+      "rep": 4,
+      "id": 17,
+      "expected": 1,
+      "applyMs": 0.014541655778885,
+      "t0": 2.396309958068333e8,
+      "settledRecvMs": 0.280499994754791,
+      "settled": {
+        "type": "settled",
+        "pnow": 5440,
+        "id": 17,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 12.927125006914139,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 5453,
+        "id": 17,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 12.945749998092651,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 5453,
+        "id": 17,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 4,
+      "id": 18,
+      "expected": 12,
+      "applyMs": 0.091125011444092,
+      "t0": 2.396311608784167e8,
+      "settledRecvMs": 0.496125012636185,
+      "settled": {
+        "type": "settled",
+        "pnow": 5605,
+        "id": 18,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 15.201416671276093,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 5620,
+        "id": 18,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 15.220916658639908,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 5620,
+        "id": 18,
+        "msArmToCurvePaint": 15,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 4,
+      "id": 19,
+      "expected": 12,
+      "applyMs": 0.359041661024094,
+      "t0": 2.3963132862575e8,
+      "settledRecvMs": 0.770749986171722,
+      "settled": {
+        "type": "settled",
+        "pnow": 5773,
+        "id": 19,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 13.067958325147629,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 5785,
+        "id": 19,
+        "msArmToPaint": 12,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 29.707541644573212,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 5802.000000000000909,
+        "id": 19,
+        "msArmToCurvePaint": 29.000000000000909,
+        "framesArmToCurvePaint": 2
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 4,
+      "id": 20,
+      "expected": 12,
+      "applyMs": 0.057750016450882,
+      "t0": 2.396315109204167e8,
+      "settledRecvMs": 1.206541657447815,
+      "settled": {
+        "type": "settled",
+        "pnow": 5956,
+        "id": 20,
+        "n": 12,
+        "msArmToFirst": 1,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 25036
+      },
+      "settledPaintRecvMs": 15.666583329439163,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 5970,
+        "id": 20,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 5,
+      "id": 21,
+      "expected": 1,
+      "applyMs": 0.015958338975906,
+      "t0": 2.39632082663125e8,
+      "settledRecvMs": 0.25025001168251,
+      "settled": {
+        "type": "settled",
+        "pnow": 6527,
+        "id": 21,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 56
+      },
+      "settledPaintRecvMs": 8.666375011205673,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 6535,
+        "id": 21,
+        "msArmToPaint": 8,
+        "framesArmToPaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 5,
+      "id": 22,
+      "expected": 12,
+      "applyMs": 0.069249987602234,
+      "t0": 2.396322423408333e8,
+      "settledRecvMs": 0.50470831990242,
+      "settled": {
+        "type": "settled",
+        "pnow": 6687,
+        "id": 22,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 16.734833329916,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 6703,
+        "id": 22,
+        "msArmToPaint": 17,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 16.758333325386047,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 6703,
+        "id": 22,
+        "msArmToCurvePaint": 17,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 5,
+      "id": 23,
+      "expected": 12,
+      "applyMs": 0.347874999046326,
+      "t0": 2.396324113294167e8,
+      "settledRecvMs": 1.094999998807907,
+      "settled": {
+        "type": "settled",
+        "pnow": 6856,
+        "id": 23,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 14.358000010251999,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 6869,
+        "id": 23,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.381458342075348,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 6869,
+        "id": 23,
+        "msArmToCurvePaint": 14,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 5,
+      "id": 24,
+      "expected": 12,
+      "applyMs": 0.061625003814697,
+      "t0": 2.3963257797825e8,
+      "settledRecvMs": 0.43133333325386,
+      "settled": {
+        "type": "settled",
+        "pnow": 7022,
+        "id": 24,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 14.090041667222977,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 7036.000000000000909,
+        "id": 24,
+        "msArmToPaint": 14.000000000000909,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.109541654586792,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 7036.000000000000909,
+        "id": 24,
+        "msArmToCurvePaint": 14.000000000000909,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 6,
+      "id": 25,
+      "expected": 1,
+      "applyMs": 0.016500025987625,
+      "t0": 2.39632745255625e8,
+      "settledRecvMs": 0.264791667461395,
+      "settled": {
+        "type": "settled",
+        "pnow": 7189,
+        "id": 25,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 13.827083349227905,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 7203,
+        "id": 25,
+        "msArmToPaint": 14,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.846833348274231,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 7203,
+        "id": 25,
+        "msArmToCurvePaint": 14,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 6,
+      "id": 26,
+      "expected": 12,
+      "applyMs": 0.079458326101303,
+      "t0": 2.39632913201e8,
+      "settledRecvMs": 0.467374980449677,
+      "settled": {
+        "type": "settled",
+        "pnow": 7357,
+        "id": 26,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 12.776166647672653,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 7370,
+        "id": 26,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 12.799624979496002,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 7370,
+        "id": 26,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 6,
+      "id": 27,
+      "expected": 12,
+      "applyMs": 0.354791671037674,
+      "t0": 2.3963307758225e8,
+      "settledRecvMs": 0.573916673660278,
+      "settled": {
+        "type": "settled",
+        "pnow": 7522,
+        "id": 27,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 14.812666654586792,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 7536.000000000000909,
+        "id": 27,
+        "msArmToPaint": 14.000000000000909,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.833458334207535,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 7536.000000000000909,
+        "id": 27,
+        "msArmToCurvePaint": 14.000000000000909,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 6,
+      "id": 28,
+      "expected": 12,
+      "applyMs": 0.064083337783813,
+      "t0": 2.396332448104583e8,
+      "settledRecvMs": 0.46941664814949,
+      "settled": {
+        "type": "settled",
+        "pnow": 7689,
+        "id": 28,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 12.789583325386047,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 7701.000000000000909,
+        "id": 28,
+        "msArmToPaint": 12.000000000000909,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 12.809499979019165,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 7701.000000000000909,
+        "id": 28,
+        "msArmToCurvePaint": 12.000000000000909,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 7,
+      "id": 29,
+      "expected": 1,
+      "applyMs": 0.015375018119812,
+      "t0": 2.3963341151425e8,
+      "settledRecvMs": 0.279958337545395,
+      "settled": {
+        "type": "settled",
+        "pnow": 7856,
+        "id": 29,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 56
+      },
+      "settledPaintRecvMs": 14.011666685342789,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 7869,
+        "id": 29,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.030166685581207,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 7869,
+        "id": 29,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 7,
+      "id": 30,
+      "expected": 12,
+      "applyMs": 0.071375012397766,
+      "t0": 2.3963357854425e8,
+      "settledRecvMs": 0.364000022411346,
+      "settled": {
+        "type": "settled",
+        "pnow": 8023,
+        "id": 30,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 13.428375005722046,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 8036,
+        "id": 30,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.443583339452744,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 8036,
+        "id": 30,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 7,
+      "id": 31,
+      "expected": 12,
+      "applyMs": 0.357500016689301,
+      "t0": 2.39633745793875e8,
+      "settledRecvMs": 0.593000024557114,
+      "settled": {
+        "type": "settled",
+        "pnow": 8189.999999999999091,
+        "id": 31,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 14.064333349466324,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 8204,
+        "id": 31,
+        "msArmToPaint": 14.000000000000909,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.085916668176651,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 8204,
+        "id": 31,
+        "msArmToCurvePaint": 14.000000000000909,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 7,
+      "id": 32,
+      "expected": 12,
+      "applyMs": 0.059041678905487,
+      "t0": 2.3963391162025e8,
+      "settledRecvMs": 0.474666684865952,
+      "settled": {
+        "type": "settled",
+        "pnow": 8356,
+        "id": 32,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 14.183874994516373,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 8370.000000000001819,
+        "id": 32,
+        "msArmToPaint": 14.000000000001819,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.202208340167999,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 8370.000000000001819,
+        "id": 32,
+        "msArmToCurvePaint": 14.000000000001819,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 8,
+      "id": 33,
+      "expected": 1,
+      "applyMs": 0.016499996185303,
+      "t0": 2.396340767192083e8,
+      "settledRecvMs": 0.286041647195816,
+      "settled": {
+        "type": "settled",
+        "pnow": 8521,
+        "id": 33,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 57
+      },
+      "settledPaintRecvMs": 15.414375007152557,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 8536,
+        "id": 33,
+        "msArmToPaint": 15,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 15.434166669845581,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 8536,
+        "id": 33,
+        "msArmToCurvePaint": 15,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 8,
+      "id": 34,
+      "expected": 12,
+      "applyMs": 0.073124974966049,
+      "t0": 2.39634245590375e8,
+      "settledRecvMs": 0.464791655540466,
+      "settled": {
+        "type": "settled",
+        "pnow": 8690,
+        "id": 34,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 13.514708310365677,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 8703,
+        "id": 34,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.53833332657814,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 8703,
+        "id": 34,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 8,
+      "id": 35,
+      "expected": 12,
+      "applyMs": 0.349875003099442,
+      "t0": 2.39634410016e8,
+      "settledRecvMs": 0.591749995946884,
+      "settled": {
+        "type": "settled",
+        "pnow": 8854.000000000001819,
+        "id": 35,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 15.50900000333786,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 8869,
+        "id": 35,
+        "msArmToPaint": 14.999999999998181,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 15.528999984264374,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 8869,
+        "id": 35,
+        "msArmToCurvePaint": 14.999999999998181,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 8,
+      "id": 36,
+      "expected": 12,
+      "applyMs": 0.067791670560837,
+      "t0": 2.396345784979167e8,
+      "settledRecvMs": 0.469499975442886,
+      "settled": {
+        "type": "settled",
+        "pnow": 9023,
+        "id": 36,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 13.870583325624466,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 9036,
+        "id": 36,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.918666660785675,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 9036,
+        "id": 36,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "single",
+      "rep": 9,
+      "id": 37,
+      "expected": 1,
+      "applyMs": 0.014666676521301,
+      "t0": 2.396347457755833e8,
+      "settledRecvMs": 0.226999998092651,
+      "settled": {
+        "type": "settled",
+        "pnow": 9190,
+        "id": 37,
+        "n": 1,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 56
+      },
+      "settledPaintRecvMs": 13.838750004768372,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 9203,
+        "id": 37,
+        "msArmToPaint": 13,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 13.857499986886978,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 9203,
+        "id": 37,
+        "msArmToCurvePaint": 13,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "msgLoop",
+      "rep": 9,
+      "id": 38,
+      "expected": 12,
+      "applyMs": 0.070833325386047,
+      "t0": 2.39634911594625e8,
+      "settledRecvMs": 0.395374983549118,
+      "settled": {
+        "type": "settled",
+        "pnow": 9356,
+        "id": 38,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 14.207208335399628,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 9370.000000000001819,
+        "id": 38,
+        "msArmToPaint": 14.000000000001819,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 14.224000006914139,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 9370.000000000001819,
+        "id": 38,
+        "msArmToCurvePaint": 14.000000000001819,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "setState",
+      "rep": 9,
+      "id": 39,
+      "expected": 12,
+      "applyMs": 0.339458346366882,
+      "t0": 2.39635076237e8,
+      "settledRecvMs": 0.538000017404556,
+      "settled": {
+        "type": "settled",
+        "pnow": 9521,
+        "id": 39,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 1,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 1,
+        "bytes": 620
+      },
+      "settledPaintRecvMs": 18.153625011444092,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 9538,
+        "id": 39,
+        "msArmToPaint": 18,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 18.176958322525024,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 9538,
+        "id": 39,
+        "msArmToCurvePaint": 18,
+        "framesArmToCurvePaint": 1
+      }
+    },
+    {
+      "method": "offThread",
+      "rep": 9,
+      "id": 40,
+      "expected": 12,
+      "applyMs": 0.061958342790604,
+      "t0": 2.396352478361667e8,
+      "settledRecvMs": 0.455208331346512,
+      "settled": {
+        "type": "settled",
+        "pnow": 9692,
+        "id": 40,
+        "n": 12,
+        "msArmToFirst": 0,
+        "msArmToLast": 0,
+        "framesArmToFirst": 0,
+        "framesArmToLast": 0,
+        "dispatchMs": 0,
+        "bytes": 608
+      },
+      "settledPaintRecvMs": 9.651583343744278,
+      "settledPaint": {
+        "type": "settledPaint",
+        "pnow": 9701,
+        "id": 40,
+        "msArmToPaint": 9,
+        "framesArmToPaint": 1
+      },
+      "curvePaintRecvMs": 26.630500018596649,
+      "curvePaint": {
+        "type": "curvePaint",
+        "pnow": 9718,
+        "id": 40,
+        "msArmToCurvePaint": 26,
+        "framesArmToCurvePaint": 2
+      }
+    }
+  ],
+  "idle": {
+    "relaysOnly": {
+      "type": "idle",
+      "pnow": 14873.000000000001819,
+      "ms": 5001.000000000001819,
+      "evals": {
+      },
+      "posts": {
+      }
+    },
+    "with30HzTimer": {
+      "type": "idle",
+      "pnow": 19882,
+      "ms": 5003,
+      "evals": {
+        "outputLevel": 150
+      },
+      "posts": {
+      }
+    }
+  },
+  "raf": {
+    "type": "raf",
+    "pnow": 2441,
+    "median": 17,
+    "mean": 16.583333333333332,
+    "max": 19
+  },
+  "timeouts": [
+    "curvePaint:20 (cycle 0)"
+  ],
+  "build": "Release"
+}
