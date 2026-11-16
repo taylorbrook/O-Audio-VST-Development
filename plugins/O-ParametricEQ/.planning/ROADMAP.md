@@ -233,11 +233,12 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 **Components:**
 - Finalized mockup → `Source/ui/public/index.html`; EB Garamond; i18n scaffold
 - Relays for 196 parameters; `UI` state native functions (`getUiState`, `setUiState`)
-- Render harness: port the nine probe-only rows from `stages/2-dsp/verify-2.6/` (LS10, LS11, LS12, LS15 / PX26, PX27, PX38, PX39) plus DM2 (layout change at the same rate), AN1 (no frame straddles a drop), PX22 (mono placement edit while listening) (Stage 3 discuss, VERIFICATION-2.6 Issue 2)
+- Render harness: port the eight probe-only rows from `stages/2-dsp/verify-2.6/` (LS10, LS11, LS12, LS15 / PX26, PX27, PX38, PX39) plus DM2 (layout change at the same rate), AN1 (no frame straddles a drop), PX22 (mono placement edit while listening) (Stage 3 discuss, VERIFICATION-2.6 Issue 2; count corrected from "nine" at plan 3.1, RESEARCH-3.1 Q6)
+- `OuariconPresetManager` owned by the processor (excluded `output_gain`, `bypass`; validated apply; `PresetSaveGuard`; empty factory set) (RESEARCH-3.1 C2, 2026-11-15)
 
 **Test criteria:**
 - [ ] Editor opens at the mockup size in VST3 and AU
-- [ ] Editor open time and idle message rate measured with all 196 relays; if open time exceeds 500 ms, switch to the documented fallback (relays for the selected band only, native functions for the rest)
+- [ ] All 196 relays bound (RESEARCH-3.1 C1, 2026-11-15: no selected-band fallback); editor open → painted page ≤ 500 ms, measured in the Standalone and in Logic; idle relay traffic 0 messages
 - [ ] Host automation moves the controls; preset load refreshes every control
 - [ ] Controls for inert parameters are disabled per type / slope
 
@@ -306,7 +307,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 | Time-varying stability is argued from a paper whose proof was not read | MEDIUM | 2.3 (G3, G5) | Longer ramps, 40 ms crossfades |
 | Click metric confounded by level changes of slow filters | MEDIUM | 2.3 / 2.4 | Local κ and a firing hard control are already specified |
 | CPU model is not a measurement | MEDIUM | 4 (early smoke measurement in 2.2) | 2-wide SIMD over Stereo lanes |
-| 196 WebView relays | MEDIUM | 3.1 | Relays for the selected band only |
+| 196 WebView relays | LOW (WKWebView measured ≤ 274 ms cold, RESEARCH-3.1) | 3.1; WebView2 timing in Stage 4 Windows CI | None planned (C1 dropped the selected-band fallback) |
 | `vu-meter` 1.0.0 has no consumer in the registry | LOW | 3.3 | O-AnalogEQ's `outputLevel` event |
 | Notch and band pass above their frequency clamp park a feature inside the audio band (characterised in Stage 2 research Q2; D10 keeps the clamp) | LOW | 2.1 INFO rows | Clamp as specified |
 

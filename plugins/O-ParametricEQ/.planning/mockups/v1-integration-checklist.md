@@ -26,7 +26,7 @@ No suite plugin has registered 196 WebView relays (ARCHITECTURE.md "Unverified";
 - [ ] Measure editor open time and the time from open to first full paint; record both
 - [ ] Automating one parameter repaints without visible lag; a preset load (up to 196 changes at once) settles in one or two frames
 - [ ] Close and reopen the editor 10 times in a Release build: no crash, no leak report
-- [ ] If any of this fails: fall back to relays for the selected band only, re-pointed on selection (ROADMAP fallback). That changes the page's `bindBandStates` and the display's data source, so decide before Phase 3.2
+- [x] ~~Fallback to relays for the selected band only~~ — dropped 2026-11-15 (RESEARCH-3.1 C1): all 196 open ≤ 274 ms cold and settle a preset in 1 frame in WKWebView; the unmodified page cannot run on 12 relays. The measurements above stay as 3.1 acceptance rows (PLAN-3.1)
 
 ## 1. Copy UI Files
 

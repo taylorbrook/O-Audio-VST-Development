@@ -38,7 +38,7 @@ With 24 bands enabled, a plot click shows a brief tip near the cursor, text from
 First production consumer of `vu-meter` 1.0.0, mounted in `#meter-mount`: vertical, -60 to +6 dB, two bars, peak hold, ruler inside the bordered box, approved colours (`drawMeter` in `v1-ui-test.html`). If it fails UI-06 (-6 dBFS sine within 0.5 dB) or any gate, fall back to O-AnalogEQ's `outputLevel` atomic + 30 Hz event and a page-drawn meter.
 
 ### U8 — Stage 2 carry-forwards folded in (user)
-- **3.1:** port the nine probe-only rows from `stages/2-dsp/verify-2.6/` into the render harness (LS10, LS11, LS12, LS15 / PX26, PX27, PX38, PX39) plus DM2 (layout change at the same rate; the editor relies on it when a host renegotiates mono / stereo), AN1 (no analyzer frame straddles a drop) and PX22 (mono placement edit while listening starts nothing).
+- **3.1:** port the eight (count corrected at plan 3.1; RESEARCH-3.1 Q6) probe-only rows from `stages/2-dsp/verify-2.6/` into the render harness (LS10, LS11, LS12, LS15 / PX26, PX27, PX38, PX39) plus DM2 (layout change at the same rate; the editor relies on it when a host renegotiates mono / stereo), AN1 (no analyzer frame straddles a drop) and PX22 (mono placement edit while listening starts nothing).
 - **3.3:** fix VERIFICATION-2.6 Issue 1 (late NaN burst inside listen's input ramp with no band running): `Listen::process` reports a non-finite voice output, treated like a non-finite lane at step 8. Probe N1e becomes a render row.
 - **Not taken:** symmetric G9 floors (XG-exact / XR-g9) stay a hardening item for a later `/improve`.
 
