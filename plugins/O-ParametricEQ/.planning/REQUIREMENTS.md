@@ -56,7 +56,7 @@ lastUpdated: 2026-11-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations or locks in processBlock) | must | partial | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations or locks in processBlock) | must | complete | stage-2 |
 | PERF-02 | 24 bands at 96 dB/oct stay within a CPU budget set in Stage 0; disabled bands cost nothing | must | pending | stage-4 |
 
 ### Compatibility (COMPAT)
@@ -170,7 +170,7 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 ### PERF-01: Real-time safety
 
 **Acceptance Criteria:**
-- [x] Allocation gate reports zero allocations in processBlock under parameter stress (Phase 2.3, A2; re-runs with the analyzer on in 2.6, so the requirement stays partial)
+- [x] Allocation gate reports zero allocations in processBlock under parameter stress (Phase 2.3, A2; with the analyzer on, rings saturated and listen switching at Phase 2.6, A5 / XT-alloc)
 - [x] No locks or file / message-thread calls on the audio thread
 
 ### PERF-02: CPU budget
@@ -231,3 +231,5 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 *Phase 2.4 verify, 2026-11-14 (`stages/2-dsp/VERIFICATION-2.4.md`): DSP-03, DSP-04 and FUNC-04 are complete. FUNC-01, FUNC-05, QUAL-01 and PERF-01 stay partial, waiting on presets, output gain, listening and the analyzer G6. Open: the stop-band burst on a steep cut's slope change (Issue 1), held for the hands-on listen.*
 
 *Phase 2.5 verify, 2026-11-15 (`stages/2-dsp/VERIFICATION-2.5.md`): FUNC-05 and FUNC-06 are complete. QUAL-01 and PERF-01 stay partial, waiting on listening and the analyzer G6 (2.6).*
+
+*Phase 2.6 verify, 2026-11-15 (`stages/2-dsp/VERIFICATION-2.6.md`), Stage 2 closed: PERF-01 complete. FUNC-01, FUNC-02, DSP-06 and QUAL-01 stay partial; their remaining criteria are Stage 3 / 4 or the hands-on listen. Engine halves met for FUNC-08 (listen), UI-02 (G9 (a), 2.1e-3 dB) and UI-03 (taps, analyzer); those requirements close in Stage 3.*

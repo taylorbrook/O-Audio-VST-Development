@@ -1,0 +1,1 @@
+XG-sym: 4000 renders; void as shipped 646 (closed-form top max -150.5 dB, MEASURED top max -150.5 dB); void under the symmetric rule 646; points scored only by the symmetric rule 0; worst as shipped 2.06e-05 dB, worst symmetric 2.06e-05 dB

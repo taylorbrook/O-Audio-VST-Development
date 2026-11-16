@@ -1,0 +1,58 @@
+--- /Users/taylorbrook/Dev/VST-development/plugins/O-ParametricEQ/tests/designer-harness/main.cpp	2026-11-15 14:53:47
++++ $SCRATCH/xgsym/main.cpp	2026-11-15 16:08:18
+@@ -18288,6 +18288,7 @@
+         double topDb = 0.0;                                  // the largest maximum among the drawn responses
+         bool finite = true;
+         int bands = 0;
++        double measTop = -1.0e300; double symWorst = 0.0; int symScored = 0; int loudUnscored = 0;
+     };
+ 
+     LgReading lgMeasure (double fs, bool stereo, int draw)
+@@ -18533,6 +18534,23 @@
+             }
+         }
+ 
++        {   // verify-2.6: symmetric floor -- score where the closed form OR the measurement is above the floors
++            double topSym = topAll;
++            for (int resp = 0; resp < responses; ++resp)
++                for (int k = 0; k < points; ++k)
++                { q.measTop = std::max (q.measTop, lgDb (measured[ix (k)][ix (resp)])); }
++            topSym = std::max (topSym, q.measTop);
++            for (int resp = 0; resp < responses; ++resp)
++                for (int k = 0; k < points; ++k)
++                {
++                    const double ref = lgDb (closed[ix (k)][ix (resp)]), me = lgDb (measured[ix (k)][ix (resp)]);
++                    const double hiv = std::max (ref, me);
++                    if (hiv < topSym - 80.0 || hiv < -150.0) continue;
++                    ++q.symScored;
++                    q.symWorst = std::max (q.symWorst, std::fabs (me - ref));
++                    if (ref < topAll - 80.0 || ref < -150.0) ++q.loudUnscored;
++                }
++        }
+         if (! std::isfinite (q.worst))
+             q.finite = false;
+ 
+@@ -19067,6 +19085,23 @@
+ //==============================================================================
+ int main (int argc, char** argv)
+ {
++    if (std::getenv ("XG_SYM") != nullptr)
++    {
++        const int draws = 400, tasks = 5 * 2 * draws;
++        std::vector<LgReading> r (ix (tasks));
++        parallelFor (tasks, [&r] (int task) { r[ix (task)] = lgMeasure (kRates5[ix (task / (2 * draws))], ((task / draws) % 2) == 0, task % draws); });
++        int voidOrig = 0, voidSym = 0, loud = 0; double maxMeasTopVoid = -1e300, symWorst = 0, origWorst = 0, maxTopVoid = -1e300;
++        for (auto& q : r)
++        {
++            if (q.scored == 0) { ++voidOrig; maxMeasTopVoid = std::max (maxMeasTopVoid, q.measTop); maxTopVoid = std::max (maxTopVoid, q.topDb); }
++            if (q.symScored == 0) ++voidSym;
++            loud += q.loudUnscored; symWorst = std::max (symWorst, q.symWorst); origWorst = std::max (origWorst, q.worst);
++        }
++        std::printf ("XG-sym: %d renders; void as shipped %d (closed-form top max %.1f dB, MEASURED top max %.1f dB); void under the symmetric rule %d; "
++                     "points scored only by the symmetric rule %d; worst as shipped %.3g dB, worst symmetric %.3g dB\n",
++                     tasks, voidOrig, maxTopVoid, maxMeasTopVoid, voidSym, loud, origWorst, symWorst);
++        return 0;
++    }
+     std::string goldenDir = GOLDEN_DIR;
+     std::string negative;
+     bool dump = false, dumpPolished = false, longRun = false;

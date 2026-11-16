@@ -1,0 +1,16 @@
+=== O-ParametricEQ verify-2.6 probe ===
+[PASS] T1      listen timeline (block 1) = re-stated P6 state machine   48.0k/2ch ok (R 1440/1440, N 960/960, mismatched samples 0)  96.0k/2ch ok (R 2880/2880, N 1920/1920, mismatched samples 0)  44.1k/1ch ok (R 1323/1323, N 882/882, mismatched samples 0)  192.0k/2ch ok (R 5760/5760, N 3840/3840, mismatched samples 0)  
+[PASS] O1      listen onset at tick + R, return exact from release end  48.0k/2ch/64 first diff 2448 (want 2448), last 7375 (want 7375)  48.0k/2ch/rnd first diff 2448 (want 2448), last 7375 (want 7375)  96.0k/1ch/512 first diff 3904 (want 3904), last 10751 (want 10751)  44.1k/2ch/rnd first diff 2331 (want 2331), last 7105 (want 7105)  192.0k/2ch/7 first diff 6784 (want 6784), last 17471 (want 17471)  
+[PASS] I1      listen = F(dry) only: memcmp-equal across 8 variants     448 / 448 equal; controls: freq edit 56 / 56, Q edit 21 / 21 differ
+[PASS] I2      settled listen x output +6 dB (auto gain on) = 1.995 x listen 4 cases, worst -133.8 dB re peak
+[PASS] R1      listenBand 24, 1000, -2, INT_MIN, INT_MAX read as off    2 / 2 memcmp-equal to no listen
+[PASS] B1      block identity: listen + bands + gains + bypass both routes 20 / 20 bit-identical  44.1k/2ch 64 events  96.0k/1ch 62 events  192.0k/2ch 61 events  48.0k/2ch 72 events  
+[PASS] A1      analyzer: mono layout -12, L-only -18.02, L = -R floor, post - pre 48k: mono -12.04, L only -18.06, L = -R -200.0, +6 dB post - pre 6.00  96k: mono -12.04, L only -18.06, L = -R -200.0, +6 dB post - pre 6.00  192k: mono -12.04, L only -18.06, L = -R -200.0, +6 dB post - pre 6.00  
+[PASS] G1      taps: mode bits on both entry points; ring = oldest-fitting mono sum 8 / 8 counts exact; 32768 drained samples bit-equal
+[PASS] N1      NaN input, listen settled / off: finite from the next chunk 8 / 8  
+[INFO] N1e     NaN inside an engage's input ramp                        blk 64 band off: NaN@1708, its chunk ends 1768, later non-finite [2448..2472] (t1 + R = 2448)  blk 64 band on: NaN@1708, its chunk ends 1768, later non-finite none (t1 + R = 2448)  blk 512 band off: NaN@1708, its chunk ends 2024, later non-finite [2448..2536] (t1 + R = 2448)  blk 512 band on: NaN@1708, its chunk ends 2024, later non-finite none (t1 + R = 2448)  
+[PASS] E1      f / Q edit during engage / change reaches the incoming voice 48k engage f first 2448 (want 2448)  48k engage Q first 2448 (want 2448)  48k change f first 5360 (want 5360)  48k change Q first 5360 (want 5360)  96k engage f first 3905 (want 3904)  96k engage Q first 3904 (want 3904)  96k change f first 9216 (want 9216)  96k change Q first 9216 (want 9216)  
+[PASS] X1      latched un-bypass, listen engaged, no band: fades (|y - x| near r / settled < 0.05) 48k/1ch/param 0.0001  48k/1ch/bypassed 0.0001  48k/2ch/param 0.0001  48k/2ch/bypassed 0.0001  96k/1ch/param 0.0000  96k/1ch/bypassed 0.0000  96k/2ch/param 0.0000  96k/2ch/bypassed 0.0000  
+[PASS] B2      block identity with auto gain and output gain away from unity 16 / 16 bit-identical  
+
+12 PASS, 0 FAIL

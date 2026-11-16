@@ -1,0 +1,276 @@
+LS1  input ramp 30 -> 20 ms
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XL-ref, XL-refn, XL-latch
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lref, XR-lroute
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: T1, O1
+LS2  engage: weight starts at the move start (inside the ramp)
+   designer: rc 2 | 148 PASS, 2 FAIL, 18 INFO | FAIL: XL-on, XL-ref
+   render:   rc 3 | 152 PASS, 3 FAIL | FAIL: XR-lon, XR-lref, XR-lroute
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: O1
+LS3  engage: weight one sample late
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-ref
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lref, XR-lroute
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: O1
+LS4  change: incoming voice heard during its ramp
+   designer: rc 2 | 148 PASS, 2 FAIL, 18 INFO | FAIL: XL-chg, XL-ref
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lchg, XR-lref
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS5  release: weights reversed
+   designer: rc 2 | 148 PASS, 2 FAIL, 18 INFO | FAIL: XL-on, XL-ref
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lon, XR-lref
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS6  input ramp not applied (filter from rest at full input)
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XL-on, XL-chg, XL-ref
+   render:   rc 4 | 151 PASS, 4 FAIL | FAIL: XR-lon, XR-lchg, XR-lref, XR-lroute
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS7  ramp table built for 48 kHz at every rate
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XL-on, XL-chg, XL-ref
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lon, XR-lref
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: T1, O1
+LS8  latch: a request made during a move is never taken
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-latch
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: T1
+LS9  no latch: a request during a move restarts at once
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XL-chg, XL-ref, XL-latch
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lchg, XR-lref
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: T1
+LS10  f / Q edit during a move not passed to the incoming voice
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS11  settled f / Q edit runs a change move instead of a ramp
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: T1
+LS12  structural edit of the listened band ignored
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: T1
+LS13  goIdle drops the target
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS14  startSettled leaves the input ramp to run
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XL-route, XL-ref, XL-seed
+   render:   rc 3 | 152 PASS, 3 FAIL | FAIL: XR-lref, XR-lroute, XR-lseed
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS15  clearState does nothing
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS16  isIdle ignores a pending wish
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lroute, XR-loff
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: O1
+LS17  hasPending ignores an input change of the same band
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS18  isEngaged ignores a move in flight (release)
+   designer: rc 4 | 146 PASS, 4 FAIL, 18 INFO | FAIL: XL-on, XL-ref, XL-latch, XT-alloc
+   render:   rc 3 | 152 PASS, 3 FAIL | FAIL: XR-lon, XR-lref, XR-loff
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: T1, O1
+LS19  map: shelves / cuts listen at Q 0.7
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-map
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lref
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS20  map: tilt band pass at Q 1
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-map
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lref
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS21  map: bell family at a fixed Q 1
+   designer: rc 2 | 148 PASS, 2 FAIL, 18 INFO | FAIL: XL-map, XL-sweep
+   render:   rc 4 | 151 PASS, 4 FAIL | FAIL: XR-lonh, XR-lref, XR-lroute, XR-lseed
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: I1
+LS22  map: low shelf / cut -> low cut (wrong side)
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-map
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lref
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS23  map: shelf listen slope 12 -> 24 dB/oct
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-map
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lref
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS24  router: Side R = +F(s)
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-route
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lroute
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS25  router: Mid from L only
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-route
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lroute
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS26  router: Left listen passes R dry
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-route
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lroute
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS27  router: Side without the 0.5
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XL-route
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lroute
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS28  engage / change last N only (no ramp time)
+   designer: rc 4 | 146 PASS, 4 FAIL, 18 INFO | FAIL: XL-on, XL-chg, XL-ref, XL-latch
+   render:   rc 4 | 151 PASS, 4 FAIL | FAIL: XR-lon, XR-lchg, XR-lref, XR-lroute
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: T1, O1
+LS29  release R + N long
+   designer: rc 2 | 148 PASS, 2 FAIL, 18 INFO | FAIL: XL-ref, XL-latch
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-loff
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: T1
+LS31  voice ramp position never advances
+   designer: rc 4 | 146 PASS, 4 FAIL, 18 INFO | FAIL: XL-on, XL-chg, XL-ref, XL-seed
+   render:   rc 5 | 150 PASS, 5 FAIL | FAIL: XR-lon, XR-lchg, XR-lref, XR-lroute, XR-blk6
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: B1
+LS32  configure does not reset the voice
+   designer: rc 0 | 150 PASS, 0 FAIL, 18 INFO | FAIL: none
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS33  ramp linear instead of raised cosine
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XL-on, XL-chg, XL-ref
+   render:   rc 4 | 151 PASS, 4 FAIL | FAIL: XR-lon, XR-lchg, XR-lref, XR-lroute
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+LS34  applyPending: a settled listen ignores the request
+   designer: rc 4 | 146 PASS, 4 FAIL, 18 INFO | FAIL: XL-sweep, XL-ref, XL-latch, XT-alloc
+   render:   rc 3 | 152 PASS, 3 FAIL | FAIL: S5, XR-lref, XR-loff
+   probe:    rc 1 | 5 PASS, 3 FAIL | FAIL: T1, O1, I1
+ST1  overflow keeps the oldest of a push
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XT-ring
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+ST2  drops not counted
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XT-ring, XT-thr, XT-alloc
+   render:   rc 4 | 151 PASS, 4 FAIL | FAIL: S5, XR-ovf, XR-blk6, A5
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: G1
+ST3  free space ignores the reader (overwrites unread)
+   designer: rc 3 | 147 PASS, 3 FAIL, 18 INFO | FAIL: XT-ring, XT-thr, XT-alloc
+   render:   rc 5 | 150 PASS, 5 FAIL | FAIL: S5, XR-ovf, XR-blk6, XR-lid, A5
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: G1
+ST4  copyIn wrap writes past the start
+   designer: rc 2 | 148 PASS, 2 FAIL, 18 INFO | FAIL: XT-ring, XT-thr
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+ST5  drain does not advance the read index
+   designer: rc 2 | 148 PASS, 2 FAIL, 18 INFO | FAIL: XT-ring, XT-thr
+   render:   rc 5 | 150 PASS, 5 FAIL | FAIL: XR-an, XR-answ, XR-anrel, XR-ovf, XR-gen
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: A1
+ST6  reset does not bump the generation
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XT-gen
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-gen
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+ST7  reset does not zero writeIndex
+   designer: rc 1 | 149 PASS, 1 FAIL, 18 INFO | FAIL: XT-gen
+   render:   rc 4 | 151 PASS, 4 FAIL | FAIL: XR-an, XR-answ, XR-ann, XR-gen
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX21  pathIdleForBlock ignores listen
+   designer: -
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-lroute, XR-loff
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: O1, I1
+PX22  listen input without the effective placement
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX23  first block: listen not seeded
+   designer: -
+   render:   rc 4 | 151 PASS, 4 FAIL | FAIL: XR-lref, XR-lroute, XR-lseed, XR-lag
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: I1, I2
+PX24  latched un-bypass: listen not seeded
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lseed
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX25  fade-to-bypass end: listen not idled
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX26  non-finite: listen state not cleared
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX27  listen voices get no control tick
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: I1
+PX28  segment not ended at a listen move end
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX29  dry copy only while a bypass fade runs
+   designer: -
+   render:   rc 10 | 145 PASS, 10 FAIL | FAIL: S5, XR-lonh, XR-lchg, XR-lref, XR-lroute, XR-lseed, XR-lag, XR-lbyp, XR-blk6, A5
+   probe:    rc 1 | 5 PASS, 3 FAIL | FAIL: I1, I2, B1
+PX30  gain form chosen by isIdle, not isEngaged
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX31  listen before auto gain (C3 broken)
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-lag
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: I1, I2
+PX32  taps ignore the mode bits
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-gate
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: G1
+PX33  taps ignore the consumer flag
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-gate
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX34  tap offers the whole block, not its tail
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-ovf
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX35  mono sum without 0.5
+   designer: -
+   render:   rc 6 | 149 PASS, 6 FAIL | FAIL: XR-an, XR-answ, XR-ann, XR-anrel, XR-ovf, XR-gen
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: A1, G1
+PX36  post tap before processAudio (processBlock)
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-anpp
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: A1
+PX37  prepare: pre tap not reset
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-gen
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX38  listenBand range off by one (24 accepted)
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: R1
+PX39  latched un-bypass jumps although listen is engaged
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX40  listen off never handed to listen (release never starts)
+   designer: -
+   render:   rc 3 | 152 PASS, 3 FAIL | FAIL: S5, XR-lref, XR-loff
+   probe:    rc 1 | 6 PASS, 2 FAIL | FAIL: T1, O1
+PX41  segment rule uses isEngaged instead of ! isIdle
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+PX42  rate published before the layout
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+DM1  display: a sleeping band sent active
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-g9id
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+DM2  display: layout change does not re-design
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+DM3  display: absent one-pole half sent as zeros
+   designer: -
+   render:   rc 2 | 153 PASS, 2 FAIL | FAIL: XR-g9u, XR-g9id
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+AN1  analyzer: drop counter ignored
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+AN2  analyzer: the drain after a drop not skipped
+   designer: -
+   render:   rc 0 | 155 PASS, 0 FAIL | FAIL: none
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none
+AN3  analyzer: scale 1 / sum w (6 dB low)
+   designer: -
+   render:   rc 5 | 150 PASS, 5 FAIL | FAIL: XR-an, XR-answ, XR-anrel, XR-ovf, XR-gen
+   probe:    rc 1 | 7 PASS, 1 FAIL | FAIL: A1
+AN4  analyzer: no release with no new frame
+   designer: -
+   render:   rc 1 | 154 PASS, 1 FAIL | FAIL: XR-anrel
+   probe:    rc 0 | 8 PASS, 0 FAIL | FAIL: none

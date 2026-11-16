@@ -1,0 +1,325 @@
+--- $SCRATCH/main050.orig.cpp	2026-11-15 15:57:42
++++ $SCRATCH/tree050/src/plugins/O-ParametricEQ/tests/render-harness/main.cpp	2026-11-15 15:57:42
+@@ -11267,9 +11267,310 @@
+             info ("X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, 24 High Shelves x 96 dB/oct, gain swept at every block (every refresh redesigns 24 bands): auto_gain off "
+                   + fmtG (off, 3) + " %, on " + fmtG (on, 3) + " % of one core (difference " + fmtG (on - off, 3) + " %; bench +1.4 %)"
+                   + (finite ? "" : "  OUTPUT NOT FINITE"));
++        }
++    }
++
++    //==========================================================================
++    //==========================================================================
++    // Stage 2, Phase 2.6: listen-off identity sessions (PLAN-2.6 T1, P13)
++    //
++    // `--dump-sessions <dir>` renders the 16 sessions of lidSessions() through
++    // a fresh processor each and writes <dir>/session-NN.f32 (NN = 00 ... 15).
++    // Row XR-lid (2.6 T9) re-renders the same sessions through renderLidSession
++    // on the changed processor and memcmps against the files written by the
++    // unchanged 0.5.0 processor (R7: same compiler, flags and machine).
++    //
++    // File format: raw 32-bit IEEE float, host byte order (little-endian on
++    // every target here), no header, CHANNEL-PLANAR: all samples of channel 0,
++    // then all samples of channel 1 (stereo sessions only). Length per channel
++    // is llround (4.0 * rate): 176400 at 44.1 kHz, 384000 at 96 kHz.
++    //
++    // A session is a pure function of its index: a seeded Xorshift stream per
++    // concern (band draw, block sizes, gains, bypass), juce::Random for the
++    // input; nothing time-dependent. Parameters are raw-value stores before
++    // each block, as S5 does.
++    //   - bands: the S5 / P14 draw (StressDraw24, structEvery 50), all 24
++    //     bands every block; its own global-bypass bit is ignored (no listen:
++    //     listen does not exist in 0.5.0)
++    //   - block sizes: log-uniform 1 ... 4096 (prepared at 4096)
++    //   - output_gain: redrawn with p 0.1 per block (uniform -36 ... +36 dB,
++    //     each range end with p 0.05); auto_gain toggled with p 1/40
++    //   - global bypass toggled with p 1/40 per block; successive bypassed
++    //     spans alternate between the routes: the bypass parameter
++    //     (processBlock) and processBlockBypassed (parameter left off)
++    //   - input: white noise at -12 dBFS for the first total - 2048 samples,
++    //     then makeNoiseTail's 2048-sample denormal tail
++    //   - layouts x rates: index bit 0 = rate (44.1 / 96 kHz), bit 1 = layout
++    //     (mono / stereo): all four combinations, four sessions each
++    //==========================================================================
++    //==========================================================================
++    constexpr int kLidSessionCount = 16;
++    constexpr int kLidPrepared = 4096;
++    constexpr double kLidSeconds = 4.0;
++
++    struct LidSession
++    {
++        int index = 0;
++        double rate = 44100.0;
++        int channels = 2;
++        std::uint64_t seed = 1;
++    };
++
++    std::vector<LidSession> lidSessions()
++    {
++        std::vector<LidSession> sessions;
++
++        for (int i = 0; i < kLidSessionCount; ++i)
++        {
++            LidSession s;
++            s.index = i;
++            s.rate = (i & 1) != 0 ? 96000.0 : 44100.0;
++            s.channels = (i & 2) != 0 ? 2 : 1;
++            s.seed = 0x4C49442D53455353ull ^ ((std::uint64_t) (i + 1) * 0x9E3779B97F4A7C15ull);
++
++            if (s.seed == 0)
++                s.seed = 1;
++
++            sessions.push_back (s);
++        }
++
++        return sessions;
++    }
++
++    struct LidStats
++    {
++        int blocks = 0;
++        int bypassToggles = 0;          // on and off, both routes
++        int bypassOnViaParameter = 0;   // bypassed spans entered through the bypass parameter
++        int bypassOnViaBypassed = 0;    // bypassed spans entered through processBlockBypassed
++        int outputGainEdits = 0;
++        int autoGainToggles = 0;
++        int minBlock = 0, maxBlock = 0;
++        std::int64_t nonFinite = 0;     // output samples
++        double peak = 0.0;              // of the finite output samples
++    };
++
++    // A Xorshift stream for one concern of a session, never state 0.
++    Xorshift lidStream (std::uint64_t seed, std::uint64_t salt)
++    {
++        Xorshift x;
++        x.state = seed ^ salt;
++
++        if (x.state == 0)
++            x.state = 1;
++
++        return x;
++    }
++
++    /** Renders session `idx` of lidSessions() through a fresh processor and
++        returns its output (channels x llround (4 s x rate)).
++          afterPrepare (Processor&): once, after prepareToPlay, before block 0
++            (XR-lid registers its analyzer consumer here).
++          afterBlock (Processor&, const juce::AudioBuffer<float>& out, int blockIndex):
++            after every processBlock / processBlockBypassed, with that block's
++            output (the hook must not write to the processor's parameters).
++        *stats, when given, receives the session's counts. */
++    template <typename PreparedFn, typename BlockFn>
++    juce::AudioBuffer<float> renderLidSession (int idx, PreparedFn&& afterPrepare, BlockFn&& afterBlock,
++                                               LidStats* stats = nullptr)
++    {
++        const LidSession session = lidSessions()[(size_t) juce::jlimit (0, kLidSessionCount - 1, idx)];
++        const int channels = session.channels;
++        const double rate = session.rate;
++        const auto total = (int) std::llround (kLidSeconds * rate);
++
++        // Input: noise at -12 dBFS, the last kTailLength samples the denormal tail.
++        auto input = makeNoiseAt (channels, total, (juce::int64) (session.seed & 0x7FFFFFFFFFFFull), kNoise12);
++        {
++            const auto tail = makeNoiseTail (channels, (juce::int64) ((session.seed >> 17) & 0x7FFFFFFFFFFFull));
++
++            for (int channel = 0; channel < channels; ++channel)
++                input.copyFrom (channel, total - kTailLength, tail, channel, kNoiseLength, kTailLength);
++        }
++
++        auto p = makeBands (channels, 0, mixedSpec);
++        const Handles h = handlesOf (*p);
++
++        StressDraw24 draw;
++        draw.random.state = session.seed;
++        Xorshift sizes = lidStream (session.seed, 0x5A17E5B10C55EEDull);
++        Xorshift gains = lidStream (session.seed, 0x6A09E667F3BCC909ull);
++        Xorshift bypass = lidStream (session.seed, 0xB7E151628AED2A6Bull);
++
++        LidStats st;
++        float outputDb = 0.0f;
++        bool autoOn = false, bypassOn = false, viaBypassed = false;
++
++        h.bypass->store (0.0f);
++        h.outputGain->store (0.0f);
++        h.autoGain->store (0.0f);
++
++        juce::AudioBuffer<float> output (channels, total);
++        output.clear();
++        juce::AudioBuffer<float> block (channels, kLidPrepared);
++        juce::MidiBuffer midi;
++
++        p->prepareToPlay (rate, kLidPrepared);
++        afterPrepare (*p);
++
++        st.minBlock = kLidPrepared;
++
++        for (int position = 0; position < total; ++st.blocks)
++        {
++            // Block size: log-uniform 1 ... 4096.
++            const int drawn = juce::jlimit (1, kLidPrepared, (int) std::exp (sizes.uniform() * std::log ((double) kLidPrepared + 1.0)));
++            const int n = juce::jmin (drawn, total - position);
++            st.minBlock = juce::jmin (st.minBlock, n);
++            st.maxBlock = juce::jmax (st.maxBlock, n);
++
++            // Bands: the S5 draw, every value stored before every block.
++            draw.nextBlock (50);
++            h.gainScale->store (draw.scale);
++
++            for (size_t b = 0; b < h.band.size(); ++b)
++            {
++                const StressBand& s = draw.bands[b];
++                const BandHandles& hb = h.band[b];
++
++                hb.freq->store (s.freq);
++                hb.gain->store (s.gain);
++                hb.q->store (s.q);
++                hb.type->store (s.type);
++                hb.slope->store (s.slope);
++                hb.placement->store (s.placement);
++                hb.enabled->store (s.enabled);
++                hb.bypass->store (s.bypass);
++            }
++
++            // Output gain and auto gain.
++            if (gains.uniform() < 0.1)
++            {
++                const double u = gains.uniform();
++                outputDb = (float) (u < 0.05 ? -36.0 : (u > 0.95 ? 36.0 : -36.0 + 72.0 * gains.uniform()));
++                ++st.outputGainEdits;
++            }
++
++            if (gains.uniform() < 1.0 / 40.0)
++            {
++                autoOn = ! autoOn;
++                ++st.autoGainToggles;
++            }
++
++            h.outputGain->store (outputDb);
++            h.autoGain->store (autoOn ? 1.0f : 0.0f);
++
++            // Global bypass, alternating routes between bypassed spans.
++            if (bypass.uniform() < 1.0 / 40.0)
++            {
++                bypassOn = ! bypassOn;
++                ++st.bypassToggles;
++
++                if (bypassOn)
++                {
++                    viaBypassed = ((st.bypassOnViaParameter + st.bypassOnViaBypassed) % 2) == 1;
++                    ++(viaBypassed ? st.bypassOnViaBypassed : st.bypassOnViaParameter);
++                }
++            }
++
++            const bool callBypassed = bypassOn && viaBypassed;
++            h.bypass->store (bypassOn && ! viaBypassed ? 1.0f : 0.0f);
++
++            block.setSize (channels, n, false, false, true);
++
++            for (int channel = 0; channel < channels; ++channel)
++                block.copyFrom (channel, 0, input, channel, position, n);
++
++            if (callBypassed)
++                p->processBlockBypassed (block, midi);
++            else
++                p->processBlock (block, midi);
++
++            afterBlock (*p, static_cast<const juce::AudioBuffer<float>&> (block), st.blocks);
++
++            for (int channel = 0; channel < channels; ++channel)
++            {
++                output.copyFrom (channel, position, block, channel, 0, n);
++                const float* const data = block.getReadPointer (channel);
++
++                for (int i = 0; i < n; ++i)
++                {
++                    if (! std::isfinite (data[i]))
++                        ++st.nonFinite;
++                    else
++                        st.peak = juce::jmax (st.peak, (double) std::abs (data[i]));
++                }
++            }
++
++            position += n;
+         }
++
++        p->releaseResources();
++
++        if (stats != nullptr)
++            *stats = st;
++
++        return output;
+     }
+ 
++    // renderLidSession with no hooks.
++    juce::AudioBuffer<float> renderLidSession (int idx, LidStats* stats = nullptr)
++    {
++        return renderLidSession (idx, [] (Processor&) {},
++                                 [] (Processor&, const juce::AudioBuffer<float>&, int) {}, stats);
++    }
++
++    // --dump-sessions <dir>: the 16 sessions as raw channel-planar float files.
++    // Returns 0 when every file was written and every session's output is finite.
++    int dumpLidSessions (const juce::File& dir)
++    {
++        if (! keepsDenormals())
++        {
++            std::printf ("FATAL: this thread flushes denormals to zero; the session input needs them\n");
++            return 255;
++        }
++
++        if (! dir.createDirectory())
++        {
++            std::printf ("FATAL: cannot create %s\n", dir.getFullPathName().toRawUTF8());
++            return 255;
++        }
++
++        int bad = 0;
++
++        for (const auto& session : lidSessions())
++        {
++            LidStats st;
++            const auto out = renderLidSession (session.index, &st);
++            const auto file = dir.getChildFile (juce::String::formatted ("session-%02d.f32", session.index));
++
++            bool written = false;
++
++            if (FILE* f = std::fopen (file.getFullPathName().toRawUTF8(), "wb"))
++            {
++                written = true;
++
++                for (int channel = 0; channel < out.getNumChannels(); ++channel)
++                    written = written && std::fwrite (out.getReadPointer (channel), sizeof (float), (size_t) out.getNumSamples(), f)
++                                             == (size_t) out.getNumSamples();
++
++                written = (std::fclose (f) == 0) && written;
++            }
++
++            if (! written || st.nonFinite != 0)
++                ++bad;
++
++            std::printf ("session-%02d  %5.1f kHz  %-6s  %4d blocks (%d ... %d)  bypass toggles %2d (on via parameter %d, via processBlockBypassed %d)  "
++                         "output_gain edits %3d  auto_gain toggles %2d  peak %.6g (%+.1f dBFS)  non-finite %lld%s\n",
++                         session.index, session.rate / 1000.0, session.channels == 1 ? "mono" : "stereo",
++                         st.blocks, st.minBlock, st.maxBlock, st.bypassToggles, st.bypassOnViaParameter, st.bypassOnViaBypassed,
++                         st.outputGainEdits, st.autoGainToggles, st.peak, 20.0 * std::log10 (juce::jmax (st.peak, 1.0e-300)),
++                         (long long) st.nonFinite, written ? "" : "  WRITE FAILED");
++        }
++
++        std::fflush (stdout);
++        return bad == 0 ? 0 : 1;
++    }
++
+ }
+ 
+ //==============================================================================
+@@ -11294,6 +11595,11 @@
+         {
+             longRunRequested = true;
+         }
++        else if (arg == "--dump-sessions" && a + 1 < argc)
++        {
++            juce::ScopedJuceInitialiser_GUI ji;
++            return dumpLidSessions (juce::File (juce::String::fromUTF8 (argv[++a])));
++        }
+         else
+         {
+             std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long]\n", argv[0]);
