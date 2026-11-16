@@ -147,14 +147,16 @@ Scope: Phase 3.1. Stage 3 stays open (3.2, 3.3).
 
 For Taylor, in the DAW. These items come from SUMMARY-3.1's carry-forward. The display shows only the grid and nodes in 3.1: the curve, node lines, analyzer, meter and fills are 3.2 / 3.3.
 
-- [ ] Opens at 960 × 600 in Logic (AU) and in one VST3 host.
-- [ ] Logic timing: create `~/Library/O-ParametricEQ/ui-timing.flag`, do 5 cold opens, read `~/Library/O-ParametricEQ/Logs/ui-timing.log`. Gate ≤ 500 ms (`ctor_to_pageReady_ms`).
-- [ ] Automating a band's freq / type moves its chip, node and strip.
-- [ ] Save a user preset, change things, load it back. Output gain and bypass are untouched by the load.
-- [ ] Note Logic's undo history after a preset load (R4: up to 196 gestures).
-- [ ] Language switch en / fr / zh-Hans at 800 × 500.
-- [ ] Plate look against the mockup.
-- [ ] Taylor's open call from execute: keep `withKeepPageLoadedWhenBrowserIsHidden()` (recommended: keep; it matches the suite rule).
+- [x] Opens at 960 × 600 in Logic (AU) and in one VST3 host.
+- [x] Logic timing: create `~/Library/O-ParametricEQ/ui-timing.flag`, do 5 cold opens, read `~/Library/O-ParametricEQ/Logs/ui-timing.log`. Gate ≤ 500 ms (`ctor_to_pageReady_ms`).
+- [x] Automating a band's freq / type moves its chip, node and strip.
+- [x] Save a user preset, change things, load it back. Output gain and bypass are untouched by the load.
+- [x] Note Logic's undo history after a preset load (R4: up to 196 gestures).
+- [x] Language switch en / fr / zh-Hans at 800 × 500.
+- [x] Plate look against the mockup.
+- [x] Taylor's open call from execute: keep `withKeepPageLoadedWhenBrowserIsHidden()` (recommended: keep; it matches the suite rule).
+
+**Result, 2026-11-16 (at verify 3.2, on 0.8.0):** Taylor reports all items pass. `withKeepPageLoadedWhenBrowserIsHidden` stays as built.
 
 ## Issues Found
 

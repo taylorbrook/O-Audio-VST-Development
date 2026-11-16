@@ -148,15 +148,15 @@ Note: the first scoring pass reported V2 as a survivor because the row names car
 
 For Taylor, in Logic (AU) and one VST3 host. These come from SUMMARY-3.2's carry-forward, plus 3.1's open items.
 
-- [ ] Touch mode: a Bell node drag records the `freq` and `gain` lanes together, and one ⌘Z undoes it.
-- [ ] A Low Cut drag records only `freq`. A Bell at gain scale 0 % records only `freq`.
-- [ ] A wheel burst on a node records one Q stretch.
-- [ ] Click-to-create in Latch writes the new band.
-- [ ] The curve follows automation with the transport stopped.
-- [ ] Mono track, bands set Left / Right: the curve is the Stereo one, and the badges still show L / R.
-- [ ] Click with 24 bands in use: the tip in en / fr / zh-Hans, near the bottom-right corner too.
-- [ ] Curve and node look against the mockup at 800 × 500 and 1600 × 1000.
-- [ ] From 3.1, still open:
+- [x] Touch mode: a Bell node drag records the `freq` and `gain` lanes together, and one ⌘Z undoes it.
+- [x] A Low Cut drag records only `freq`. A Bell at gain scale 0 % records only `freq`.
+- [x] A wheel burst on a node records one Q stretch.
+- [x] Click-to-create in Latch writes the new band.
+- [x] The curve follows automation with the transport stopped.
+- [x] Mono track, bands set Left / Right: the curve is the Stereo one, and the badges still show L / R.
+- [x] Click with 24 bands in use: the tip in en / fr / zh-Hans, near the bottom-right corner too.
+- [x] Curve and node look against the mockup at 800 × 500 and 1600 × 1000.
+- [x] From 3.1, still open:
   - opens at 960 × 600 in Logic and in a VST3 host;
   - the timing-flag log, 5 cold opens, ≤ 500 ms;
   - a DAW preset round trip (output gain and bypass untouched);
@@ -164,6 +164,8 @@ For Taylor, in Logic (AU) and one VST3 host. These come from SUMMARY-3.2's carry
   - language switch at 800 × 500;
   - plate look;
   - the `withKeepPageLoadedWhenBrowserIsHidden` call.
+
+**Result, 2026-11-16:** Taylor reports all items pass in the DAW. The `withKeepPageLoadedWhenBrowserIsHidden` call stays as built (keep, the recommendation); no change was asked for.
 
 ## Issues Found
 
@@ -195,7 +197,7 @@ No blocker. Nothing failed.
 
 ## Stage Verdict
 
-**Status:** ✅ VERIFIED (Phase 3.2). Every automated criterion in ROADMAP 3.2 is met and was reproduced independently. Of the ROADMAP criteria, only the Logic / VST3 automation recording is left, and it is a hands-on row for Taylor.
+**Status:** ✅ VERIFIED (Phase 3.2). Every automated criterion in ROADMAP 3.2 is met and was reproduced independently. The Logic / VST3 automation recording (ROADMAP criterion 4) and the other hands-on rows were confirmed by Taylor on 2026-11-16: all pass.
 
 **Ready for next phase:** Yes. Phase 3.3 (analyzer, meter, fills, listen). Its bench should take in the rows from Issues 1, 2 and 4.
 
