@@ -1,0 +1,23 @@
+E1 drop q relay registration                     CAUGHT FAIL E-open,E-props,E-bind-in,E-bind-out,E-preset,timeouts rc=0 asserts=0
+E2 gain attachment on q relay                    CAUGHT FAIL E-open,E-props,E-bind-in,E-bind-out,E-preset,timeouts rc=0 asserts=0
+E3 slope/placement combo relays swapped          CAUGHT FAIL E-open,E-props,E-bind-in,E-bind-out,E-disabled,E-preset,timeouts rc=0 asserts=0
+E4 output_gain attachment on gain_scale relay    CAUGHT FAIL E-open,E-props,E-bind-in,E-bind-out,E-preset,timeouts rc=0 asserts=0
+E5 no listen reset in dtor                       CAUGHT FAIL E-listen,listenBandAtEnd rc=0 asserts=0
+E6 setListenBand off by one                      CAUGHT FAIL E-listen rc=0 asserts=0
+E7 setListenBand upper bound 23                  CAUGHT FAIL E-listen rc=0 asserts=0
+E8 analyzerMode accepts 4                        CAUGHT FAIL E-ui rc=0 asserts=0
+E9 selectedBand accepts -1                       CAUGHT FAIL E-ui rc=0 asserts=0
+E10 resizeEditor unclamped                       CAUGHT FAIL E-size rc=0 asserts=0
+E11 resized() stops storing size                 CAUGHT FAIL E-size rc=0 asserts=0
+E12 woff2 wrong MIME                             CAUGHT FAIL E-res rc=0 asserts=0
+E13 css not served                               CAUGHT FAIL E-res rc=0 asserts=0
+E14 pageReady not registered                     CAUGHT FAIL E-props rc=0 asserts=0
+E15 getParameterDefaults normalised              SURVIVED ALL-PASS rc=0 asserts=0
+E16 savePreset guard skipped                     SURVIVED ALL-PASS rc=0 asserts=0
+E17 timer started in ctor (no pageReady gate)    SURVIVED ALL-PASS rc=0 asserts=0
+P1 notch keeps gain                              CAUGHT FAIL E-disabled rc=0 asserts=0
+P2 tilt has no slope                             CAUGHT FAIL E-disabled rc=0 asserts=0
+P3 Q inert at 12 dB/oct                          CAUGHT FAIL E-disabled rc=0 asserts=0
+P4 pageReady never called                        CAUGHT FAIL E-open,timeouts rc=0 asserts=0
+R1 preset exclusion removed                      CAUGHT FAIL E-preset rc=0 asserts=0
+R2 validated apply off                           SURVIVED ALL-PASS rc=0 asserts=0

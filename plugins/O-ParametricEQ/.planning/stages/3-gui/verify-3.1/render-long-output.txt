@@ -1,0 +1,481 @@
+O-ParametricEQ render harness (Stage 1)  golden dir: /Users/taylorbrook/Dev/VST-development/plugins/O-ParametricEQ/tests/golden
+
+-- L. parameter layout
+  [PASS] L1 196 parameters; dump == golden params.tsv byte for byte             196 params
+  [PASS] L2 every version hint is 1                                             196/196
+  [PASS] L2 every parameter automatable                                         196/196
+  [PASS] L2 types 50 Bool / 72 Choice / 74 Float                                50 / 72 / 74
+  [PASS] L2 25 groups: global, band01 ... band24, in order; every parameter in one 25 groups, grouped 196/196
+  [PASS] L3 none of the 72 reserved dynamic-EQ IDs is registered                72/72
+  [PASS] L4 getBypassParameter() is the parameter with ID 'bypass'              
+  [PASS] L4 latency 0 after prepareToPlay at 44.1 k and 96 k                    0 / 0
+  [PASS] L4 tail 2.0                                                            2
+  [PASS] L5 normalised default of every float exactly 0.5                       74/74
+  [PASS] L5 linear raw defaults exact (output_gain 0, gain 0, gain_scale 100)   26/26
+  [PASS] L5 raw freq / q defaults within 2e-4 relative of 1000 / 1.0            48/48  b01_freq raw 999.999878 (convertFrom0to1 999.999878), b01_q raw 0.999999762 (convertFrom0to1 0.999999762)
+
+-- B. bus layouts
+  [PASS] B1 accepts (1,1) and (2,2)                                             
+  [PASS] B1 refuses (2,1), (1,2), (0,2), (2,0), 5.1 -> 5.1                      5/5
+  [PASS] B1 default layout is (2,2)                                             
+
+-- P. pass-through
+  [PASS] P1 mono processBlock: out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/all random, every bNN_enabled off, bypass off, output_gain 0 dB, auto_gain off) 12/12
+  [PASS] P1 mono processBlockBypassed: out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/random) 12/12
+  [PASS] P1 stereo processBlock: out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/all random, every bNN_enabled off, bypass off, output_gain 0 dB, auto_gain off) 12/12
+  [PASS] P1 stereo processBlockBypassed: out memcmp-equal to in (blocks 1/64/512/4096 x Off/On/random) 12/12
+  [PASS] P1n comparator FAILS on one flipped bit (and on a length mismatch)     
+  [PASS] P1n input RMS > -20 dBFS, peak 0.5                                     -10.8207302 dBFS, peak 0.499999464
+
+-- S. state codec
+  [PASS] S1 round trip: 196 getValue() bit-equal in a fresh instance            196/196 bit-equal  (160 non-default in the source)
+  [PASS] S1 UI members restored (mode 3, range 30, band 17, 1234 x 777, zh-Hans) lang 2 mode 3 range 30 band 17 size 1234x777
+  [PASS] S1 'A -> save' and 'A -> B -> save' are byte-equal                     8140 / 8140 bytes
+  [PASS] S2 root tag OParametricEQ                                              OParametricEQ
+  [PASS] S2 stateVersion="1", pluginVersion, uiLanguage="zh-Hans"               stateVersion 1, pluginVersion 0.7.0, uiLanguage zh-Hans
+  [PASS] S2 exactly 196 PARAM and exactly one UI child                          196 PARAM, 1 UI, 197 children
+  [PASS] S2 UI child: no 'id' attribute; five values present                    
+  [PASS] S3 second reopen shows the changed UI values                           fresh: lang 0 mode 3 range 30 band 9 size 1500x900
+  [PASS] S3 still exactly one UI child after each reopen                        
+  [PASS] S4 unknown parameter: loads, known values applied, child present in the next save 196/196  unknown child kept
+  [PASS] S5 missing parameter loads at its default (pre-set non-default first)  b07_gain raw 0 norm 0.5; b07_freq raw 999.999878 vs fresh 999.999878 (bit-equal) norm 0.5
+  [PASS] S6 stateVersion="2": loads, values applied, next save writes "1"       196/196  next save stateVersion 1
+  [PASS] S7 wrong root / truncated / empty blob: 196 values, UI and language unchanged 4/4
+  [PASS] S8 invalid mode / range / band ignored; width clamps to 1600; 'xx' -> en invalid: lang 0 mode 1 range 6 band 3 size 1600x500; absent: lang 2 mode 3 range 30 band 21 size 1111x888
+  [PASS] S8 no UI child and no uiLanguage: every UI member unchanged            
+
+-- E. engine response through the plugin (Phase 2.2: FUNC-01, FUNC-02)
+  [PASS] E1 (i) 24 bells +-3 dB, Q 2, 48 kHz stereo: response vs the 24 closed forms <= 0.01 dB above -80 dB worst 1.33e-07 dB over 320 points; 1 s rendered
+  [PASS] E1 (ii) each band disabled in turn: render differs from the full one, matches its 23-band closed form <= 0.01 dB 24/24  worst 3.27e-07 dB
+  [PASS] E1n the full render against each 23-band closed form FAILS the 0.01 dB test (control fires) 24/24  smallest miss 3 dB
+      E2 44.1 kHz mono    Bell 1 kHz +12 dB Q 1              worst 3.24e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz mono    Low Shelf 200 Hz +9 dB 24 dB/oct   worst 1.07e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz mono    High Shelf 8 kHz -12 dB 12 dB/oct  worst 2.88e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz mono    Low Cut 80 Hz 48 dB/oct            worst 0.000244  dB  (154 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz mono    High Cut 6 kHz 96 dB/oct           worst 0.00135   dB  (145 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz mono    Notch 1 kHz Q 10                   worst 3.07e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz mono    Band Pass 500 Hz Q 2               worst 2.37e-06  dB  (160 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz mono    Tilt 1 kHz +6 dB 12 dB/oct         worst 5.69e-07  dB  (160 points above -80 dB, 1 s rendered)
+  [PASS] E2 44.1 kHz mono: 8 types vs the closed form <= 0.01 dB above -80 dB; tail >= 140 dB down 8/8  worst 0.00135 dB
+      E2 44.1 kHz stereo  Bell 1 kHz +12 dB Q 1              worst 3.24e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz stereo  Low Shelf 200 Hz +9 dB 24 dB/oct   worst 1.07e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz stereo  High Shelf 8 kHz -12 dB 12 dB/oct  worst 2.88e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz stereo  Low Cut 80 Hz 48 dB/oct            worst 0.000244  dB  (308 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz stereo  High Cut 6 kHz 96 dB/oct           worst 0.00135   dB  (290 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz stereo  Notch 1 kHz Q 10                   worst 3.07e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz stereo  Band Pass 500 Hz Q 2               worst 2.37e-06  dB  (320 points above -80 dB, 1 s rendered)
+      E2 44.1 kHz stereo  Tilt 1 kHz +6 dB 12 dB/oct         worst 5.69e-07  dB  (320 points above -80 dB, 1 s rendered)
+  [PASS] E2 44.1 kHz stereo: 8 types vs the closed form <= 0.01 dB above -80 dB; tail >= 140 dB down 8/8  worst 0.00135 dB
+      E2 96 kHz mono      Bell 1 kHz +12 dB Q 1              worst 1.44e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 96 kHz mono      Low Shelf 200 Hz +9 dB 24 dB/oct   worst 3.46e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 96 kHz mono      High Shelf 8 kHz -12 dB 12 dB/oct  worst 3.89e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 96 kHz mono      Low Cut 80 Hz 48 dB/oct            worst 5.19e-05  dB  (154 points above -80 dB, 1 s rendered)
+      E2 96 kHz mono      High Cut 6 kHz 96 dB/oct           worst 0.000172  dB  (145 points above -80 dB, 1 s rendered)
+      E2 96 kHz mono      Notch 1 kHz Q 10                   worst 3.44e-07  dB  (160 points above -80 dB, 1 s rendered)
+      E2 96 kHz mono      Band Pass 500 Hz Q 2               worst 1.47e-06  dB  (160 points above -80 dB, 1 s rendered)
+      E2 96 kHz mono      Tilt 1 kHz +6 dB 12 dB/oct         worst 5.94e-07  dB  (160 points above -80 dB, 1 s rendered)
+  [PASS] E2 96 kHz mono: 8 types vs the closed form <= 0.01 dB above -80 dB; tail >= 140 dB down 8/8  worst 0.000172 dB
+      E2 96 kHz stereo    Bell 1 kHz +12 dB Q 1              worst 1.44e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 96 kHz stereo    Low Shelf 200 Hz +9 dB 24 dB/oct   worst 3.46e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 96 kHz stereo    High Shelf 8 kHz -12 dB 12 dB/oct  worst 3.89e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 96 kHz stereo    Low Cut 80 Hz 48 dB/oct            worst 5.19e-05  dB  (308 points above -80 dB, 1 s rendered)
+      E2 96 kHz stereo    High Cut 6 kHz 96 dB/oct           worst 0.000172  dB  (290 points above -80 dB, 1 s rendered)
+      E2 96 kHz stereo    Notch 1 kHz Q 10                   worst 3.44e-07  dB  (320 points above -80 dB, 1 s rendered)
+      E2 96 kHz stereo    Band Pass 500 Hz Q 2               worst 1.47e-06  dB  (320 points above -80 dB, 1 s rendered)
+      E2 96 kHz stereo    Tilt 1 kHz +6 dB 12 dB/oct         worst 5.94e-07  dB  (320 points above -80 dB, 1 s rendered)
+  [PASS] E2 96 kHz stereo: 8 types vs the closed form <= 0.01 dB above -80 dB; tail >= 140 dB down 8/8  worst 0.000172 dB
+  [PASS] E2n the bell against the same bell 1 % higher in frequency FAILS the 0.01 dB test (control fires) 4/4
+
+-- N. above Nyquist (Phase 2.2: DSP-06)
+  [PASS] N1 44.1 kHz mono: 8 types at 25 kHz and 30 kHz, +-12 dB, 12 dB/oct: finite; closed form <= 0.01 dB above -80 dB 32/32  worst 0.000745 dB; fewest points scored 102
+  [PASS] N2 24 mixed bands at 11 - 30 kHz, +-6 dB, 22.05 and 44.1 kHz, 5 s noise then silence: finite; peak <= +40 dB re input 2/2  22.05 kHz peak -58.49 dB re input; 44.1 kHz peak -39.22 dB re input
+
+-- T. transparency (Phase 2.2: G4 a, b, c, g; mono placement)
+  [PASS] T1a mono: no band enabled, the rest random, output 0 dB, noise + denormal tail: out memcmp-equal to in (7 block patterns) 8/8
+  [PASS] T1a stereo: no band enabled, the rest random, output 0 dB, noise + denormal tail: out memcmp-equal to in (7 block patterns) 8/8
+  [PASS] T1b 6 Left bands, noise + denormal tail: right channel memcmp-equal, left differs; and the converse (7 block patterns) 15/15
+  [PASS] T1bn the same bands on Stereo FAIL the untouched-channel comparison (control fires) 14/14
+  [INFO] T1c 24 Mid bells +12 dB: side error -146.5 dB re the larger peak (limit -130); mid change -0.01358 dB (must exceed -40); output peak 55.64 dB re input
+  [INFO] T1cn 24 Mid bells +12 dB moved to Left: side error -6.032 dB re the larger peak
+  [INFO] T1c 1 Mid bell +30 dB: side error -149.5 dB re the larger peak (limit -130); mid change -1.469 dB (must exceed -40); output peak 15.84 dB re input
+  [INFO] T1cn 1 Mid bell +30 dB moved to Left: side error -7.102 dB re the larger peak
+  [INFO] T1c 24 Side bells +12 dB: mid error -146.6 dB re the larger peak (limit -130); side change -0.01406 dB (must exceed -40); output peak 55.1 dB re input
+  [INFO] T1cn 24 Side bells +12 dB moved to Left: mid error -6.032 dB re the larger peak
+  [INFO] T1c 1 Side bell +30 dB: mid error -147.8 dB re the larger peak (limit -130); side change -1.345 dB (must exceed -40); output peak 14.15 dB re input
+  [INFO] T1cn 1 Side bell +30 dB moved to Left: mid error -7.102 dB re the larger peak
+  [PASS] T1c Mid bells leave the side, Side bells leave the mid: <= -130 dB re max (input peak, output peak); touched > -40 dB 4/4
+  [PASS] T1cn the same bells on Left FAIL the untouched-component test (control fires) 4/4
+  [PASS] T1g 24-band mixed setting (all types, slopes, placements; +-6 dB): blocks 32 / 64 / 512 / 2048 / 1 / random sequence bit-identical 6/6  output peak -4.248 dB re the noise peak
+  [PASS] T1m mono layout, one band per placement value: output differs from input, memcmp-equal to the Stereo-placement render 5/5
+
+-- Z. latency and first sample (Phase 2.2: G8)
+  [PASS] Z1 20 random configurations x 44.1 / 96 / 192 kHz x mono / stereo + 3 forced High Cuts: latency 0, silent before index 37, first-sample gain within 1e-6 126/126  168 gains compared (predicted >= 1e-30)
+  [INFO] Z1 forced, High Cut 10 Hz 96 dB/oct Q 0.025, 44.1 kHz (impulse at index 37): first non-zero index mono 52 (predicted first-sample gain 2e-47); stereo L 52, R 53  (-1 = no non-zero sample in the render)
+  [INFO] Z1 forced, High Cut 10 Hz 96 dB/oct Q 0.025, 192 kHz (impulse at index 37): first non-zero index mono 131 (predicted first-sample gain 1.21e-57); stereo L 131, R 136  (-1 = no non-zero sample in the render)
+  [INFO] Z1 forced, High Cut 100 Hz 96 dB/oct Q 0.025, 192 kHz (impulse at index 37): first non-zero index mono 40 (predicted first-sample gain 1.18e-41); stereo L 40, R 41  (-1 = no non-zero sample in the render)
+
+-- A. allocation (Phase 2.2: G6, static parameters)
+  [PASS] A1 processBlock, 24 bands x 96 dB/oct: first block, 200 settled, the block after each kind of change: 0 allocations, 0 frees 0 allocations, 0 frees in 217 windows (malloc_logger, this thread); hook live (probe: 1 / 1)
+  [PASS] A1n a planted allocation inside the processBlock window is counted (control fires) 1 allocations, 1 frees
+
+-- K / H / U / V. host block size and the 2.2 state rules
+  [PASS] K1 prepare 256, feed 1024-sample blocks, 24-band setting: bit-identical to the same input in 256-sample blocks 
+  [PASS] H1 (i) 24 bands enabled, noise + denormal tail: bypass on via processBlock, and processBlockBypassed: out memcmp-equal to in 4/4
+  [PASS] H1 (ii) bypassed: memcmp-equal to the input from the toggle + N; after bypass off: from un-bypass + N memcmp-equal to a fresh instance started at the un-bypass sample (both routes) 7/7  N = 960
+  [PASS] U1 gain edit between blocks on a 1 kHz bell, 1 kHz sine: steady-state gain 1 s later equals the new closed form within 0.01 dB after -9 dB (closed form -9); before 6 dB (closed form 6)
+  [PASS] U2 band disabled for at least N samples, then enabled: disabled span memcmp-equal to the input from the disable + N; from the re-enable + N memcmp-equal to a fresh instance started at the re-enable N = 960
+  [PASS] U3 inert edits mid-render (slope on Bell / Notch / Band Pass, Q at 6 dB/oct, placement on mono): bit-identical; a Low Cut slope edit changes the output 6/6
+  [PASS] V1 getBandDynOffsetDb reads exactly 0.0 for all 24 bands, fresh and after a 1 s render (arithmetic: designer-harness EN-dyn) 48/48
+
+-- X. CPU, settled (INFO, not gated)
+  [INFO] X-cpu 48 kHz stereo, 512-sample blocks, 20 s, 0 bands: 0.00231 % of one core (no bench figure)
+  [INFO] X-cpu 48 kHz stereo, 512-sample blocks, 20 s, 24 cuts x 96 dB/oct: 3.14 % of one core (bench 2.4 sample-major; budget 10)
+  [INFO] X-cpu 48 kHz stereo, 512-sample blocks, 20 s, 24 shelves x 96 dB/oct: 5.92 % of one core (bench 4.7 sample-major; budget 14)
+  [INFO] X-cpu 48 kHz stereo, 512-sample blocks, 20 s, 24 bells: 1.02 % of one core (bench 0.70 sample-major)
+  [INFO] X-cpu 48 kHz stereo, 512-sample blocks, 20 s, 1 band: 0.0383 % of one core (no bench figure)
+
+-- M1. G3 sweep rows through processBlock (Phase 2.3: DSP-04; PLAN-2.3 P11, P12)
+      M1  #1 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 32                       plugin 1.500e-03  reference 1.500e-03  plugin / reference 1.000
+      M1  #1 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512                      plugin 1.359e-03  reference 1.369e-03  plugin / reference 0.993
+      M1  #2 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 32                       plugin 2.565e-03  reference 2.566e-03  plugin / reference 1.000
+      M1  #2 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512                      plugin 2.538e-03  reference 2.536e-03  plugin / reference 1.001
+      M1  #3 Bell at the tone Q 1, -30 <-> +30 dB in 20 ms, 50 Hz, block 32                        plugin 2.496e-03  reference 2.645e-03  plugin / reference 0.944
+      M1  #3 Bell at the tone Q 1, -30 <-> +30 dB in 20 ms, 50 Hz, block 512                       plugin 1.185e-02  reference 1.204e-02  plugin / reference 0.984
+      M1  #4 Bell +18 dB at 2x the tone, Q 0.025 <-> 40 in 20 ms, 50 Hz, block 32                  plugin 4.489e-03  reference 4.559e-03  plugin / reference 0.985
+      M1  #4 Bell +18 dB at 2x the tone, Q 0.025 <-> 40 in 20 ms, 50 Hz, block 512                 plugin 3.962e-03  reference 4.469e-03  plugin / reference 0.887
+      M1  #5 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 32                 plugin 1.766e-01  reference 1.762e-01  plugin / reference 1.002
+      M1  #5 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512                plugin 1.203e-01  reference 1.206e-01  plugin / reference 0.998
+      M1  #6 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 32                 plugin 4.894e-02  reference 4.890e-02  plugin / reference 1.001
+      M1  #6 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512                plugin 1.248e-01  reference 1.244e-01  plugin / reference 1.003
+      M1  #7 Low Cut 96 dB/oct at 30 Hz, Q 0.025 <-> 40 in 20 ms, 50 Hz, block 32                  plugin 5.698e-03  reference 2.631e-03  plugin / reference 2.166
+      M1  #7 Low Cut 96 dB/oct at 30 Hz, Q 0.025 <-> 40 in 20 ms, 50 Hz, block 512                 plugin 1.391e-02  reference 1.444e-02  plugin / reference 0.963
+      M1  #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 32           plugin 5.616e-04  reference 2.213e-04  plugin / reference 2.538
+      M1  #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512          plugin 6.998e-04  reference 6.633e-04  plugin / reference 1.055
+      M1  #9 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 32           plugin 2.496e-04  reference 2.477e-04  plugin / reference 1.007
+      M1  #9 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512          plugin 2.524e-04  reference 2.484e-04  plugin / reference 1.016
+      M1  #10 High Shelf 12 dB/oct at tone / 2, -30 <-> +30 dB in 20 ms, 50 Hz, block 32           plugin 1.005e-02  reference 1.037e-02  plugin / reference 0.969
+      M1  #10 High Shelf 12 dB/oct at tone / 2, -30 <-> +30 dB in 20 ms, 50 Hz, block 512          plugin 5.442e-03  reference 5.663e-03  plugin / reference 0.961
+      M1  #11 High Shelf 12 dB/oct +18 dB at the tone, Q 0.025 <-> 40, 50 Hz, block 32             plugin 4.639e-03  reference 2.773e-03  plugin / reference 1.673
+      M1  #11 High Shelf 12 dB/oct +18 dB at the tone, Q 0.025 <-> 40, 50 Hz, block 512            plugin 7.903e-03  reference 9.000e-03  plugin / reference 0.878
+      M1  #12 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 32          plugin 1.496e-03  reference 1.492e-03  plugin / reference 1.002
+      M1  #12 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512         plugin 1.575e-03  reference 1.575e-03  plugin / reference 1.000
+      M1  #13 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 32          plugin 3.267e-03  reference 3.264e-03  plugin / reference 1.001
+      M1  #13 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512         plugin 3.707e-03  reference 3.703e-03  plugin / reference 1.001
+      M1  #1 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 32                     plugin 3.827e-02  reference 3.828e-02  plugin / reference 1.000
+      M1  #1 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512                    plugin 5.996e-02  reference 5.995e-02  plugin / reference 1.000
+      M1  #2 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 32                     plugin 3.660e-02  reference 3.660e-02  plugin / reference 1.000
+      M1  #2 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512                    plugin 6.349e-02  reference 6.343e-02  plugin / reference 1.001
+      M1  #3 Bell at the tone Q 1, -30 <-> +30 dB in 20 ms, 1000 Hz, block 32                      plugin 3.712e-02  reference 3.713e-02  plugin / reference 1.000
+      M1  #3 Bell at the tone Q 1, -30 <-> +30 dB in 20 ms, 1000 Hz, block 512                     plugin 3.826e-02  reference 3.825e-02  plugin / reference 1.000
+      M1  #4 Bell +18 dB at 2x the tone, Q 0.025 <-> 40 in 20 ms, 1000 Hz, block 32                plugin 3.457e-02  reference 3.458e-02  plugin / reference 1.000
+      M1  #4 Bell +18 dB at 2x the tone, Q 0.025 <-> 40 in 20 ms, 1000 Hz, block 512               plugin 3.500e-02  reference 3.500e-02  plugin / reference 1.000
+      M1  #5 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 32               plugin 1.673e-01  reference 1.674e-01  plugin / reference 0.999
+      M1  #5 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512              plugin 6.834e-01  reference 6.616e-01  plugin / reference 1.033
+      M1  #6 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 32               plugin 3.277e-02  reference 3.277e-02  plugin / reference 1.000
+      M1  #6 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512              plugin 2.246e-01  reference 2.246e-01  plugin / reference 1.000
+      M1  #7 Low Cut 96 dB/oct at 30 Hz, Q 0.025 <-> 40 in 20 ms, 1000 Hz, block 32                plugin 2.455e-02  reference 2.454e-02  plugin / reference 1.000
+      M1  #7 Low Cut 96 dB/oct at 30 Hz, Q 0.025 <-> 40 in 20 ms, 1000 Hz, block 512               plugin 2.456e-02  reference 2.456e-02  plugin / reference 1.000
+      M1  #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 32         plugin 3.816e-02  reference 3.814e-02  plugin / reference 1.001
+      M1  #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512        plugin 3.731e-02  reference 3.729e-02  plugin / reference 1.000
+      M1  #9 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 32         plugin 3.194e-02  reference 3.193e-02  plugin / reference 1.000
+      M1  #9 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512        plugin 4.371e-02  reference 4.367e-02  plugin / reference 1.001
+      M1  #10 High Shelf 12 dB/oct at tone / 2, -30 <-> +30 dB in 20 ms, 1000 Hz, block 32         plugin 4.265e-02  reference 4.293e-02  plugin / reference 0.994
+      M1  #10 High Shelf 12 dB/oct at tone / 2, -30 <-> +30 dB in 20 ms, 1000 Hz, block 512        plugin 3.711e-02  reference 3.708e-02  plugin / reference 1.001
+      M1  #11 High Shelf 12 dB/oct +18 dB at the tone, Q 0.025 <-> 40, 1000 Hz, block 32           plugin 2.624e-02  reference 2.627e-02  plugin / reference 0.999
+      M1  #11 High Shelf 12 dB/oct +18 dB at the tone, Q 0.025 <-> 40, 1000 Hz, block 512          plugin 2.653e-02  reference 2.640e-02  plugin / reference 1.005
+      M1  #12 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 32        plugin 5.115e-02  reference 5.115e-02  plugin / reference 1.000
+      M1  #12 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512       plugin 6.208e-02  reference 6.208e-02  plugin / reference 1.000
+      M1  #13 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 32        plugin 2.995e-02  reference 2.995e-02  plugin / reference 1.000
+      M1  #13 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512       plugin 7.099e-02  reference 7.102e-02  plugin / reference 0.999
+  [PASS] M1 13 motions x 50 Hz / 1 kHz x blocks 32 / 512, 48 kHz: local kappa of the float output <= 4.0x the same-motion per-sample reference 52/52  worst 2.538x (#8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 32); reference guards 11/11 (reference first acts at 1040 / 1056 / 1024, expected 1040 / 1056 / 1024)
+      M1h #1 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512                      hard 3.448e-01  reference 1.369e-03  hard / reference 251.89
+      M1h #2 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512                      hard 8.707e-01  reference 2.536e-03  hard / reference 343.28
+      M1h #3 Bell at the tone Q 1, -30 <-> +30 dB in 20 ms, 50 Hz, block 512                       hard 2.537e+00  reference 1.204e-02  hard / reference 210.72
+      M1h #4 Bell +18 dB at 2x the tone, Q 0.025 <-> 40 in 20 ms, 50 Hz, block 512                 hard 6.653e+00  reference 4.469e-03  hard / reference 1488.60
+      M1h #5 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512                hard 1.112e+00  reference 1.206e-01  hard / reference 9.22  VOID, not counted (the tone dies during the sweep)
+      M1h #6 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512                hard 2.186e+00  reference 1.244e-01  hard / reference 17.57
+      M1h #7 Low Cut 96 dB/oct at 30 Hz, Q 0.025 <-> 40 in 20 ms, 50 Hz, block 512                 hard 4.439e+00  reference 1.444e-02  hard / reference 307.45
+      M1h #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512          hard 6.061e-01  reference 6.633e-04  hard / reference 913.88
+      M1h #9 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512          hard 4.344e-01  reference 2.484e-04  hard / reference 1748.86
+      M1h #10 High Shelf 12 dB/oct at tone / 2, -30 <-> +30 dB in 20 ms, 50 Hz, block 512          hard 2.235e+00  reference 5.663e-03  hard / reference 394.74
+      M1h #11 High Shelf 12 dB/oct +18 dB at the tone, Q 0.025 <-> 40, 50 Hz, block 512            hard 1.461e+01  reference 9.000e-03  hard / reference 1623.52
+      M1h #12 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 512         hard 2.321e-01  reference 1.575e-03  hard / reference 147.38
+      M1h #13 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 50 Hz, block 512         hard 4.506e-01  reference 3.703e-03  hard / reference 121.69
+      M1h #1 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512                    hard 1.210e+00  reference 5.995e-02  hard / reference 20.19
+      M1h #2 Bell +18 dB Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512                    hard 4.739e+00  reference 6.343e-02  hard / reference 74.71
+      M1h #3 Bell at the tone Q 1, -30 <-> +30 dB in 20 ms, 1000 Hz, block 512                     hard 7.351e+00  reference 3.825e-02  hard / reference 192.17
+      M1h #4 Bell +18 dB at 2x the tone, Q 0.025 <-> 40 in 20 ms, 1000 Hz, block 512               hard 1.352e+00  reference 3.500e-02  hard / reference 38.64
+      M1h #5 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512              hard 1.783e+01  reference 6.616e-01  hard / reference 26.95
+      M1h #6 Low Cut 96 dB/oct Q 1, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512              hard 2.677e+01  reference 2.246e-01  hard / reference 119.17
+      M1h #7 Low Cut 96 dB/oct at 30 Hz, Q 0.025 <-> 40 in 20 ms, 1000 Hz, block 512               hard 2.002e-01  reference 2.456e-02  hard / reference 8.15  VOID, not counted (the Q of a 30 Hz cut barely moves a 1 kHz tone)
+      M1h #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512        hard 1.192e+00  reference 3.729e-02  hard / reference 31.97
+      M1h #9 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512        hard 1.440e+00  reference 4.367e-02  hard / reference 32.96
+      M1h #10 High Shelf 12 dB/oct at tone / 2, -30 <-> +30 dB in 20 ms, 1000 Hz, block 512        hard 3.236e+00  reference 3.708e-02  hard / reference 87.30
+      M1h #11 High Shelf 12 dB/oct +18 dB at the tone, Q 0.025 <-> 40, 1000 Hz, block 512          hard 3.089e+00  reference 2.640e-02  hard / reference 117.01
+      M1h #12 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 1000 Hz, block 512       hard 2.133e+00  reference 6.208e-02  hard / reference 34.36
+      M1h #13 High Shelf 96 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p1, 1000 Hz, block 512       hard 1.589e+00  reference 7.102e-02  hard / reference 22.37
+  [PASS] M1h no smoothing (hardRender, block 512, the plugin's input and settings) reads >= 10x the same-motion reference (control fires) 24/24  weakest 17.57x; void, printed and not counted: motion 5 at 50 Hz reads 9.22x; motion 7 at 1000 Hz reads 8.15x
+      M1k #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 32, 96 kHz (K = 32) plugin 1.316e-04  reference 5.642e-05  plugin / reference 2.332
+      M1k #8 High Shelf 12 dB/oct +18 dB, 10 Hz <-> 30 kHz in 50 ms, p0, 50 Hz, block 32, 192 kHz (K = 64) plugin 1.798e-05  reference 1.462e-05  plugin / reference 1.230
+  [PASS] M1k motion 8 at 50 Hz, block 32, at 96 kHz (K = 32) and 192 kHz (K = 64): <= 4.0x the same-motion reference 2/2  96 kHz 2.332x; 192 kHz 1.23x
+
+-- M2 - M6. gain scale, band bypass, re-prepare, Mid / Side response, kept state (Phase 2.3; VERIFICATION-2.2 issues 1 - 4)
+  [PASS] M2 (i) three Stereo bells +24 / +6 / 0 dB, gain_scale 100 -> 25 mid-render: steady-state gains 1 s later are +6 / +1.5 / 0 dB within 0.01 dB of the closed forms 6/6  50 Hz 24.001 -> 6.00024 dB (closed form 6.00024); 500 Hz 6.01092 -> 1.50103 dB (closed form 1.50103); 5000 Hz 0.00114175 -> 0.000250489 dB (closed form 0.000250489)
+  [PASS] M2 (ii) the same move: local kappa of the float output <= 4.0x the same-motion reference (refRender); L and R stay memcmp-equal on L = R input plugin 0.2443, reference 0.2443, plugin / reference 1x; no smoothing (hardRender) reads 5.329x
+  [PASS] M2c gain_scale 100 -> 25 with a Low Cut and a Notch as the only bands: output bit-identical to the render without the edit; with a Bell for the Notch it differs control: Bell in place of the Notch first differs at sample 5120 (edit seen at 5120)
+  [PASS] M3 bNN_bypass on the only active band, on at block 10, off at block 20: on, out memcmp-equal to in from the toggle + N; off, from the toggle + N memcmp-equal to a fresh instance started at the toggle 6/6  N = 960
+  [PASS] M4 one instance: prepare 44.1 kHz, render 1 s with 6 bands, prepare 96 kHz, render: memcmp-equal to a fresh instance prepared at 96 kHz control: a 44.1 kHz preparation renders the same input differently
+  [PASS] M5 T1c's single bell (800 Hz, +30 dB, Q 1) on Mid, then on Side: the gain of its own component at the centre equals the bell gain, the other component's is 0 dB, both within 0.01 dB 4/4  Mid bell: own component 30.00002 dB (bell gain 30, closed form at 800 Hz 30.00002), other component -3.83e-07 dB; Side bell: own component 30.00002 dB (bell gain 30, closed form at 800 Hz 30.00002), other component -6.91e-08 dB
+  [PASS] M6 bell 40 Hz Q 20 +24 dB rung by a burst, gain -> +18 dB during the ring: |y[n] - (2 y[n-1] - y[n-2])| over the 20 ms after the edit <= 10x the ring's own largest second difference 1.729x (3.286e-06 against 1.9e-06; ring peak 0.06893); the edit first changes sample 24000 (seen at 24000)
+
+-- B1 / TK. block identity with moving parameters; the tick clock (Phase 2.3: PLAN-2.3 P7, P10)
+  [PASS] B1 four bands, 96 events on multiples of 2048 (f, gain, Q, gain_scale redrawn): blocks 32 / 64 / 512 / 2048 bit-identical at 44.1 / 48 / 96 / 192 kHz; differs from the render without events 20/20
+  [PASS] TK 1000 samples idle by (a) bypass on, (b) no active band, (c) processBlockBypassed, then a bell and a 0 -> +24 dB edit, 48 kHz: first sample that differs from the unedited render is 1040 (edit at 1036), 1056 (at 1041), 1026 (at 1024; the 0 dB bell sleeps and its wake fade's first two weights round away in float) 9/9  edit at 1036: 1040 1040 1040 (expected 1040); edit at 1041: 1056 1056 1056 (expected 1056); edit at 1024: 1026 1026 1026 (expected 1026)
+
+-- S5 / S6. random stress and non-finite input through processBlock (Phase 2.3: G5; PLAN-2.3 P9, P13)
+      S5 22.05 kHz 600 s, seed attempt 0: largest static stack 519.9 dB, guard (stack + output gain + 12) 566.4 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 30593 times; listenBand redrawn 15256 times (2304847 blocks listening, 1985880 ending in a move), analyzerMode 6087 times, tap drops 7112073 / 6064717; 0 non-finite samples in 3070200 blocks (1494921 acting); peak +178.5 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 23.2 ms
+      S5 32 kHz    600 s, seed attempt 0: largest static stack 537.4 dB, guard (stack + output gain + 12) 563.9 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 44516 times; listenBand redrawn 22326 times (3514146 blocks listening, 3168940 ending in a move), analyzerMode 8856 times, tap drops 9915887 / 10091619; 0 non-finite samples in 4456800 blocks (2247726 acting); peak +218.9 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 208.0 ms
+      S5 44.1 kHz  600 s, seed attempt 0: largest static stack 530.9 dB, guard (stack + output gain + 12) 578.9 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 61841 times; listenBand redrawn 30766 times (5078040 blocks listening, 4729942 ending in a move), analyzerMode 12323 times, tap drops 13213915 / 14039646; 0 non-finite samples in 6141360 blocks (3172249 acting); peak +206.0 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 11.6 ms
+      S5 48 kHz    600 s, seed attempt 0: largest static stack 522.8 dB, guard (stack + output gain + 12) 559.7 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 67086 times; listenBand redrawn 33448 times (5543309 blocks listening, 5212699 ending in a move), analyzerMode 13461 times, tap drops 14397721 / 14477406; 0 non-finite samples in 6685020 blocks (3469409 acting); peak +208.3 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 10.7 ms
+      S5 88.2 kHz  600 s, seed attempt 0: largest static stack 539.0 dB, guard (stack + output gain + 12) 583.7 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 122997 times; listenBand redrawn 61568 times (10748006 blocks listening, 10487588 ending in a move), analyzerMode 24590 times, tap drops 27431523 / 27205750; 0 non-finite samples in 12283620 blocks (6632341 acting); peak +228.1 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 17.4 ms
+      S5 96 kHz    600 s, seed attempt 0: largest static stack 552.0 dB, guard (stack + output gain + 12) 600.0 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 134268 times; listenBand redrawn 67054 times (11736349 blocks listening, 11513248 ending in a move), analyzerMode 26703 times, tap drops 29241838 / 29732377; 0 non-finite samples in 13370820 blocks (7221934 acting); peak +212.4 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 10.7 ms
+  [INFO] S5 STIMULUS at 176.4 kHz: the draw of an earlier seed reached a guard (stack + output gain + 12) of 730.07 dB (limit +600); seed changed to attempt 1 (0x6fecc3ec50dbba08), nothing else changed
+      S5 176.4 kHz 600 s, seed attempt 1: largest static stack 551.4 dB, guard (stack + output gain + 12) 599.4 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 245148 times; listenBand redrawn 123001 times (22293109 blocks listening, 22379212 ending in a move), analyzerMode 48664 times, tap drops 54061921 / 55649981; 0 non-finite samples in 24568080 blocks (13554288 acting); peak +252.5 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 43.5 ms
+  [INFO] S5 STIMULUS at 192 kHz: the draw of an earlier seed reached a guard (stack + output gain + 12) of 755.69 dB (limit +600); seed changed to attempt 43 (0xd7aaf042b2f66196), nothing else changed
+      S5 192 kHz   600 s, seed attempt 43: largest static stack 545.6 dB, guard (stack + output gain + 12) 593.6 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 267397 times; listenBand redrawn 134277 times (24288275 blocks listening, 24506817 ending in a move), analyzerMode 53608 times, tap drops 56873788 / 56933774; 0 non-finite samples in 26741640 blocks (14761963 acting); peak +249.7 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 194.7 ms
+      S5 22.05 kHz every-block 10 s, seed attempt 0: largest static stack 484.4 dB, guard (stack + output gain + 12) 519.3 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 528 times; listenBand redrawn 256 times (41348 blocks listening, 34392 ending in a move), analyzerMode 102 times, tap drops 139272 / 136472; 0 non-finite samples in 51170 blocks (23621 acting); peak +201.7 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 209.0 ms
+      S5 32 kHz every-block 10 s, seed attempt 0: largest static stack 490.0 dB, guard (stack + output gain + 12) 530.0 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 744 times; listenBand redrawn 382 times (62992 blocks listening, 56787 ending in a move), analyzerMode 171 times, tap drops 104689 / 175053; 0 non-finite samples in 74280 blocks (36667 acting); peak +145.6 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 208.0 ms
+      S5 44.1 kHz every-block 10 s, seed attempt 0: largest static stack 522.2 dB, guard (stack + output gain + 12) 570.2 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 1052 times; listenBand redrawn 497 times (84528 blocks listening, 80283 ending in a move), analyzerMode 184 times, tap drops 325107 / 332507; 0 non-finite samples in 102356 blocks (52989 acting); peak +165.8 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 220.6 ms
+  [INFO] S5 STIMULUS at 48 kHz every-block: the draw of an earlier seed reached a guard (stack + output gain + 12) of 629.95 dB (limit +600); seed changed to attempt 1 (0x4475ee33f2effd4e), nothing else changed
+      S5 48 kHz every-block 10 s, seed attempt 1: largest static stack 549.8 dB, guard (stack + output gain + 12) 590.1 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 1109 times; listenBand redrawn 569 times (98969 blocks listening, 91119 ending in a move), analyzerMode 234 times, tap drops 309043 / 234209; 0 non-finite samples in 111417 blocks (59432 acting); peak +182.0 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 202.7 ms
+  [INFO] S5 STIMULUS at 88.2 kHz every-block: the draw of an earlier seed reached a guard (stack + output gain + 12) of 662.29 dB (limit +600); seed changed to attempt 6 (0xa3ee1b35ca8efb79), nothing else changed
+      S5 88.2 kHz every-block 10 s, seed attempt 6: largest static stack 551.2 dB, guard (stack + output gain + 12) 599.2 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 2075 times; listenBand redrawn 1042 times (182056 blocks listening, 173874 ending in a move), analyzerMode 417 times, tap drops 629419 / 577764; 0 non-finite samples in 204727 blocks (108539 acting); peak +161.7 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 23.2 ms
+  [INFO] S5 STIMULUS at 96 kHz every-block: the draw of an earlier seed reached a guard (stack + output gain + 12) of 706.03 dB (limit +600); seed changed to attempt 11 (0x8a98843722a973e0), nothing else changed
+      S5 96 kHz every-block 10 s, seed attempt 11: largest static stack 524.5 dB, guard (stack + output gain + 12) 568.2 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 2213 times; listenBand redrawn 1099 times (202647 blocks listening, 195118 ending in a move), analyzerMode 433 times, tap drops 584242 / 567675; 0 non-finite samples in 222847 blocks (120563 acting); peak +170.2 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 5.3 ms
+  [INFO] S5 STIMULUS at 176.4 kHz every-block: the draw of an earlier seed reached a guard (stack + output gain + 12) of 684.93 dB (limit +600); seed changed to attempt 4 (0xce958f5b67a6c8c7), nothing else changed
+      S5 176.4 kHz every-block 10 s, seed attempt 4: largest static stack 548.7 dB, guard (stack + output gain + 12) 596.7 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 3949 times; listenBand redrawn 2058 times (383092 blocks listening, 379855 ending in a move), analyzerMode 819 times, tap drops 809408 / 924162; 0 non-finite samples in 409468 blocks (226079 acting); peak +144.0 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 11.6 ms
+      S5 192 kHz every-block 10 s, seed attempt 0: largest static stack 537.6 dB, guard (stack + output gain + 12) 585.6 dB (below +600); output gain drawn -36.0 ... +36.0 dB, auto gain toggled 4395 times; listenBand redrawn 2255 times (411518 blocks listening, 412669 ending in a move), analyzerMode 822 times, tap drops 1438713 / 868854; 0 non-finite samples in 445694 blocks (251236 acting); peak +159.4 dB re input peak; listen off, all bands off, output 0 dB, auto off: memcmp-equal to input from 210.7 ms
+  [PASS] S5 G5 through processBlock: 24 bands, every parameter redrawn (P13), output_gain and auto_gain per block (PLAN-2.5 P12), listenBand and the analyzer (mode redrawn, never drained) per block (PLAN-2.6 P16), blocks 4096 / 512 / 64 / 7 / 1, 8 rates: stack guard (stack + output gain + 12 dB) holds; every sample finite; listen -1, all bands off, output 0 dB, auto off -> memcmp-equal to input within 300 ms 16/16  P14 draw (PLAN-2.4) + gains (PLAN-2.5) + listen and taps (PLAN-2.6): 600 s per rate (--long) + every-block run 10 s per rate; largest peak 252.5 dB re input peak; largest static stack (fading bands: larger of their two slots) 552 dB, largest guard 600 dB; slowest return to the input 220.6 ms; seed changed at 6 of 16 runs
+  [PASS] S6 one block holding a NaN sample, then noise; the same with +inf; 6 mixed bands: output finite from the next block on; from 2 s on within 0.01 dB (single bin) of a fresh instance 7/7  NaN: from 2 s on within 0 dB of a fresh instance (6 bins); +inf: from 2 s on within 0 dB of a fresh instance (6 bins)
+
+-- A2. allocation under stress (Phase 2.3: G6, PERF-01)
+  [PASS] A2 processBlock under stress, 20 s of the S5 draw at 48 kHz, first block included, parameter writes outside the window: 0 allocations, 0 frees 0 allocations, 0 frees in 222834 windows (malloc_logger, this thread); hook live (probe: 1 / 1)
+  [PASS] A2n a planted allocation inside the processBlock window is counted (control fires) 1 allocations, 1 frees
+
+-- N7. noise floor and silence (Phase 2.3: G7 float, DSP-05)
+  [PASS] N7 (i) bell 10 Hz Q 40 +12 dB at 192 kHz, 1 kHz sine at -6 dBFS: residual of the float output after removing 1 kHz, last 3 s of 7, <= -140 dBFS RMS -159.49 dBFS RMS (fitted amplitude 0.5); the float input's own residual is -163.12 dBFS
+  [PASS] N7 (ii) 24 bells 10 - 33 Hz Q 40, 192 kHz stereo: median block time over the last 5 s of a 60 s silence <= 1.2x the median with noise (best of three) best 0.978x; trials: 0.978x (silence 79.71 us, noise 81.5 us per block); 0.9979x (silence 80.33 us, noise 80.5 us per block); 1.055x (silence 82.88 us, noise 78.58 us per block)
+
+-- X2. CPU, sweeping (INFO, not gated; G10 binds in Stage 4)
+  [INFO] X-cpu2 48 kHz stereo, 512-sample blocks, 20 s, 24 cuts x 96 dB/oct (PERF-02): sweeping 5.58 % of one core (bench 4.35; line 35), settled 3.04 % (bench 2.48; compare 2.2's X-cpu)
+  [INFO] X-cpu2 48 kHz stereo, 512-sample blocks, 20 s, 24 shelves x 96 dB/oct: sweeping 27.7 % of one core (bench 23.0; line 35), settled 5.69 % (bench 5.10; compare 2.2's X-cpu)
+  [INFO] X-cpu2 48 kHz stereo, 512-sample blocks, 20 s, 24 bells: sweeping 4.87 % of one core (bench 4.46; line 35), settled 0.982 % (bench 0.71; compare 2.2's X-cpu)
+
+-- XR-g3. G3 step rows through the plugin (Phase 2.4: DSP-04, FUNC-01, FUNC-04; PLAN-2.4 P11, P13)
+      XR-g3h 1000 Hz, block 512, enable Bell 10 Hz Q 40 +12                                   hard / held 1.00  VOID, not counted (the 10 Hz, Q 40 bell does nothing to a 1 kHz tone)
+      XR-g3h 1000 Hz, block 512, global bypass, Bell 10 Hz Q 40 +12                           hard / held 1.00  VOID, not counted (the 10 Hz, Q 40 bell does nothing to a 1 kHz tone)
+      XR-g3h 1000 Hz, block 512, band bypass Bell 10 Hz Q 40 +12                              hard / held 1.00  VOID, not counted (the 10 Hz, Q 40 bell does nothing to a 1 kHz tone)
+      XR-g3     50 Hz  Type pairs        n 100 | d2 eng / held worst  1.507 (type -18 Bell <> Tilt b512) | kappa eng / held worst  20.47, above 2.0:  75 | hard / held lowest at block 512   16743.6 | void 0
+      XR-g3     50 Hz  Slope pairs       n 280 | d2 eng / held worst  1.522 (slope Low Cut 48 <> 96 b512) | kappa eng / held worst  16.12, above 2.0:  84 | hard / held lowest at block 512   13385.0 | void 0
+      XR-g3     50 Hz  Placement pairs   n  40 | d2 eng / held worst  1.477 (place LowCut 96 Stereo <> Left b512) | kappa eng / held worst   6.07, above 2.0:  21 | hard / held lowest at block 512    4793.4 | void 0
+      XR-g3     50 Hz  Enable            n  30 | d2 eng / held worst  1.313 (enable LowCut 96 at tone b512) | kappa eng / held worst  16.39, above 2.0:  10 | hard / held lowest at block 512     285.7 | void 0
+      XR-g3     50 Hz  Global bypass     n  32 | d2 eng / held worst  1.334 (global bypass, LowCut 96 at tone b512) | kappa eng / held worst  16.96, above 2.0:  10 | hard / held lowest at block 512     272.4 | void 0
+      XR-g3     50 Hz  Enable, 24 bells  n   2 | d2 eng / held worst  0.806 (enable 24 x Bell +1 Q 4 b32) | kappa eng / held worst   2.72, above 2.0:   2 | hard / held lowest at block 512   15245.1 | void 0
+      XR-g3     50 Hz  Band bypass       n  30 | d2 eng / held worst  1.313 (band bypass LowCut 96 at tone b512) | kappa eng / held worst  16.39, above 2.0:  10 | hard / held lowest at block 512     285.7 | void 0
+      XR-g3   1000 Hz  Type pairs        n 100 | d2 eng / held worst  1.001 (type -18 Bell <> Tilt b512) | kappa eng / held worst   2.20, above 2.0:   8 | hard / held lowest at block 512      41.6 | void 0
+      XR-g3   1000 Hz  Slope pairs       n 280 | d2 eng / held worst  1.002 (slope High Cut 24 <> 72 b32) | kappa eng / held worst   1.92, above 2.0:   0 | hard / held lowest at block 512      37.1 | void 0
+      XR-g3   1000 Hz  Placement pairs   n  40 | d2 eng / held worst  1.001 (place LowCut 96 Stereo <> Left b512) | kappa eng / held worst   1.48, above 2.0:   0 | hard / held lowest at block 512      18.3 | void 0
+      XR-g3   1000 Hz  Enable            n  30 | d2 eng / held worst  1.021 (enable LowCut 96 Q 4 below tone b32) | kappa eng / held worst   1.49, above 2.0:   0 | hard / held lowest at block 512      17.9 | void 1
+      XR-g3   1000 Hz  Global bypass     n  32 | d2 eng / held worst  1.021 (global bypass, LowCut 96 Q 4 below tone b32) | kappa eng / held worst   1.65, above 2.0:   0 | hard / held lowest at block 512      17.9 | void 1
+      XR-g3   1000 Hz  Enable, 24 bells  n   2 | d2 eng / held worst  1.000 (enable 24 x Bell +1 Q 4 b32) | kappa eng / held worst   1.56, above 2.0:   0 | hard / held lowest at block 512      50.5 | void 0
+      XR-g3   1000 Hz  Band bypass       n  30 | d2 eng / held worst  1.021 (band bypass LowCut 96 Q 4 below tone b32) | kappa eng / held worst   1.49, above 2.0:   0 | hard / held lowest at block 512      17.9 | void 1
+  [PASS] XR-g3 G3 step rows through processBlock: 242 rows + 15 band-bypass rows x 50 Hz / 1 kHz x blocks 32 / 512: largest second difference <= 2.0x the louder held render 1028/1028  worst 1.522x (bench 1.53x at 50 Hz, 1.02x at 1 kHz)
+  [PASS] XR-g3k the same renders, 1 kHz: local kappa <= 2.5x the larger held reference 514/514  worst 2.197x (bench 2.20x)
+  [INFO] XR-g3k 50 Hz (printed, not gated, PLAN-2.4 P13 (b)): local kappa engine / held worst 20.47x; 212 of 514 readings above 2.0x (bench, 484 readings: worst 20.5x, 202 above 2.0x)
+  [PASS] XR-g3h hardStepRender (the 2.3 rule, the plugin's float input) at block 512 reads >= 10x the louder held render (control fires); void readings printed, not counted 511/511  weakest 17.92x (bench 274x / 17.9x); void: enable Bell 10 Hz Q 40 +12 reads 1x; global bypass, Bell 10 Hz Q 40 +12 reads 1x; band bypass Bell 10 Hz Q 40 +12 reads 1x
+  [PASS] XR-g3b the Global bypass group through processBlockBypassed: (a) second difference <= 2.0x held, both tones; (b) 1 kHz local kappa <= 2.5x held (a) 64/64 worst 1.334x; (b) 32/32 worst 1.648x; 50 Hz kappa worst 16.96x (printed)
+
+-- XR-ref / XR-rest. the specified fade through the plugin (Phase 2.4: PLAN-2.4 P12; VERIFICATION-2.3 issue 4)
+  [PASS] XR-ref 30 first fades (6 type, 12 slope, 6 placement, 3 enable, 3 disable) at 48 and 96 kHz, noise: float output against fadeRefRender <= -120 dB re the output peak, render start to 50 ms after the fade 60/60  worst -145.4 dB (96 kHz place Bell +18 Right -> Mid); harness N guard 8/8
+  [PASS] XR-rest bell 40 Hz Q 20 +24 dB ringing, type -> Low Shelf at sample 24000: from the fade's end memcmp-equal to a fresh instance on the new parameters started at the fade's first sample N = 960
+
+-- XR-g4. G4 (d), (e), (f) on the float output (Phase 2.4: QUAL-01, FUNC-04, FUNC-05)
+  [PASS] XR-g4d G4 (d): 24 bells on at exactly 0 dB (from the start, and enabled mid-render) memcmp-equal to the input throughout; 24 bells 6 -> 0 dB memcmp-equal 200 ms after the edit (blocks 1 / 16 / 64 / 512 / 1024 / 4096 / random, mono and stereo) 42/42  stereo 6 -> 0 dB: equal from block 1 19.98 ms, block 16 19.98 ms, block 64 19.98 ms, block 512 19.98 ms, block 1024 19.98 ms, block 4096 19.98 ms, random sequence 20.08 ms after the edit (bench 85.7 - 88.3)
+  [PASS] XR-g4e G4 (e): 24 gain-bearing bands at +-12 dB (bells, shelves, tilt), gain_scale -> 0 %: memcmp-equal to the input 200 ms later (7 block patterns, stereo) 7/7  equal from block 1 19.98 ms, block 16 19.98 ms, block 64 19.98 ms, block 512 19.98 ms, block 1024 19.98 ms, block 4096 19.98 ms, random sequence 20.08 ms after the edit (bench 87.0 - 89.1)
+  [PASS] XR-g4f G4 (f): 24 bands at +-12 dB, bypass on by the parameter and by processBlockBypassed: memcmp-equal 100 ms later, and equal from exactly N samples after the block that sees it (7 block patterns) 14/14  N = 960
+  [PASS] XR-g4n (d) with one bell at 0.001 dB, (e) with gain_scale leaving the 12 dB bands at 0.001 dB, (f) read 5 ms after the toggle: each differs from the input (control fires) 28/28
+
+-- XR-g2. G2 live: slope changes on a running band (Phase 2.4: DSP-03)
+  [PASS] XR-g2 Low Cut and High Cut at 500 Hz, each of the 8 slopes reached from its neighbour on a running band; impulse 100 ms after the fade: corner -3.01 +- 0.10 dB; slope within 1.0 dB/oct (-20 / -50 dB points, else G2s-short against the prototype) 16/16  worst corner error 0.00122 dB, worst slope error 0.375 dB/oct; 1 cells measured G2s-short
+
+-- XR-byp / XR-big / XR-prep. changed while bypassed; oversize host blocks; re-prepare (Phase 2.4; VERIFICATION-2.3 issue 3)
+  [PASS] XR-byp six mixed bands, noise: edited while fully bypassed (type, slope, placement, gain, frequency, Q, enable; or continuous only; or bypass engaged mid-ramp), both routes: from un-bypass + N memcmp-equal to a fresh instance on the edited parameters started at the un-bypass sample 4/4  N = 960
+  [PASS] XR-bypn the same compare against a fresh instance on the parameters from before the bypass (variant 4: before the gain move) differs (control fires) 4/4
+  [PASS] XR-big host blocks of 4096 on a prepared size of 512, 6 bands with moves, structural events and a bypass toggle: bit-identical to the same script prepared at 4096 
+  [PASS] XR-prep re-prepare at the same rate after 1 s (a type fade and a gain ramp in flight), then two moves and one type change in blocks of 500: memcmp-equal to a fresh instance 
+
+-- XR-blk. block identity with structural events (Phase 2.4: PLAN-2.4 P9)
+  [PASS] XR-blk six bands, 160 events on multiples of 2048 (type, slope, placement, enable, f, gain incl. exactly 0, Q, gain_scale, bypass): blocks 32 / 64 / 512 / 2048 bit-identical at 44.1 / 48 / 96 / 192 kHz; differs from the render without events 20/20
+
+-- A3. allocation with fades and bypass (Phase 2.4: G6, PERF-01)
+  [PASS] A3 processBlock and processBlockBypassed, 20 s of the P14 every-block draw at 48 kHz (structure at every block, bypass toggles by both routes), first block included: 0 allocations, 0 frees 0 allocations, 0 frees in 222834 windows (56043 through processBlockBypassed; malloc_logger, this thread); hook live (probe: 1 / 1)
+  [PASS] A3n a planted allocation inside the processBlock / processBlockBypassed window is counted (control fires) 1 allocations, 1 frees
+
+-- X3. CPU with fades (INFO, not gated; G10 binds in Stage 4)
+  [INFO] X-cpu3 48 kHz stereo, 512-sample blocks, 20 s, 24 cuts x 96 dB/oct (Low Cut <> High Cut): settled 3.08 %; always fading 5.76 %; one fade per second 2.95 %; 24 asleep 3.05 % of one core (bench settled / always fading / one per second / asleep: 2.65 / 5.17 / 2.71 / - %; compare X-cpu2 settled above)
+  [INFO] X-cpu3 48 kHz stereo, 512-sample blocks, 20 s, 24 shelves x 96 dB/oct (High <> Low): settled 5.72 %; always fading 11 %; one fade per second 5.66 %; 24 asleep 0.00246 % of one core (bench settled / always fading / one per second / asleep: 4.93 / 9.88 / 5.06 / 0.04 %; compare X-cpu2 settled above)
+  [INFO] X-cpu3 48 kHz stereo, 512-sample blocks, 20 s, 24 bells <> 12 dB/oct shelves: settled 0.99 %; always fading 1.76 %; one fade per second 0.97 %; 24 asleep 0.00211 % of one core (bench settled / always fading / one per second / asleep: 0.67 / 1.74 / 0.87 / 0.04 %; compare X-cpu2 settled above)
+  [INFO] X-cpu3 48 kHz stereo, 512-sample blocks, 20 s, 24 shelves 96 <> 72 dB/oct: settled 5.74 %; always fading 9.33 %; one fade per second 4.76 %; 24 asleep 0.00212 % of one core (bench settled / always fading / one per second / asleep: 4.97 / 8.39 / 4.26 / 0.04 %; compare X-cpu2 settled above)
+
+-- XR-g12. G12 through the plugin (Phase 2.5: FUNC-05, FUNC-06; PLAN-2.5 T7)
+  [PASS] XR-g12o G12 output gain -36 / -12 / 0 / +12 / +36 dB, 1 kHz sine, 48 kHz, read from 100 ms after the edit: RMS ratio within 1e-4 dB of the target, both channels (limit +-0.05 dB) 10/10  worst 1.59e-07 dB
+  [PASS] XR-g12s G12 gain scale 200 % on +-6 dB bells (1 kHz, Q 1): the centre gain is +-12 dB within the G1 tolerance (0.05 + 0.012 |g| = 0.194 dB), and the render is memcmp-equal to the raw +-12 dB bell at 100 % 2/2  6 dB -> 12 dB, -6 dB -> -12 dB
+  [PASS] XR-g12a G12 auto gain: +12 dB Low Shelf 200 Hz 12 dB/oct, auto_gain on, band-limited pink 40 Hz - 16 kHz (FFT-shaped, 12 s, seeded), RMS from 1 s on: output / input within +-0.5 dB; agRef estimate -6.167 dB +- 0.001 output / input -0.006128 dB; agRef -6.16653 dB (eq::AutoGain, printed: -6.16653 dB)
+  [PASS] XR-g12d two renders of XR-g12a (two instances) are bit-identical       
+  [PASS] XR-g12n XR-g12a with auto_gain off reads outside +-0.5 dB (control fires) output / input 6.16 dB (expected about +6.2)
+
+-- XR-gstep / XR-gret / XR-ref. G3 step rows for the gains through the plugin (Phase 2.5: G12 as amended, G3; PLAN-2.5 P8, T7)
+      XR-gstep auto-gain band set   -18 dB: Bell 3 kHz +6 dB Q 1 + High Shelf 20 Hz 12 dB/oct Q 1 at +16.4261 dB (raw); agRef estimate -18.0000 dB
+      XR-gstep auto-gain band set    -6 dB: Bell 3 kHz +6 dB Q 1 + High Shelf 20 Hz 12 dB/oct Q 1 at +4.3914 dB (raw); agRef estimate -6.0000 dB
+      XR-gstep auto-gain band set    +6 dB: Bell 3 kHz +6 dB Q 1 + High Shelf 20 Hz 12 dB/oct Q 1 at -7.6318 dB (raw); agRef estimate +6.0000 dB
+      XR-gstep auto-gain band set   +12 dB: Bell 3 kHz +6 dB Q 1 + High Shelf 20 Hz 12 dB/oct Q 1 at -30.0000 dB (raw); agRef estimate +12.0000 dB
+      XR-gstep output gain (20 pairs)      50 Hz | d2 step / louder held worst  1.565 (output gain -36 -> 36 dB b512) | hard / held lowest at block 512    17336.5
+      XR-gstep output gain (20 pairs)    1000 Hz | d2 step / louder held worst  1.000 (output gain -36 -> 12 dB b512) | hard / held lowest at block 512       42.8
+      XR-gstep auto gain toggles (8)       50 Hz | d2 step / louder held worst  1.009 (auto gain on -> off, estimate -18 dB b32) | hard / held lowest at block 512     8942.2
+      XR-gstep auto gain toggles (8)     1000 Hz | d2 step / louder held worst  1.000 (auto gain off -> on, estimate -18 dB b32) | hard / held lowest at block 512       27.4
+  [INFO] XR-gstep 1 kHz local kappa with the frames on the 2.4 step-row grid (from 0.3 s, not anchored at the change; printed, not gated): worst output 7.226x (1000 Hz, block 512, output gain -36 -> 36 dB), auto 1.183x (1000 Hz, block 32, auto gain off -> on, estimate -18 dB)
+  [PASS] XR-gstep G3 step rows for the gains through processBlock (P11 stimulus, a Bell +6 dB running): 20 output-gain pairs and 8 auto_gain toggles (estimates -18 / -6 / +6 / +12 dB) x 50 Hz / 1 kHz x blocks 32 / 512: (a) largest second difference <= 2.0x the louder held render; (b) 1 kHz local kappa <= 2.5x (per change, frames from 50 ms before the stage starts moving, as gain_bench) (a) 112/112 worst output 1.565x, auto 1.009x (bench P4 1.56x / 1.00x, AG 1.01x); (b) 56/56 worst output 2.114x, auto 1.191x (bench 2.22x)
+  [PASS] XR-gsteph hardGainRender (the gain-neutral float output, the gain jumping at the sample the stage starts moving) at block 512 reads >= 10x the louder held render on every row (control fires) 56/56  weakest output 42.83x, auto 27.4x (bench 59x at 1 kHz, 23 000x at 50 Hz)
+      XR-gret 0 > 12 > 18, 1000 Hz         worst over 4 fractions x 2 block sizes x 8 phases: 1.000x
+      XR-gret 0 > 12 > 18, 50 Hz           worst over 4 fractions x 2 block sizes x 8 phases: 1.052x
+      XR-gret 0 > 36 > -36, 1000 Hz        worst over 4 fractions x 2 block sizes x 8 phases: 0.998x
+      XR-gret 0 > 36 > -36, 50 Hz          worst over 4 fractions x 2 block sizes x 8 phases: 1.582x
+      XR-gret 36 > -36 > 0, 1000 Hz        worst over 4 fractions x 2 block sizes x 8 phases: 1.000x
+      XR-gret 36 > -36 > 0, 50 Hz          worst over 4 fractions x 2 block sizes x 8 phases: 1.573x
+      XR-gret 36 > -36 > 36, 1000 Hz       worst over 4 fractions x 2 block sizes x 8 phases: 1.000x
+      XR-gret 36 > -36 > 36, 50 Hz         worst over 4 fractions x 2 block sizes x 8 phases: 1.573x
+  [PASS] XR-gret output-gain reversals through processBlock (0 > +36 > -36, +36 > -36 > +36, +36 > -36 > 0, 0 > +12 > +18; second change at 25 / 50 / 75 / 90 % of the 20 ms; 8 phases) x 50 Hz / 1 kHz x blocks 32 / 512 (blocks cut at the edit samples): largest second difference <= 2.0x the louder of the three held renders 64/64  worst 50 Hz 1.582x (50 Hz, block 32, 0 > 36 > -36 at 50 %), 1 kHz 1x (bench P4 1.58x)
+  [PASS] XR-ref every XR-gstep render (112 jobs x held A, held B, step) and every XR-gret render (20 held, 512 reversals) against gainRefRender (the four-pole recurrence, tick / refresh schedule and seeding re-stated per sample) x the gain-neutral float output: <= -120 dB re the output peak 644/644  worst -138.9 dB (XR-gstep 50 Hz, block 32, output gain -36 -> -12 dB)
+
+-- XR-gsweep. G3 sweep form for the gains through the plugin (Phase 2.5: G12 as amended; RESEARCH-2.5 Q1)
+  [PASS] XR-gsweep output gain -30 -> +30 -> -30 dB in 20 ms each way (automation at block starts) against the per-sample automation of the gain-neutral output; auto gain on while a Bell 1 kHz Q 1 sweeps -12 -> +12 -> -12 dB in 20 ms against the same render with the auto-gain trajectory from gainRefRender on agRef targets; 50 Hz / 1 kHz, blocks 32 / 512: largest second difference <= 4.0x 8/8  output gain: 50 Hz / 32 0.014x, 50 Hz / 512 0.0151x, 1000 Hz / 32 1x, 1000 Hz / 512 1x (bench 0.03x); auto gain: 50 Hz / 32 1x, 50 Hz / 512 1x, 1000 Hz / 32 1x, 1000 Hz / 512 1x (no bench figure); auto-gain render against its reference worst -140.5 dB re peak (printed)
+
+-- XR-g4a / XR-idle. G4 (a) with the output stage on the float output (Phase 2.5: QUAL-01; PLAN-2.5 P6, R1)
+  [PASS] XR-g4a G4 (a) with the stage: no band, output gain 0 dB, auto_gain off and on, noise + denormal tail: out memcmp-equal to in (blocks 1 / 16 / 64 / 512 / 1024 / 4096 / random, mono and stereo) 30/30
+  [PASS] XR-g4an output gain +0.001 dB (mono, stereo), and auto_gain on with one Left-only +1 dB bell (the right channel): each differs from the input (control fires; 7 block patterns) 21/21
+  [PASS] XR-idle no band, output gain 0 -> +6 -> 0 dB: memcmp-equal to the input from 60 ms after the second edit, denormal tail included (7 block patterns, mono and stereo) 14/14  stereo equal from block 1 38.75 ms, block 16 38.75 ms, block 64 38.75 ms, block 512 38.75 ms, block 1024 38.75 ms, block 4096 38.75 ms, random sequence 38.75 ms after the second edit (bench snap 45 - 52 ms)
+
+-- XR-seed / XR-gbyp / XR-unb. seeding, bypass with the gain, the latched un-bypass (Phase 2.5: PLAN-2.5 P6, R3; VERIFICATION-2.4 Issue 2)
+  [PASS] XR-seed (i) opened at output +12 dB, auto_gain on, one +12 dB Low Shelf 200 Hz: from the first sample the output is the 0 dB / auto-off render x 10^(12/20) agRef, <= -120 dB re the peak (blocks 64 / 512); (ii) one band, edits while bypassed (output gain, auto_gain, the band), un-bypass by both routes: from un-bypass + N memcmp-equal to a fresh instance on the edited parameters (i) block 64 -131.9 dB, block 512 -131.9 dB (constant 5.83347 dB: +12 and agRef -6.16653); (ii) 2/2  N = 960
+  [PASS] XR-seedn (ii) against a fresh instance on the parameters from before the bypass differs (control fires) 2/2
+  [PASS] XR-gbyp no band, output +12 dB: bypass on and off by the parameter and by processBlockBypassed (blocks 64 / 512): the toggle fades, exactly N samples of mixing each way equal to the harness mix of x g and x with the re-stated weights (<= -120 dB re peak); memcmp-equal to the input while bypassed and to x g outside 4/4  worst mix -150.3 dB; N = 960
+  [PASS] XR-unb VERIFICATION-2.4 Issue 2, one band, output +6 dB and auto_gain on: bypass on, a type edit and a gain edit during the fade, un-bypass 5 ms into it; parameter and processBlockBypassed, blocks 32 / 512: (i) from e + 2N memcmp-equal to a fresh instance on the edited parameters started at e + N (PX14); (ii) over [start, e + 2N] the harness mix of the held processed render and the dry input, the second fade from e + N exactly, <= -120 dB re peak (PX9) (i) 4/4; (ii) 4/4 worst -146.7 dB; N = 960
+  [PASS] XR-unbn (i) against a fresh instance on the pre-edit parameters, (ii) with the second fade starting one sample late: each differs (control fires) (i) 4/4; (ii) 4/4 closest -64.88 dB
+
+-- XR-blk5. block identity with output_gain and auto_gain events (Phase 2.5: PLAN-2.5 P4, P5, R2)
+      XR-blk5 44.1 kHz   auto-gain band evaluations / refreshes at blocks 32 / 64 / 512 / 2048: 129 / 151, 129 / 151, 129 / 151, 129 / 151 (without events, block 512: 3 / 349)
+      XR-blk5 48 kHz     auto-gain band evaluations / refreshes at blocks 32 / 64 / 512 / 2048: 129 / 137, 129 / 137, 129 / 137, 129 / 137 (without events, block 512: 3 / 321)
+      XR-blk5 96 kHz     auto-gain band evaluations / refreshes at blocks 32 / 64 / 512 / 2048: 129 / 69, 129 / 69, 129 / 69, 129 / 69 (without events, block 512: 3 / 161)
+      XR-blk5 192 kHz    auto-gain band evaluations / refreshes at blocks 32 / 64 / 512 / 2048: 66 / 37, 66 / 37, 66 / 37, 66 / 37 (without events, block 512: 3 / 81)
+  [PASS] XR-blk5 four bands, 160 events on multiples of 2048 (type, slope, placement, enable, f, gain incl. exactly 0, Q, output_gain p 0.3, auto_gain p 0.1), auto-gain refreshes in flight: blocks 32 / 64 / 512 / 2048 bit-identical at 44.1 / 48 / 96 / 192 kHz; differs from the render without events 24/24  49 output-gain and 16 auto-gain changes in the script
+
+-- XR-meter. the max-hold output peak (Phase 2.5: PLAN-2.5 P7)
+  [PASS] XR-meter readAndResetOutputPeak: a one-sample +6 dBFS spike in one 32-sample block among 50 between two reads is reported (2.0 within 1 ulp; equal to the largest |output| sample) on the untouched, bypassed (both routes), processed and not-prepared paths; the read resets to 0; mono has channel 0 only 6/6  stereo, untouched (no band) 2 / 0.0998111367; stereo, bypassed by the parameter 2 / 0.0998111367; stereo, processBlockBypassed 2 / 0.0998111367; stereo, processed (output +6 dB) 3.99052453 / 0.1991494; stereo, not prepared 2 / 0.0998111367; mono, untouched (no band) 2 / 0
+
+-- A4. allocation with the output stage and auto gain (Phase 2.5: G6, PERF-01)
+  [PASS] A4 processBlock and processBlockBypassed, 20 s at 48 kHz: the P14 every-block draw (24 bands moving at every block, bypass toggled by both routes), auto_gain on, output_gain redrawn per block, first block included: 0 allocations, 0 frees 0 allocations, 0 frees in 222834 windows (57029 through processBlockBypassed; 10028 band evaluations in 793 refreshes; malloc_logger, this thread); hook live (probe: 1 / 1)
+  [PASS] A4n a planted allocation inside the processBlock / processBlockBypassed window is counted (control fires) 1 allocations, 1 frees
+
+-- X4. CPU with the output stage and auto gain (INFO, not gated; G10 binds in Stage 4)
+  [INFO] X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, 24 cuts x 96 dB/oct (Low Cut <> High Cut): settled 3.1 % (X-cpu3 3.08 %); always fading 6.45 % (X-cpu3 5.76 %); one fade per second 3.03 % (X-cpu3 2.95 %); 24 asleep 3.1 % (X-cpu3 3.05 %) of one core (bench: auto gain adds about +1.4 % in the worst case)
+  [INFO] X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, 24 shelves x 96 dB/oct (High <> Low): settled 5.79 % (X-cpu3 5.72 %); always fading 12.4 % (X-cpu3 11 %); one fade per second 5.7 % (X-cpu3 5.66 %); 24 asleep 0.00244 % (X-cpu3 0.00246 %) of one core (bench: auto gain adds about +1.4 % in the worst case)
+  [INFO] X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, 24 bells <> 12 dB/oct shelves: settled 1.01 % (X-cpu3 0.99 %); always fading 1.95 % (X-cpu3 1.76 %); one fade per second 0.961 % (X-cpu3 0.97 %); 24 asleep 0.00242 % (X-cpu3 0.00211 %) of one core (bench: auto gain adds about +1.4 % in the worst case)
+  [INFO] X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, 24 shelves 96 <> 72 dB/oct: settled 5.81 % (X-cpu3 5.74 %); always fading 10.6 % (X-cpu3 9.33 %); one fade per second 4.83 % (X-cpu3 4.76 %); 24 asleep 0.00248 % (X-cpu3 0.00212 %) of one core (bench: auto gain adds about +1.4 % in the worst case)
+  [INFO] X-cpu4 48 kHz stereo, 512-sample blocks, 20 s, 24 High Shelves x 96 dB/oct, gain swept at every block (every refresh redesigns 24 bands): auto_gain off 25.2 %, on 26.9 % of one core (difference 1.72 %; bench +1.4 %)
+
+-- XR-g9 / XR-dm. the display model and G9 (a) (Phase 2.6: UI-02 C++ half; C1; PLAN-2.6 P8, T9)
+  [PASS] XR-g9 G9 (a) as amended (C1): 50 random full-range 1 - 24 band configurations at each of 44.1 / 48 / 88.2 / 96 / 192 kHz, stereo, plus 10 mono; four impulses (L, R, (1, 1), (1, -1)), 2^17 samples, a^N = 1e-9; the closed form from the processor's own DisplayModel packets: LL / RR / MM / SS <= 0.05 dB where the closed form is within 80 dB of the largest maximum among the four responses and at or above -120 dB re the impulse (192 log points; floors: PLAN-2.6 execute, Taylor's call 2026-11-15; a configuration with no such point is void, listed) 253/253  worst dB per rate (stereo): 44.1 kHz 0.000708 (0 void), 48 kHz 0.00174 (1 void), 88.2 kHz 0.00127 (1 void), 96 kHz 0.00203 (2 void), 192 kHz 0.000703 (3 void); VOID (no point at or above -120 dB re the impulse): 7 (88.2 kHz draw 33, 96 kHz draw 18, 192 kHz draw 16, mono 48 kHz draw 1, mono 96 kHz draw 0, mono 192 kHz draw 0, mono 192 kHz draw 1); mono 0.000149 (bench <= 1.2e-3); 141864 points scored, 3465 active bands
+  [INFO] XR-g9 by each response's own maximum (re the unit impulse; diagnostic, not gated): response maximum >= -20 dB: worst 0.00203 dB (0 of 746 responses above 0.05); -20 ... -80 dB: worst 0.00174 dB (0 of 200 responses above 0.05); below -80 dB: worst 4.32e-06 dB (0 of 64 responses above 0.05)
+  [PASS] XR-g9u confirming unit-circle row: draws whose slowest pole (from the packets) falls 200 dB within 6 s, rendered 1.25x that time (at least 25 per rate, drawn until kept, max 200): LL / RR / MM / SS <= 0.05 dB within 80 dB of the largest maximum among the four responses and at or above -120 dB re the impulse (void configurations listed) 129/129  44.1 kHz 25 of 38 drawn, worst 0.000946 dB, longest 7.18 s; 48 kHz 25 of 37 drawn, worst 0.000919 dB, longest 7.43 s; 88.2 kHz 25 of 37 drawn, worst 0.00105 dB, longest 7.02 s; 96 kHz 25 of 40 drawn, worst 0.00115 dB, longest 7.2 s; 192 kHz 25 of 39 drawn, worst 0.00161 dB, longest 7.45 s (bench <= 3.8e-2 at 48 kHz, 1 - 8 bands); VOID 1 (88.2 kHz kept draw 61)
+  [INFO] XR-g9u by each response's own maximum (re the unit impulse; diagnostic, not gated): response maximum >= -20 dB: worst 0.00161 dB (0 of 419 responses above 0.05); -20 ... -80 dB: worst 0.000946 dB (0 of 70 responses above 0.05); below -80 dB: worst 1.7e-06 dB (0 of 11 responses above 0.05)
+  [PASS] XR-g9n the four controls on the XR-g9 draws (the harness closed form perturbed, the plugin untouched): each exceeds 0.05 dB k x 1.01 21.6 dB (above 0.05 on 246 of 249 draws it changes); one-pole dropped 150 dB (above 0.05 on 243 of 248 draws it changes); L band and M band in the wrong order 324 dB (above 0.05 on 176 of 186 draws it changes); Mid matrix for Side 336 dB (above 0.05 on 205 of 209 draws it changes)
+  [PASS] XR-g9id packet identity: after the first block, every band's packet sections (parsed back from the var, and the model's BandDesign) equal getBandRealisedDesign field by field, bit for bit; inactive and sleeping bands send active: false and realise no design (disabled, bypassed, Bell at exactly 0 dB, gain scale 0 %) 262/262  6240 bands compared over 260 configurations (3465 active), plus the named cases
+  [PASS] XR-g9j every XR-g9 packet through juce::JSON::toString and juce::JSON::parse, composed again on the unit circle: <= 1e-7 dB from the unserialised composition (within 80 dB of the largest response maximum and at or above -120 dB re the impulse); every packet value finite worst 1.37e-08 dB (bench 1.5e-8)
+  [INFO] XR-g9j by each response's own maximum (re the unit impulse; diagnostic, not gated): response maximum >= -20 dB: worst 1.37e-08 dB; -20 ... -80 dB: worst 1.45e-09 dB; below -80 dB: worst 1.5e-10 dB
+  [PASS] XR-dm polling: before any prepare all 24 and rateKnown false at 48 kHz; the first prepare all 24; no edit -> empty; one band edited -> exactly that band; a setStateInformation (preset load) changing 5 bands -> those 5; prepareToPlay at a new rate -> all 24 and the header's rate 8/8
+
+-- XR-an / XR-gate / XR-ovf / XR-gen. the analyzer taps and the message-side analyzer (Phase 2.6: UI-03 engine half; PLAN-2.6 P2, P3, P11)
+  [PASS] XR-an -12 dBFS 1 kHz sine on both channels, 44.1 / 48 / 88.2 / 96 / 192 kHz, 8 phases, pre and post (no band), drained once per 33 ms of audio: the largest display value -12 +- 0.5 dB 40/40  worst over phases and taps: 44.1 kHz -12.081 .. -12.081, 48 kHz -12.039 .. -12.039, 88.2 kHz -12.081 .. -12.081, 96 kHz -12.039 .. -12.039, 192 kHz -12.039 .. -12.039 dB (bench -12.08 / -12.04 / -12.04 at 44.1 / 96 / 192)
+  [PASS] XR-answ 50 log tones 20 Hz - 20 kHz at -12 dBFS, the five rates, pre and post: within +-0.25 dB of -12 250/250  -12.087 ... -11.956 dB (lowest at 192 kHz 5623.5 Hz; bench -12.11 ... -11.99)
+  [PASS] XR-ann the XR-an stimulus at 96 kHz through P3 step 2 re-stated in the harness with zero-pad 1x (the plugin's analyzer untouched): the reading falls below -12.5 dB (control fires) 1x -12.627 dB (bench -12.63); the same restatement at 4x -12.039 dB (bench -12.04)
+  [PASS] XR-anpp +12 dB Bell 1 kHz Q 1, a -24 dBFS 1 kHz sine, 48 kHz: post - pre at the display point holding 1 kHz is +12 +- 0.5 dB post -12.039, pre -24.039 dB: 12 dB (point 147, 992.27 - 1023.8 Hz)
+  [PASS] XR-anrel the host stops calling processBlock: process (0.033) keeps falling at 20 dB/s (within +-1 dB over 2 s, both taps); instant attack on re-entry (the next frame reads the held value again, +-1 dB) held -12.039 dB; after 61 calls (2.01 s) -52.299 dB (expected -52.299), worst deviation 8.35e-06 dB; re-entry -12.039 dB
+  [PASS] XR-gate the tap writes: mode 0, or no consumer -> neither tap's write index moves; mode 1 / 2 move only their tap; mode 3 both, on the processed, bypassed (both routes) and untouched paths; unprepared -> nothing; a restored analyzerMode gates the same way (R9) 11/11
+  [PASS] XR-ovf (P2; Taylor's call 2026-11-15) no drain for 2 s at blocks 32 / 4096 / 65 536 (stereo, 48 kHz; the 65 536 block through processBlock on a 4096 prepare): every block returns; the drop count is exact (offered - kept); the ring holds the oldest fitting run since the last drain, and for the single 65 536 block into an empty ring its last 32 768 (bit-exact vs the input's mono sum); after the stale run is discarded the analyzer reads -12 +- 0.5 dB within 3 process calls (N fresh samples before each) 6/6  block 32: offered 96000, kept 32768, drops 63232 (exact), ring = oldest fitting run, longest call 0.000875 ms; block 4096: offered 96000, kept 32768, drops 63232 (exact), ring = oldest fitting run, longest call 0.003 ms; block 65536: offered 63232, kept 32768, drops 30464 (exact), ring = oldest fitting run = the block's last 32 768, longest call 0.0277 ms; block 32: the reading at process #3, -12.039 dB; block 4096: the reading at process #3, -12.039 dB; block 65536: the reading at process #3, -12.039 dB
+  [PASS] XR-gen prepareToPlay at a new rate between two drains (one thread; and drained concurrently by a second thread): no sample of the old rate reaches a transform (no frame after the generation moved holds the old 1 kHz tone above -100 dB); the analyzer re-prepares at the new size 2/2  one thread: old-rate frames holding the 1 kHz tone 6 (the check sees it); after the prepare 6 frames, the old tone's bins at most -163.2 dB; re-prepared at N = 8192, 96000 Hz (2 prepares); 5 kHz reads -12.039 dB; second thread (6587 process calls): old-generation frames 88 (88 with the 1 kHz tone), new-generation frames 172, the old tone's bins at most -163.2 dB; N = 8192
+
+-- XR-lon / XR-lchg / XR-lref. listen on / off and band changes through processBlock (Phase 2.6: FUNC-08 engine half, G3; C2; PLAN-2.6 P6, P12)
+  [PASS] XR-lon listen on / off through processBlock: the 20 XL-on bands, 50 Hz / 1 kHz at -6 dBFS, 4 phases, blocks 32 / 512, 48 / 96 kHz, listenBand written at block starts off the grid (0.5 s + 7, 1.0 s + 11): (a) <= 2.0x the louder held render; 1 kHz kappa <= 2.5x where the listen-held and EQ-held levels at the tone are within 40 dB (else kappa-void) 0 of 320 readings above 2.0x; 0 of 120 scored 1 kHz kappa readings above 2.5x (40 kappa-void: listen-held and EQ-held more than 40 dB apart at the tone (Taylor's call 2026-11-15); 0 with no frame above -80 dB); 0 non-finite
+  [INFO] XR-lon kappa-void (destination held level at 1 kHz more than 40 dB from the source's; (a) still binds; per band and rate, gap and the unscored kappa): Bell 5 kHz +6 Q 40 48 kHz (45.7 dB, kappa 2.095x); Bell 10 Hz +12 Q 40 48 kHz (72 dB, kappa 2.102x); Low Cut 100 Hz 48 dB 48 kHz (40 dB, kappa 2.178x); Notch 50 Hz Q 10 48 kHz (46 dB, kappa 2.096x); Low Shelf 20 Hz +12 48 kHz (68 dB, kappa 2.112x); Bell 5 kHz +6 Q 40 96 kHz (45.7 dB, kappa 2.087x); Bell 10 Hz +12 Q 40 96 kHz (72 dB, kappa 2.074x); Low Cut 100 Hz 48 dB 96 kHz (40 dB, kappa 2.199x); Notch 50 Hz Q 10 96 kHz (46 dB, kappa 2.059x); Low Shelf 20 Hz +12 96 kHz (68 dB, kappa 2.566x)
+  [INFO] XR-lon 48 kHz: on (a) 1.21x (Band Pass 150 Hz Q 20, 50 Hz, block 32; bench 1.21x), off (a) 1.144x (High Cut 120 Hz 12 dB, 50 Hz, block 32; bench 1.12x); 1 kHz kappa on 2.345x (High Cut 120 Hz 12 dB, block 32; bench 2.36x), off 2.279x (Low Shelf 200 Hz +12, block 32; bench 2.25x)
+  [INFO] XR-lon 96 kHz: on (a) 1.211x (Band Pass 150 Hz Q 20, 50 Hz, block 32; bench 1.21x), off (a) 1.146x (High Cut 120 Hz 12 dB, 50 Hz, block 32; bench 1.12x); 1 kHz kappa on 2.294x (High Cut 120 Hz 12 dB, block 32; bench 2.36x), off 2.269x (High Shelf 8 kHz -12, block 32; bench 2.25x) (no bench at 96 kHz)
+  [PASS] XR-lonh the XR-lon engage with the input ramp and fade replaced by listenHardRender (R = 0, N = 1) on the gain-neutral EQ output and the dry input: (a) >= 10x the held renders on every reading whose tone lies in the listen filter's stop band (<= -20 dB at the tone; block 512) 54 of 54 counted readings >= 10x (a reading: the largest of the four phases); lowest 50 Hz 7097x (High Cut 2 kHz 96 dB @ 50 Hz, 48 kHz), 1 kHz 28.63x (Low Shelf 200 Hz +12 @ 1000 Hz, 48 kHz); R = 0 / N = 20 ms (the fade from rest) worst 20102x (Band Pass 8 kHz Q 40 @ 50 Hz, 96 kHz; bench 29 672x)
+  [INFO] XR-lonh VOID (tone in the listen pass band, printed at 48 kHz, not counted; 26 readings over both rates): Bell 1 kHz +12 Q 2 @ 1000 Hz (-2.89e-15 dB, 28.8x); Bell 50 Hz -18 Q 4 @ 50 Hz (9.64e-16 dB, 1.44e+03x); Low Shelf 200 Hz +12 @ 50 Hz (-0.0169 dB, 1.15e+04x); Low Cut 100 Hz 48 dB @ 50 Hz (-0.263 dB, 178x); High Cut 2 kHz 96 dB @ 1000 Hz (-12.3 dB, 40.8x); Notch 50 Hz Q 10 @ 50 Hz (2.03e-14 dB, 15.1x); Band Pass 1 kHz Q 10 @ 1000 Hz (-6.51e-14 dB, 29.2x); Band Pass 200 Hz Q 0.3 @ 50 Hz (-3.55 dB, 1.05e+04x); Band Pass 200 Hz Q 0.3 @ 1000 Hz (-4.88 dB, 26.9x); Tilt 1 kHz +12 @ 1000 Hz (0 dB, 27.7x); Low Shelf 20 Hz +12 @ 50 Hz (-16 dB, 1.09e+04x); High Cut 120 Hz 12 dB @ 50 Hz (-15.3 dB, 6.92e+03x); High Cut 120 Hz 12 dB @ 1000 Hz (-0.0009 dB, 29.4x)
+  [INFO] XR-lonh hard switch back to the EQ path (not gated: the EQ path is warm): lowest 1x
+  [PASS] XR-lchg listen band changes through processBlock: 64 sampled ordered pairs of the 20 bands, 48 kHz, 50 Hz / 1 kHz, 4 phases, blocks 32 / 512: (a) <= 2.0x the louder held listen render, (b) 1 kHz kappa <= 2.5x where the B-held and A-held levels at 1 kHz are within 40 dB (else kappa-void) 0 of 256 above 2.0x; (a) worst 50 Hz 1.333x (Band Pass 8 kHz Q 40 -> Band Pass 150 Hz Q 20, block 32), 1 kHz 1.002x (Band Pass 1 kHz Q 10 -> High Cut 120 Hz 12 dB, block 32; bench 1.35x); (b) 0 above 2.5x, worst 2.347x (Low Shelf 200 Hz +12 -> High Cut 120 Hz 12 dB; bench 2.41x; 0 with no frame, 22 kappa-void: B-held and A-held more than 40 dB apart at 1 kHz); single phases over 2.0x: 0 / 1024 (bench 0 / 3040)
+  [INFO] XR-lchg kappa-void (Taylor's call 2026-11-15; (a) still binds; pair, gap, unscored kappa): High Cut 120 Hz 12 dB -> Band Pass 3 kHz Q 40 (40.6 dB, kappa 2.055x); Bell 2 kHz +12 Q 10 -> Bell 10 Hz +12 Q 40 (48.5 dB, kappa 2.139x); Low Shelf 20 Hz +12 -> Bell 2 kHz +12 Q 10 (44.4 dB, kappa 2.205x); Band Pass 150 Hz Q 20 -> Band Pass 1 kHz Q 10 (42.3 dB, kappa 2.229x); Bell 1 kHz +12 Q 2 -> Bell 5 kHz +6 Q 40 (45.7 dB, kappa 2.071x); High Cut 120 Hz 12 dB -> Band Pass 150 Hz Q 20 (42.3 dB, kappa 2.03x); High Cut 2 kHz 96 dB -> Bell 10 Hz +12 Q 40 (59.7 dB, kappa 2.098x); Notch 50 Hz Q 10 -> High Cut 120 Hz 12 dB (46 dB, kappa 2.222x); Tilt 1 kHz +12 -> Band Pass 3 kHz Q 40 (40.6 dB, kappa 2.056x); Bell 1 kHz +12 Q 2 -> Notch 50 Hz Q 10 (46 dB, kappa 2.083x); Bell 1 kHz +12 Q 2 -> Low Shelf 20 Hz +12 (68 dB, kappa 2.154x)
+  [PASS] XR-lref every XR-lon / XR-lchg render against listenRefRender (P12: the mapping, solo router, voices, ramp, fade, latch and gains re-stated) fed the plugin's dry input and its EQ path: <= -120 dB re the output peak 1664/1664 renders; worst -139.7 dB (XR-lon Low Shelf 20 Hz +12, 50 Hz, 96 kHz, block 32)
+
+-- XR-lroute / XR-lseed / XR-lag / XR-loff / XR-lbyp. listen routing, seeding, C3, return to idle, bypass (Phase 2.6: D11; C3; PLAN-2.6 P5, P10, P13)
+  [PASS] XR-lroute solo routing through the plugin: one Bell (1 kHz, Q 2) on each placement, stereo and mono layouts, listen settled from the first block: within float rounding (<= -140 dB re peak) of listenRefRender; and (R2) a Left / Right listen engaged mid-session at block 2048 12/12  worst -145.9 dB
+  [PASS] XR-lseed listen on at session open (blocks 64 / 512); listen changed while bypassed, then un-bypassed, and with an un-bypass latched in the fade to bypass, both routes: from the first processed sample the output is the bypass fade back to a listen started settled (one band), <= -140 dB re peak; no ramp 6/6  worst -148.3 dB; N = 960
+  [PASS] XR-lseedn the same renders against an unseeded engage (the 30 ms ramp and the fade from the first sample) differ (control fires) 6/6  closest 1.135 dB
+  [PASS] XR-lag C3 through the plugin: auto gain on with a +12 dB Low Shelf, listen on that band: the listen level equals the auto-gain-off listen level within 1e-6 dB (float output); output gain +6 dB moves it +6 +- 1e-4 dB listen, auto on vs off 0 dB (memcmp-equal); output +6 dB: 6 dB; the EQ path with listen off, auto on vs off: -6.16653 dB (the estimate acts there)
+  [PASS] XR-loff listen on -> off with no band, output 0 dB, auto off, blocks 512: white noise memcmp-equal to the input from the end of the release fade; with the denormal tail (from 200 samples before that end), from the first block that starts after it 2/2  noise: equal from the release end, 25536 (release end 25536); denormal tail: equal from the first block start after the release end, 25600 (release end 25536)
+  [PASS] XR-lbyp bypass toggled while listening and during each move kind (engage and change in the ramp and in the fade, release), both routes, 50 Hz / 1 kHz: finite; (a) <= 2.0x the held render and the dry input; the bypass fade mixes the listen output with the dry input (<= -120 dB vs the re-stated mix); the input after it 24/24  worst (a) 1.125x (engage, in the input ramp, 50 Hz, bypass parameter), worst mix -143.7 dB
+
+-- XR-blk6. block identity with listen events off the grid and the analyzer on (Phase 2.6: PLAN-2.6 P10, R1)
+  [PASS] XR-blk6 XR-blk5's four bands and 160 events (f / Q of the listened band edited at every event, ramps in flight) plus listenBand events off the tick grid (p 0.2 per span), the analyzer on (consumer, mode 3): blocks 1, 32, 64, 512, 2048 and offline (one block per event span) bit-identical at 44.1 / 96 / 192 kHz; differs without the listen events 24/24  31 listenBand events (11 to a band)
+
+-- XR-lid. listen-off identity against the 0.5.0 processor (Phase 2.6: PLAN-2.6 P13, R7)
+  [PASS] XR-lid listen-off identity (P13): the 16 sessions of T1 (random band automation, gains, bypass by both routes, mono / stereo, 44.1 / 96 kHz, blocks 1 - 4096, noise + denormal tail) rendered by this processor are memcmp-equal to the 0.5.0 dump; and again with the analyzer consumer registered, mode 3, drained by a second thread plain 16/16; analyzer on 16/16  (16 sessions drained, 8490290 samples, 4776 frames; dump /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/df84d4ad-9353-4fda-8d61-f12d47ce23bf/scratchpad/v31/sessions-070)
+  [PASS] XR-lidn session 2 with one listenBand write (band 1 for one block) must differ from the 0.5.0 dump (control fires) first difference at sample 3499 (listen engaged)
+
+-- XR-px17 / XR-px11 / XR-px4 / XR-ag3. the rows VERIFICATION-2.5 Issue 2 owes (Phase 2.6: PLAN-2.6 T9)
+  [PASS] XR-px17 VERIFICATION-2.5 PX17: no band, output gain +12 dB; bypass on, un-bypass latched 5 ms into the fade, by both routes, blocks 32 / 512: the gain is in effect from the first processed sample after the restart (no fade-in), <= -140 dB re peak against the constant-gain render; control: an unseeded stage (unity at the restart, ramping to +12 dB) differs 4/4 worst -150.5 dB; control 4/4 closest -23.37 dB
+  [PASS] XR-px11 VERIFICATION-2.5 PX11: 80 output-gain edits off the tick boundary (random offsets), each seen at a block start that differs between renders but lies before the next tick; blocks 1 - 2048 random and fixed 1 / 7 / 64 / 512 / 2048, 48 and 96 kHz: bit-identical 12/12  160 of 160 edits seen at different samples across the renders
+  [PASS] XR-px4 VERIFICATION-2.5 PX4: an auto-gain toggle in an otherwise idle block (no band, stage at unity) with a Left +1 dB bell set in the same block, and with the bell 100 ms later: the right lane follows the gain from the refresh tick (equal to the input before it; <= -140 dB re peak of the re-stated trajectory; its first changed sample is the re-stated one) at blocks 32 / 512 / 2048, bit-identical across them; one refresh late differs 12/12  48 kHz, bell with the toggle: refresh tick 7168, onset 7202, -150.5 dB (one refresh late -43.26 dB); 48 kHz, toggle alone, bell 100 ms later: refresh tick 11264, onset 11299, -150.5 dB (one refresh late -43.31 dB); 96 kHz, bell with the toggle: refresh tick 8192, onset 8260, -150.5 dB (one refresh late -43.24 dB); 96 kHz, toggle alone, bell 100 ms later: refresh tick 16384, onset 16448, -150.5 dB (one refresh late -43.32 dB)
+  [PASS] XR-ag3 VERIFICATION-2.5 AG3: G12 auto gain at 22.05 and 32 kHz (the 0.45 fs grid top active), the plugin's applied gain (auto on / off, least squares) against the 40 000-point pink truth with the 0.45 fs top: within 0.06 dB (8 bands incl. the G12 shelf); control: the 512-point estimate with a 0.5 fs top reads outside 0.001 dB of the plugin's 16/16 worst 3.69e-05 dB (High Shelf 8 kHz +12, 22.05 kHz); control 2/2  G12 Low Shelf 200 Hz +12 12 dB/oct, 22.05 kHz: plugin -6.44291 dB, truth (0.45 fs top) -6.44291 dB, 0.5 fs top -6.37948 dB; G12 Low Shelf 200 Hz +12 12 dB/oct, 32 kHz: plugin -6.22508 dB, truth (0.45 fs top) -6.22508 dB, 0.5 fs top -6.16653 dB
+
+-- XR-ls10 / XR-ls11 / XR-ls15 / XR-px38 / XR-px39 / XR-px22 / XR-dm2 / XR-an1. the rows VERIFICATION-2.6 Issue 2 owes (Phase 3.1: CONTEXT U8; probe E1, T1, N1, R1, X1)
+  [PASS] XR-ls10 VERIFICATION-2.6 LS10 / PX27 (probe E1): an f / Q edit of the listened band inside the incoming voice's input ramp (engage, and change 3 -> 7), 48 / 96 kHz, block 64: the output first differs from the unedited render at move sample R (within one grid); a settled listen's f / Q edit moves the output 10/10  48k engage f 2448 / 2448, 48k engage Q 2448 / 2448, 48k change f 5360 / 5360, 48k change Q 5360 / 5360, 96k engage f 3905 / 3904, 96k engage Q 3904 / 3904, 96k change f 9216 / 9216, 96k change Q 9216 / 9216, settled f edit 6000 / 6000, settled Q edit 6000 / 6000
+  [PASS] XR-ls11 VERIFICATION-2.6 LS11 / LS12 (probe T1): the listen state (move, move position, target) after every sample at block 1, 48 / 96 / 44.1 (mono) / 192 kHz, equals the re-stated P6 machine: latched change, release and engage; a settled f edit of the listened band ramps with no move; a gain edit does nothing; a type-family edit runs a change move to the same band; R and N as prepared 4/4  48k/2ch 15588 samples, 0 off, 96k/2ch 28564 samples, 0 off, 44.1k/1ch 14526 samples, 0 off, 192k/2ch 54516 samples, 0 off
+  [PASS] XR-ls15 VERIFICATION-2.6 LS15 / PX26 (probe N1): a NaN input sample at 20 037, listen settled on band 3 and no listen, mono / stereo, blocks 64 / 512, 48 kHz: the output is finite from the first block that starts after it 8/8
+  [PASS] XR-px38 VERIFICATION-2.6 PX38 (probe R1): listenBand 24, 1000, -2, INT_MIN, INT_MAX, then -1, three bands on, random blocks 1 - 1000, mono / stereo, 48 kHz: memcmp-equal to the render with no listen 2/2
+  [PASS] XR-px39 VERIFICATION-2.6 PX39 (probe X1): listen on band 3 (disabled, no band running, unity stage), bypass on at 6400 and off 128 samples later, by the parameter and by processBlockBypassed, 48 / 96 kHz, mono / stereo: the fade back from the dry signal, mean |y - x| over [r - 4, r + 12) under 0.05 x the settled one (r = 6400 + N; a jump reads ~1) 8/8  48k/1ch/param 0.00012, 48k/1ch/bypassed 0.00012, 48k/2ch/param 0.00012, 48k/2ch/bypassed 0.00012, 96k/1ch/param 2.4e-05, 96k/1ch/bypassed 2.4e-05, 96k/2ch/param 2.4e-05, 96k/2ch/bypassed 2.4e-05
+  [PASS] XR-px22 VERIFICATION-2.6 PX22: mono layout, listen settled on a Left bell, placement edits Left -> Right -> Mid -> Side -> Stereo, block 64, 48 kHz: no listen move starts and the output is memcmp-equal to the unedited render; control: the same edits on stereo start moves and move the output 2/2  mono: 0 move blocks, first difference -1, stereo control: 148 move blocks, first difference 5456
+  [PASS] XR-dm2 VERIFICATION-2.6 DM2: DisplayModel::poll on a layout change at the same rate (stereo -> mono -> stereo at 48 and 96 kHz, re-prepared): all 24 bands re-designed, the header's stereo flag follows, Left / Mid / Side / Right bands carry Stereo on mono and their own placement on stereo; no edit -> empty 10/10
+  [PASS] XR-an1 VERIFICATION-2.6 AN1: analyzer with both taps, 48 kHz, blocks 512, a process call every 512 / 2048 samples, a 2 s stall (both rings overflow): every frame's newest N drained samples are consecutive input samples (the harness's re-stated drain contents, checked against the analyzer's drained count); frames resume after the stall 2/2  cadence 512: first frame at call 10 after the stall, drops 126464, cadence 2048: first frame at call 4 after the stall, drops 126464
+[PresetManager] Preset saved: t31
+[PresetManager] Preset loaded: t31
+[PresetManager] Preset loaded: t31
+
+-- XR-pm / XR-pmd / XR-psg. the preset manager (Phase 3.1: PLAN-3.1 P6, call C2; temp home)
+  [PASS] XR-pm   preset round trip: 194 bit-equal, output_gain / bypass / UI / listen held 194/194; output_gain 6.99999905 dB, bypass 1; ui lang 1 mode 3 range 30 band 7 size 1111x777, listen 5; name 't31'; second draw moved 160; control (no exclusions) output_gain 6.99999905 -> 0 dB
+[PresetManager] Preset loaded: pmd
+  [PASS] XR-pmd  a one-key preset: the rest at default, output_gain / bypass held 194/194; non-default before the load 166
+[PresetManager] Cannot overwrite factory preset: Locked
+  [PASS] XR-psg  PresetSaveGuard: factory name and Factory/ file refused, user name allowed isFactory 1, name refused, file refused, Mine allowed, savePreset (Locked) refused; control (file absent): isFactory 0, name allowed
+
+-- A5. allocation with the analyzer taps saturated and listen switching (Phase 2.6: G6 as amended, PERF-01)
+  [PASS] A5 G6: processBlock and processBlockBypassed, 20 s at 48 kHz, first block included: the A4 load (24 bands moving at every block, bypass toggled by both routes, auto gain refreshing, output gain per block) plus the analyzer consumer registered, mode 3, no reader (the rings saturate), listen switching every 100 ms: 0 allocations, 0 frees 0 allocations, 0 frees in 222834 windows (57029 through processBlockBypassed; 10028 band evaluations in 793 refreshes; drops pre / post 927232 / 927232; 200 listenBand switches, 198422 blocks listening, 182946 ending inside a move); hook live (probe: 1 / 1)
+  [PASS] A5n a planted allocation inside the A5 window is counted (control fires) 1 allocations, 1 frees
+
+-- X5. CPU with the analyzer taps and listen (INFO, not gated; G10 binds in Stage 4)
+  [INFO] X-cpu5 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, taps on (mode 3), 24 cuts x 96 dB/oct (Low Cut <> High Cut): settled listen 1 voice 3.31 %, 2 voices 3.36 % (X-cpu4 3.1 %); always fading listen 1 voice 6.71 %, 2 voices 6.77 % (X-cpu4 6.45 %); one fade per second listen 1 voice 3.19 %, 2 voices 3.25 % (X-cpu4 3.03 %); 24 asleep listen 1 voice 3.27 %, 2 voices 3.34 % (X-cpu4 3.1 %) of one core
+  [INFO] X-cpu5 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, taps on (mode 3), 24 shelves x 96 dB/oct (High <> Low): settled listen 1 voice 6.05 %, 2 voices 6.11 % (X-cpu4 5.79 %); always fading listen 1 voice 12.9 %, 2 voices 12.9 % (X-cpu4 12.4 %); one fade per second listen 1 voice 5.95 %, 2 voices 5.98 % (X-cpu4 5.7 %); 24 asleep listen 1 voice 0.0392 %, 2 voices 0.0666 % (X-cpu4 0.00244 %) of one core
+  [INFO] X-cpu5 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, taps on (mode 3), 24 bells <> 12 dB/oct shelves: settled listen 1 voice 1.16 %, 2 voices 1.14 % (X-cpu4 1.01 %); always fading listen 1 voice 2.12 %, 2 voices 2.09 % (X-cpu4 1.95 %); one fade per second listen 1 voice 1.13 %, 2 voices 1.14 % (X-cpu4 0.961 %); 24 asleep listen 1 voice 0.0409 %, 2 voices 0.067 % (X-cpu4 0.00242 %) of one core
+  [INFO] X-cpu5 48 kHz stereo, 512-sample blocks, 20 s, auto_gain on, taps on (mode 3), 24 shelves 96 <> 72 dB/oct: settled listen 1 voice 6.15 %, 2 voices 6.24 % (X-cpu4 5.81 %); always fading listen 1 voice 11.2 %, 2 voices 11.3 % (X-cpu4 10.6 %); one fade per second listen 1 voice 5 %, 2 voices 5.06 % (X-cpu4 4.83 %); 24 asleep listen 1 voice 0.0385 %, 2 voices 0.0665 % (X-cpu4 0.00248 %) of one core
+
+166 PASS, 0 FAIL
+rc 0

@@ -233,3 +233,5 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 *Phase 2.5 verify, 2026-11-15 (`stages/2-dsp/VERIFICATION-2.5.md`): FUNC-05 and FUNC-06 are complete. QUAL-01 and PERF-01 stay partial, waiting on listening and the analyzer G6 (2.6).*
 
 *Phase 2.6 verify, 2026-11-15 (`stages/2-dsp/VERIFICATION-2.6.md`), Stage 2 closed: PERF-01 complete. FUNC-01, FUNC-02, DSP-06 and QUAL-01 stay partial; their remaining criteria are Stage 3 / 4 or the hands-on listen. Engine halves met for FUNC-08 (listen), UI-02 (G9 (a), 2.1e-3 dB) and UI-03 (taps, analyzer); those requirements close in Stage 3.*
+
+*Phase 3.1 verify, 2026-11-15 (`stages/3-gui/VERIFICATION-3.1.md`): no status change. Bindings, presets (C2), disabled states and the transient half of FUNC-08 (`setListenBand` mapping, editor-close reset) proven; UI-01, UI-02, UI-04 close in 3.2, FUNC-08, UI-03, UI-06, UI-07 in 3.3.*
