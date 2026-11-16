@@ -29,7 +29,7 @@ One ink line: the diagonal term of the 2x2 composition chosen by the selected ba
 Carry the procedural emperor-dragonfly engraving from `mockups/v1-ui-test.html` (`buildPlate()`, line ~879; `#plate` geometry at line 167: right 1.5 %, top 3 %, height 94 %, max-width 62 %, opacity 0.3, rotated -21 deg, behind the grid) into `index.html`. Finalization had dropped it as a sketch; the user wants the mockup look. Colours stay on the page's sepia token, both themes. A raster engraving is not required for v1.
 
 ### U5 — 25th band click shows a keyed transient tip (user)
-With 24 bands enabled, a plot click shows a brief tip near the cursor, text from a new i18n key ("All 24 bands are in use"), English in Stage 3, French / zh-Hans drafted with the Stage 4 localisation (UI-05). It must pass `check-i18n` (copy only from the table) and the tooltip edge-clamp rules.
+With 24 bands enabled, a plot click shows a brief tip near the cursor, text from a new i18n key ("All 24 bands are in use"), English in Stage 3, French / zh-Hans drafted with the Stage 4 localisation (UI-05). *Amended at plan 3.2 (RESEARCH-3.2 Summary 8): `check-i18n [1]` requires all three languages, so machine drafts ship in 3.2 (`fr` `reviewed: false`, `zh-Hans` `'mt'`); Stage 4 reviews them with the rest.* It must pass `check-i18n` (copy only from the table) and the tooltip edge-clamp rules.
 
 ### U6 — 196 relays measured first, 500 ms gate kept (user)
 3.1 opens with the integration checklist § 0: all 196 relays + attachments, open time and first-paint time recorded, preset load settles in one or two frames, 10 close / reopen cycles in Release. Fallback (relays for the selected band only, re-pointed on selection) only if open > 500 ms or a preset load does not settle. Decided before 3.2 starts.
