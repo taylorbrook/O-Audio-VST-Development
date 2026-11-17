@@ -1,0 +1,67 @@
+[
+ {
+  "id": "control",
+  "description": "unmodified Source copy, same runner",
+  "row": null,
+  "verdict41": "ALL-PASS",
+  "failing41": [],
+  "verdict33": "FAIL E-bind-in",
+  "lockedDuringRun": false,
+  "failedChecks": [],
+  "caught": null,
+  "controlPass": true,
+  "evidence": "[PASS] E-del-listen  3/3  page post ms 0.00, 0.00, 0.00 | C++ arrival ms 0.24, 0.07, 0.11 | [PASS] E-listen33-aria  2/2  frames 30, true 0, listen during 2, selected 3 | [PASS] E-tipfade  5/5  fontSize 11.5 - 11.5 px over the fade, 6 mid-fade frames, re-show at opacity 0.46226 | [PASS] E-tip-lang  4/4  centre, en -> fr: w 120.0->170.5, right 523.2/960.0; centre, en -> zh-Hans: w 120.0->141.1, right 508.6/960.0; right edge, en -> fr: w 120.0->170.5, right 890.9/960.0; right edge, en -> zh-Hans: w 120.0->141.1, right 876.2/960.0 | [PASS] E-tip-v13  1/1 | [PASS] E-preset-listen  4/4"
+ },
+ {
+  "id": "M1",
+  "description": "deleteBand without the endListenOn(b) call (listen ends only through the 80 ms enabled hook)",
+  "row": "E-del-listen",
+  "verdict41": "FAIL E-del-listen",
+  "failing41": [
+   "E-del-listen"
+  ],
+  "verdict33": "FAIL E-bind-in",
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-del-listen / band 3: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival)",
+   "E-del-listen / band 9: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival)",
+   "E-del-listen / band 17: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival)"
+  ],
+  "caught": true,
+  "evidence": "[FAIL] E-del-listen  0/3  page post ms 80.00, 81.00, 81.00 | C++ arrival ms 80.71, 80.32, 80.59  failing: band 3: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival); band 9: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival); band 17: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival) | failing checks: E-del-listen / band 3: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival); E-del-listen / band 9: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival); E-del-listen / band 17: latched, Delete -> setListenBand(0) < 20 ms (page post and C++ arrival)"
+ },
+ {
+  "id": "M2",
+  "description": ".tip-point removed at fade start (old code: hideTooltip calls clearPointTip at once)",
+  "row": "E-tipfade",
+  "verdict41": "FAIL E-tipfade",
+  "failing41": [
+   "E-tipfade"
+  ],
+  "verdict33": "FAIL E-bind-in",
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-tipfade / (b) 11.5px at every frame of the fade (and at the dismiss itself)",
+   "E-tipfade / (d) re-show mid-fade: .tip-point kept past the fallback timer, 11.5px, bands-full",
+   "E-tipfade / (e) transition none (reduced-motion path): .tip-point gone by the fade + 50 ms timer"
+  ],
+  "caught": true,
+  "evidence": "[FAIL] E-tipfade  2/5  fontSize 12.0 - 12.0 px over the fade, 7 mid-fade frames, re-show at opacity 0.46226  failing: (b) 11.5px at every frame of the fade (and at the dismiss itself); (d) re-show mid-fade: .tip-point kept past the fallback timer, 11.5px, bands-full; (e) transition none (reduced-motion path): .tip-point gone by the fade + 50 ms timer | failing checks: E-tipfade / (b) 11.5px at every frame of the fade (and at the dismiss itself); E-tipfade / (d) re-show mid-fade: .tip-point kept past the fallback timer, 11.5px, bands-full; E-tipfade / (e) transition none (reduced-motion path): .tip-point gone by the fade + 50 ms timer"
+ },
+ {
+  "id": "M3",
+  "description": "strip #btn-listen aria-pressed bound to ui.listen instead of ui.latch",
+  "row": "E-listen33-aria",
+  "verdict41": "FAIL E-listen33-aria",
+  "failing41": [
+   "E-listen33-aria"
+  ],
+  "verdict33": "FAIL E-bind-in",
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-listen33-aria / latch off, drag band 3 past the threshold: aria-pressed \"false\" at every frame"
+  ],
+  "caught": true,
+  "evidence": "[FAIL] E-listen33-aria  1/2  frames 30, true 17, listen during 2, selected 3  failing: latch off, drag band 3 past the threshold: aria-pressed \"false\" at every frame | failing checks: E-listen33-aria / latch off, drag band 3 past the threshold: aria-pressed \"false\" at every frame"
+ }
+]

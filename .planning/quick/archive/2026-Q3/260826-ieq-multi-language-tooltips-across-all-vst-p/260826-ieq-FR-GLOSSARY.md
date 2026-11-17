@@ -59,6 +59,14 @@ pinned. Full list in the JS.
 | Flutter / Wow | **Scintillement / Pleurage** | Tape terms. *Flutter tongue* (the wind technique) is **Flatterzunge**, which French scores use. |
 | Tilt | **Inclinaison** | *Pente* is a slope (rolloff). |
 | Jitter / Dither / Ducking / Shimmer / Swing / LFO / EQ / MIDI | **Gigue** / **Dither** / **Ducking** / **Shimmer** / **Swing** / as-is | Loanwords the French audio press uses; translating them would confuse. |
+| Bell / Low Shelf / High Shelf / Tilt Shelf | **Cloche / Plateau grave / Plateau aigu / Plateau incliné** | Added 2026-11-16 (O-ParametricEQ Stage 4). *Grave / aigu* as in *Gain grave*; *incliné* composes with *Inclinaison*. |
+| Notch / Band Pass | **Réjecteur / Passe-bande** | The filter names of French EQ manuals; *Coupe-bande* is a band-stop of any width. |
+| Slope | **Pente** | Same word as *Rolloff*: both are dB per octave. |
+| Placement | **Placement** | Same word in French; which channels or which M/S signal a band processes. |
+| Listen | **Écoute** | Soloing a band's region, as in *écoute solo*. |
+| Analyzer / Pre / Post | **Analyseur / Pré / Post** | *Analyseur de spectre* in prose. |
+| Gain scale / Output gain / Output level / Display range | **Échelle de gain / Gain de sortie / Niveau de sortie / Plage d’affichage** | |
+| Mid signal / Side signal | **Signal central / Signal des côtés** | *Central* is the usual French M/S word; *du milieu* is a literal calque. *Côtés* as in *Sides*. |
 
 **Contextual exceptions carry a `termNote`.** O-Octagon's "Delay" is a loudspeaker
 alignment delay and **Retard** is correct there; O-Formant's "Voicing" is phonetic

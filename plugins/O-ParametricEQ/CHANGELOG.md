@@ -1,5 +1,28 @@
 # O-ParametricEQ Changelog
 
+## [0.10.0] - 2026-11-16
+
+Stage 4, Phase 4.1 (polish build). Factory presets, host text, and the French and Chinese revision.
+
+### Added
+- 13 factory presets: Default, Vocal Presence, Kick Tighten, De-Mud, Air Shelf, Rumble Cut, Telephone, Hum Notch 50 Hz, Hum Notch 60 Hz, Gentle Master Tilt, Mono Low End, Side Air and L-R Pair Match. Loading one resets every other band to its default, and never changes the output gain or the bypass.
+- An edited or renamed factory preset now reaches your presets folder without a version change, and leaves no stale copy behind. User presets are never touched.
+- Host text in units: a host shows `1.20 kHz`, `+3.0 dB`, `0.71` and `100 %` instead of seven decimals. Typed values accept `1k`, `1.2 kHz`, `-3 dB`, `+3` or `150%`; text with no number keeps the parameter's default.
+
+### Fixed
+- Deleting the band you are listening to ends listen at once, instead of up to 130 ms later.
+- The "All 24 bands are in use" tip keeps its size while it fades out.
+- The output meter no longer dips for a frame at large host buffers (2048 samples and up) when the host's block timing jitters.
+- At the smallest window size (800 × 500), the preset bar now has room for every factory name. Below 960 px wide, the header closes up and drops the "Analyzer" caption; the segment keeps its tooltip.
+
+### Changed
+- French and Chinese text revised against the suite glossaries, which now cover the EQ vocabulary. In Chinese the analyzer is 频谱分析仪 and its segments read 处理前 / 处理后; in French the mid signal is « signal central ».
+- Nothing audible: the audio is bit-identical to 0.9.0.
+
+### Known in this build
+- "Mono Low End" cuts the low end of the side signal. On a mono track, every placement processes the one channel, so it becomes a 120 Hz low cut on the whole signal.
+- The French is not yet marked as reviewed; the Chinese stays a machine draft.
+
 ## [0.9.0] - 2026-11-16
 
 Stage 3, Phase 3.3 (analyzer, meter, fills, listen). The display now shows what is playing.

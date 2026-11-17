@@ -31,10 +31,13 @@
     raw, the meter's release pulls the bar down on every empty tick (a
     sawtooth, 47 / 165 empty ticks at 1024 / 44.1 kHz). The editor keeps
     the last H reads per channel and shows their max, with
-        H = min (16, ceil (blockSize / fs x 60) + 1)
+        H = min (16, ceil (1.3 x blockSize / fs x 60) + 1)
     from the prepared block size (the host's largest), and H = 2 before a
     rate is known. This adds at most H ticks of hold to a real drop, which
-    the page's 20 dB/s release dominates.
+    the page's 20 dB/s release dominates. The 1.3 (PLAN-4.1, row M1j, Taylor's
+    call 2026-11-16): block completions that jitter +-30 % of a block period
+    leave gaps of up to 1.6 periods; without it, 2048 / 44.1 kHz showed 4
+    empty reads in 587 ticks.
 
     encodeAnalyzerPoints (PLAN-3.3 P2). The analyzer's 256 display points
     as integer tenths of a dB, clamped to [-1200, +600] (-120 dB lies below
@@ -60,6 +63,9 @@ namespace opeq
     public:
         static constexpr int capacity = 16;
 
+        /** Block completions may jitter +-30 % of a block period (row M1j). */
+        static constexpr double jitterMargin = 1.3;
+
         /** H for a prepared block size and rate at a tick rate (60 Hz). */
         static int depthFor (int blockSize, double sampleRateHz, double tickHz = 60.0) noexcept
         {
@@ -67,7 +73,7 @@ namespace opeq
                 return 2;
 
             const double ticksPerBlock = (double) std::max (0, blockSize) / sampleRateHz * tickHz;
-            const int h = (int) std::ceil (ticksPerBlock) + 1;
+            const int h = (int) std::ceil (jitterMargin * ticksPerBlock) + 1;
             return std::clamp (h, 1, capacity);
         }
 

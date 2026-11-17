@@ -245,6 +245,12 @@
       O-ParametricEQ-render-harness --dump-g9 <dir>     write the 260 XR-g9 draws for tests/g9b (PLAN-3.2 P4)
       O-ParametricEQ-render-harness --rows33            only the Phase 3.3 rows (PLAN-3.3 T11 mutant runs)
 
+    Stage 4, Phase 4.1 (PLAN-4.1 W4): factory bank FP1 - FP5i, host text
+    HT1 / HT1g, the meter hold under jitter M1j (default run), and:
+
+      O-ParametricEQ-render-harness --g10               only the gated G10 mode (PERF-02: G10a - d,
+                                                        G10i, G10d0; Release; ~2 min; not in the default run)
+
     Harness references (PLAN-2.6 P12), none of which calls eq::Listen,
     OutputStage::process / nextGains or a DisplayModel design call:
     listenRefRender (P4 - P6 re-stated per sample: the D11 mapping, the solo
@@ -384,6 +390,8 @@
 #include "analysis/DisplayModel.h"
 #include "PresetSaveGuard.h"
 #include "editor/PeakHold.h"
+#include "FactoryPresets.h"
+#include "ParamText.h"
 
 #include <algorithm>
 #include <array>
@@ -410,6 +418,8 @@
 
 #if defined (__APPLE__)
  #include <pthread.h>
+ #include <pthread/qos.h>
+ #include <sys/stat.h>
  #include <pwd.h>
  #include <unistd.h>
  #include <mach-o/dyld.h>   // _NSGetExecutablePath (fake-home re-exec, PLAN-3.1 P6)
@@ -17550,7 +17560,7 @@ namespace
                 }
 
             row (tally.bad == 0 && tally.total == 6 && emptyTicksDepth1 >= 1,
-                 "M1     UI-06 meter feed (PLAN-3.3 P4): opeq::PeakHold (H = ceil (B / fs x 60) + 1) on 60 Hz reads of readAndResetOutputPeak, blocks in real time, -6 dBFS 1 kHz sine, 3 s, 44.1 k / 1024, 2048, 4096; 48 k / 1024, 4096; 192 k / 2048: every tick after the first H within 0.5 dB of -6 on both channels; H = 1 at 1024 / 44.1 k shows empty reads (control)",
+                 "M1     UI-06 meter feed (PLAN-3.3 P4): opeq::PeakHold (H = ceil (1.3 B / fs x 60) + 1, PLAN-4.1) on 60 Hz reads of readAndResetOutputPeak, blocks in real time, -6 dBFS 1 kHz sine, 3 s, 44.1 k / 1024, 2048, 4096; 48 k / 1024, 4096; 192 k / 2048: every tick after the first H within 0.5 dB of -6 on both channels; H = 1 at 1024 / 44.1 k shows empty reads (control)",
                  tally.detail() + "  " + figures);
         }
     }
@@ -17757,6 +17767,989 @@ namespace
                      + ", name " + (controlAllowed ? "allowed" : "REFUSED"));
         }
     }
+
+    //==========================================================================
+    //==========================================================================
+    // Stage 4, Phase 4.1 (PLAN-4.1 W4): the factory bank, host text, the meter
+    // hold under jitter, and the gated G10 mode.
+    //
+    //   FP1    each factory preset loads; named values read back in
+    //          engineering units, every other parameter at its default
+    //   FP1o   output_gain / bypass untouched by every load; no factory JSON
+    //          names output_gain, bypass or customState
+    //   FP2    the bank hash: (a) first construct writes 13 + 2 sentinels;
+    //          (b) same bank: nothing rewritten; (c) a re-voice at the same
+    //          version reaches Factory/; (d) a rename leaves no orphan;
+    //          (e) User/ untouched throughout
+    //   FP3    E16: savePreset refuses a factory name; PresetSaveGuard
+    //   FP4    R2: validated apply clamps / keeps defaults, one gesture each
+    //   FP5    every preset at 5 rates x mono / stereo x blocks 512 / random:
+    //          finite; load transient local kappa <= 2.5x held; settled
+    //          damped-circle response vs the closed form (G9 (a))
+    //   FP5i   auto gain off the clamp; mono vs stereo broadband level (C2)
+    //   HT1    host text both ways; HT1g the params golden byte-identical
+    //   M1j    PeakHold H with jittered block completions; H - 1 control
+    //   --g10  G10a - d, G10i, gated (Release), not in the default run
+    //==========================================================================
+    //==========================================================================
+
+    /** The engineering value of a ranged parameter. */
+    float engOf (juce::RangedAudioParameter& r)
+    {
+        return r.convertFrom0to1 (r.getValue());
+    }
+
+    /** sha-free content identity of a file: size + XXH64 of its bytes. */
+    juce::String contentId (const juce::File& f)
+    {
+        juce::MemoryBlock mb;
+
+        if (! f.loadFileAsData (mb))
+            return "missing";
+
+        return juce::String ((juce::int64) mb.getSize()) + ":"
+             + juce::String::toHexString ((juce::int64) opeq::factory::hash::xxh64 (mb.getData(), mb.getSize(), 0));
+    }
+
+    /** inode (or 0), for "rewritten" vs "untouched" beside the 1 s mtime. */
+    std::uint64_t inodeOf (const juce::File& f)
+    {
+       #if defined (__APPLE__)
+        struct stat st {};
+        if (::stat (f.getFullPathName().toRawUTF8(), &st) == 0)
+            return (std::uint64_t) st.st_ino;
+       #endif
+        return 0;
+    }
+
+    struct FileSnap { juce::String content; std::uint64_t inode = 0; juce::int64 mtime = 0; };
+
+    std::map<juce::String, FileSnap> snapDir (const juce::File& dir)
+    {
+        std::map<juce::String, FileSnap> out;
+
+        for (const auto& f : dir.findChildFiles (juce::File::findFiles | juce::File::ignoreHiddenFiles, false, "*"))
+            out[f.getFileName()] = { contentId (f), inodeOf (f), f.getLastModificationTime().toMilliseconds() };
+
+        for (const auto* hidden : { ".factory-version", ".bank-hash" })
+        {
+            const auto f = dir.getChildFile (hidden);
+            if (f.existsAsFile())
+                out[f.getFileName()] = { contentId (f), inodeOf (f), f.getLastModificationTime().toMilliseconds() };
+        }
+
+        return out;
+    }
+
+    juce::String contentIn (const std::map<juce::String, FileSnap>& m, const juce::String& name)
+    {
+        const auto it = m.find (name);
+        return it == m.end() ? juce::String ("absent") : it->second.content;
+    }
+
+    int countJson (const juce::File& dir)
+    {
+        return dir.findChildFiles (juce::File::findFiles, false, "*.json").size();
+    }
+
+    /** Counts gestures per parameter (FP4). */
+    struct GestureCounter : juce::AudioProcessorParameter::Listener
+    {
+        std::map<int, int> begins, ends;
+        void parameterValueChanged (int, float) override {}
+        void parameterGestureChanged (int index, bool starting) override { (starting ? begins : ends)[index]++; }
+    };
+
+    void factoryRowsXr()
+    {
+        section ("FP. the factory bank (Stage 4, PLAN-4.1 P1: FUNC-07; E16 / R2; temp home)");
+
+        const auto specs = opeq::factory::factoryPresetSpecs();
+
+        //======================================================================
+        // FP1 / FP1o
+        //======================================================================
+        {
+            auto p = make();
+            requirePresetsUnderHarnessHome (*p);
+            auto& pm = p->presetManager;
+            const auto list = pm.getPresetList();
+
+            Tally fp1, fp1o, listed;
+            juce::String fp1Worst;
+            double worstRel = 0.0, worstDb = 0.0;
+            int named = 0;
+
+            for (const auto& s : specs)
+            {
+                listed.check (list.contains (s.name) && pm.isFactoryPreset (s.name), juce::String (s.name) + " not listed as factory");
+
+                setAllRandom (*p, 0x41f1 + (juce::int64) named);
+                const bool loaded = pm.loadPreset (s.name);
+                fp1.check (loaded, juce::String (s.name) + ": load failed");
+
+                std::map<juce::String, float> want;
+                for (const auto& v : s.values)
+                    want[v.id] = v.value;
+
+                for (auto* r : rangedParams (*p))
+                {
+                    const auto id = r->getParameterID();
+
+                    if (id == "output_gain" || id == "bypass")
+                        continue;
+
+                    const auto it = want.find (id);
+
+                    if (it == want.end())
+                    {
+                        fp1.check (std::abs (r->getValue() - r->getDefaultValue()) <= 1.0e-6f,
+                                   juce::String (s.name) + " " + id + " not at default (" + fmtJ (r->getValue()) + ")");
+                        continue;
+                    }
+
+                    ++named;
+                    const double got = (double) engOf (*r), def = (double) it->second;
+                    const bool isFloat = dynamic_cast<juce::AudioParameterFloat*> (r) != nullptr;
+                    bool ok;
+
+                    if (! isFloat)
+                    {
+                        ok = std::lround (got) == std::lround (def) && std::abs (def - std::round (def)) < 1.0e-9;
+                    }
+                    else if (id.endsWith ("_freq") || id.endsWith ("_q"))
+                    {
+                        const double rel = std::abs (got - def) / std::abs (def);
+                        worstRel = juce::jmax (worstRel, rel);
+                        ok = rel <= 1.0e-5;
+                    }
+                    else
+                    {
+                        worstDb = juce::jmax (worstDb, std::abs (got - def));
+                        ok = std::abs (got - def) <= 1.0e-4;
+                    }
+
+                    fp1.check (ok, juce::String (s.name) + " " + id + " want " + fmtJ (def) + " got " + fmtJ (got));
+                }
+            }
+
+            row (fp1.bad == 0 && listed.bad == 0 && (int) specs.size() == 13 && named > 50,
+                 "FP1    13 factory presets: each loads (from random state); every named value reads back in engineering units (freq / Q rel <= 1e-5, gain <= 1e-4 dB, choices exact); every other parameter at its default",
+                 fp1.detail() + "; listed " + listed.detail() + "; named values " + juce::String (named)
+                     + "; worst freq / Q rel " + fmtG (worstRel, 3) + ", worst gain " + fmtG (worstDb, 3) + " dB");
+
+            // FP1o
+            for (const auto& s : specs)
+            {
+                setRaw (*p, "output_gain", 5.0f);
+                setNormalised (*p, "bypass", 1.0f);
+                const float g0 = rawOf (*p, "output_gain"), b0 = rawOf (*p, "bypass");
+                pm.loadPreset (s.name);
+                fp1o.check (sameBits (rawOf (*p, "output_gain"), g0) && sameBits (rawOf (*p, "bypass"), b0) && std::abs (g0 - 5.0f) < 1.0e-3f,
+                            juce::String (s.name) + " moved output_gain / bypass");
+            }
+
+            Tally scan;
+            const auto dir = pm.getFactoryPresetsDirectory();
+            const auto files = dir.findChildFiles (juce::File::findFiles, false, "*.json");
+
+            for (const auto& f : files)
+            {
+                const auto json = juce::JSON::parse (f);
+                const auto params = json.getProperty ("parameters", juce::var());
+                const bool bad = ! params.isObject() || json.hasProperty ("customState")
+                              || params.hasProperty ("output_gain") || params.hasProperty ("bypass");
+                scan.check (! bad, f.getFileName() + " carries a forbidden key");
+            }
+
+            setNormalised (*p, "bypass", 0.0f);
+            setRaw (*p, "output_gain", 0.0f);
+
+            row (fp1o.bad == 0 && scan.bad == 0 && files.size() == 13 && opeq::factory::specsNameNoForbiddenKey (specs),
+                 "FP1o   output_gain (+5 dB) and bypass (on) unchanged by all 13 loads; no Factory/*.json names output_gain, bypass or customState; no def names them",
+                 "loads " + fp1o.detail() + "; files " + scan.detail() + " (" + juce::String (files.size()) + " json)");
+        }
+
+        //======================================================================
+        // FP2: the bank hash, in this run's temp home
+        //======================================================================
+        {
+            auto probe = make();
+            requirePresetsUnderHarnessHome (*probe);
+            const auto dir = probe->presetManager.getFactoryPresetsDirectory();
+            const auto userDir = probe->presetManager.getUserPresetsDirectory();
+            probe.reset();
+
+            userDir.createDirectory();
+            const auto userFile = userDir.getChildFile ("x.json");
+            userFile.replaceWithText ("{ \"parameters\": { \"b01_gain\": 0.6 } }\n", false, false, "\n");
+            const auto userId = contentId (userFile);
+            const auto userInode = inodeOf (userFile);
+            const auto userOk = [&] { return userFile.existsAsFile() && contentId (userFile) == userId && inodeOf (userFile) == userInode; };
+
+            // (a) first construct into an empty Factory/
+            dir.deleteRecursively();
+            make();
+            const auto snapA = snapDir (dir);
+            const bool a = countJson (dir) == 13 && dir.getChildFile (".factory-version").existsAsFile()
+                        && dir.getChildFile (".bank-hash").existsAsFile()
+                        && dir.getChildFile (".factory-version").loadFileAsString().trim() == JucePlugin_VersionString;
+            const bool aUser = userOk();
+
+            // (b) same bank, same version: nothing rewritten
+            make();
+            const auto snapB = snapDir (dir);
+            bool b = snapB.size() == snapA.size();
+
+            for (const auto& [name, s] : snapA)
+            {
+                const auto it = snapB.find (name);
+                b = b && it != snapB.end() && it->second.content == s.content && it->second.inode == s.inode && it->second.mtime == s.mtime;
+            }
+
+            const bool bUser = userOk();
+
+            // (c) one value re-voiced, same version
+            opeq::factory::testSpecEdit() = [] (std::vector<opeq::factory::PresetSpec>& v)
+            {
+                for (auto& s : v)
+                    if (juce::String (s.name) == "Air Shelf")
+                        for (auto& x : s.values)
+                            if (x.id == "b01_gain")
+                                x.value = 3.5f;
+            };
+            make();
+            const auto snapC = snapDir (dir);
+            const auto air = juce::JSON::parse (dir.getChildFile ("Air Shelf.json"));
+            float airGain = -1.0f;
+            {
+                auto q = make();
+                if (auto* r = q->parameters.getParameter ("b01_gain"))
+                    airGain = r->convertFrom0to1 ((float) air.getProperty ("parameters", {}).getProperty ("b01_gain", -1.0));
+            }
+            bool othersSame = true;
+
+            for (const auto& [name, s] : snapA)
+                if (name.endsWith (".json") && name != "Air Shelf.json")
+                    othersSame = othersSame && contentIn (snapC, name) == s.content;
+
+            const bool c = std::abs (airGain - 3.5f) < 1.0e-4f && contentIn (snapC, ".bank-hash") != contentIn (snapA, ".bank-hash") && contentIn (snapC, ".bank-hash") != "absent"
+                        && contentIn (snapC, ".factory-version") == contentIn (snapA, ".factory-version") && othersSame
+                        && countJson (dir) == 13;
+            const bool cUser = userOk();
+
+            // (d) one name changed (on top of the original bank)
+            opeq::factory::testSpecEdit() = [] (std::vector<opeq::factory::PresetSpec>& v)
+            {
+                for (auto& s : v)
+                    if (juce::String (s.name) == "De-Mud")
+                        s.name = "De-Mud Renamed";
+            };
+            make();
+            const bool d = ! dir.getChildFile ("De-Mud.json").existsAsFile() && dir.getChildFile ("De-Mud Renamed.json").existsAsFile()
+                        && countJson (dir) == 13;
+            const bool dUser = userOk();
+
+            // back to the shipping bank
+            opeq::factory::testSpecEdit() = nullptr;
+            make();
+            const bool restored = dir.getChildFile ("De-Mud.json").existsAsFile() && ! dir.getChildFile ("De-Mud Renamed.json").existsAsFile()
+                               && countJson (dir) == 13 && contentIn (snapDir (dir), ".bank-hash") == contentIn (snapA, ".bank-hash");
+            const bool e = aUser && bUser && cUser && dUser && userOk();
+
+            row (a && b && c && d && e && restored,
+                 "FP2    bank hash (temp home): (a) first construct writes 13 json + .factory-version + .bank-hash; (b) same bank: no file rewritten (content, inode, mtime); (c) a re-voice at the same version reaches Factory/ (others byte-equal, sentinel unchanged); (d) a rename leaves no orphan; (e) User/x.json untouched",
+                 juce::String ("(a) ") + (a ? "ok" : "FAIL") + " (b) " + (b ? "ok" : "FAIL") + " (c) " + (c ? "ok" : "FAIL")
+                     + " Air Shelf gain " + fmtG (airGain, 4) + " (d) " + (d ? "ok" : "FAIL") + " (e) " + (e ? "ok" : "FAIL")
+                     + "; restored " + (restored ? "ok" : "FAIL"));
+        }
+
+        //======================================================================
+        // FP3 (E16): the native save guard against the real bank
+        //======================================================================
+        {
+            auto p = make();
+            requirePresetsUnderHarnessHome (*p);
+            auto& pm = p->presetManager;
+            const auto factory = pm.getFactoryPresetsDirectory();
+            const auto user = pm.getUserPresetsDirectory();
+            const auto vocal = factory.getChildFile ("Vocal Presence.json");
+            const auto before = contentId (vocal);
+
+            setAllRandom (*p, 0x41f3);
+            const bool refused = ! pm.savePreset ("Vocal Presence");
+            const bool unchanged = vocal.existsAsFile() && contentId (vocal) == before && ! user.getChildFile ("Vocal Presence.json").existsAsFile();
+
+            const bool r1 = opeq::presetSaveRefusal (factory.getChildFile ("Kick Tighten.json"), pm).isNotEmpty();
+            const bool r2 = opeq::presetSaveRefusal (factory.getChildFile ("sub").getChildFile ("x.json"), pm).isNotEmpty();
+            const bool r3 = opeq::presetSaveRefusal (user.getChildFile ("De-Mud.json"), pm).isNotEmpty();
+            const bool a1 = opeq::presetSaveRefusal (user.getChildFile ("Mine.json"), pm).isEmpty();
+            const bool a2 = opeq::presetSaveRefusal (harnessHome().getChildFile ("Desktop").getChildFile ("Vocal Presence.json"), pm).isEmpty();
+
+            row (refused && unchanged && r1 && r2 && r3 && a1 && a2,
+                 "FP3    E16: savePreset (\"Vocal Presence\") refused, its factory file byte-identical; refusal for Factory/Kick Tighten.json, Factory/sub/x.json, User/De-Mud.json; none for User/Mine.json or an export path",
+                 juce::String ("savePreset ") + (refused ? "refused" : "WROTE") + ", file " + (unchanged ? "unchanged" : "CHANGED")
+                     + "; refusals " + (r1 ? "1" : "0") + (r2 ? "1" : "0") + (r3 ? "1" : "0") + "; allowed " + (a1 ? "1" : "0") + (a2 ? "1" : "0"));
+        }
+
+        //======================================================================
+        // FP4 (R2): validated apply through a hand-written User/ file
+        //======================================================================
+        {
+            auto p = make();
+            requirePresetsUnderHarnessHome (*p);
+            auto& pm = p->presetManager;
+            const auto file = pm.getUserPresetsDirectory().getChildFile ("fp4.json");
+            file.getParentDirectory().createDirectory();
+            file.replaceWithText ("{ \"parameters\": { \"b01_freq\": \"abc\", \"b02_gain\": 1.7, \"b03_q\": -3 } }\n", false, false, "\n");
+
+            setAllRandom (*p, 0x41f4);
+            GestureCounter counter;
+
+            for (auto* r : rangedParams (*p))
+                r->addListener (&counter);
+
+            const bool loaded = pm.loadPreset ("fp4");
+
+            for (auto* r : rangedParams (*p))
+                r->removeListener (&counter);
+
+            auto* f1 = findParam (*p, "b01_freq");
+            auto* g2 = findParam (*p, "b02_gain");
+            auto* q3 = findParam (*p, "b03_q");
+            const bool values = f1 != nullptr && g2 != nullptr && q3 != nullptr
+                             && std::abs (f1->getValue() - f1->getDefaultValue()) <= 1.0e-6f
+                             && g2->getValue() == 1.0f && q3->getValue() == 0.0f;
+
+            int pairs = 0, unpaired = 0, totalBegins = 0;
+
+            for (const auto& [index, n] : counter.begins)
+            {
+                totalBegins += n;
+                const int e = counter.ends.count (index) ? counter.ends.at (index) : 0;
+                pairs += juce::jmin (n, e);
+                unpaired += std::abs (n - e);
+            }
+
+            for (const auto& [index, n] : counter.ends)
+                if (! counter.begins.count (index))
+                    unpaired += n;
+
+            // 194 reset sets (196 minus the two excluded) + the two numeric keys.
+            const bool gestures = pairs == 196 && unpaired == 0 && totalBegins == 196;
+
+            row (loaded && values && gestures,
+                 "FP4    R2: validated apply of a hand-written User/ file: \"abc\" keeps the default, 1.7 clamps to 1, -3 to 0; one begin / end gesture pair per set (194 reset + 2 applied)",
+                 juce::String ("values ") + (values ? "ok" : "WRONG") + (f1 && g2 && q3 ? " (b01_freq " + fmtJ (f1->getValue()) + ", b02_gain " + fmtJ (g2->getValue()) + ", b03_q " + fmtJ (q3->getValue()) + ")" : "")
+                     + "; gesture pairs " + juce::String (pairs) + ", unpaired " + juce::String (unpaired));
+        }
+    }
+
+    //==========================================================================
+    // FP5 / FP5i: every preset rendered on real content at five rates
+    //==========================================================================
+    void factoryRenderRowsXr()
+    {
+        section ("FP5. the factory presets at 44.1 / 48 / 88.2 / 96 / 192 kHz, mono and stereo (PLAN-4.1 P1, COMPAT-02)");
+
+        const auto specs = opeq::factory::factoryPresetSpecs();
+        const double rates[5] = { 44100.0, 48000.0, 88200.0, 96000.0, 192000.0 };
+        const auto sequence = randomBlockSequence (0x41f5, 512);
+
+        Tally finite, kappa;
+        double worstK = 0.0;
+        juce::String worstKAt;
+        int renders = 0;
+
+        // Level readings at 48 kHz, block 512, for FP5i: [preset][mono, stereo]
+        std::vector<std::array<double, 2>> levelChange (specs.size(), { 0.0, 0.0 });
+
+        for (const double rate : rates)
+            for (const int channels : { 1, 2 })
+            {
+                const int length = (int) std::lround (2.0 * rate);
+                const int loadAt = (int) std::lround (1.0 * rate);
+                const auto input = pinkNoise (channels, length, rate, 0x41f50000ull + (std::uint64_t) rate, 0.1);
+                const int from = (int) std::lround (0.95 * rate), to = (int) std::lround (1.25 * rate);
+
+                for (const bool randomBlocks : { false, true })
+                {
+                    const auto sizeAt = [&sequence, randomBlocks] (int index, int)
+                    {
+                        return randomBlocks ? sequence[(size_t) index % sequence.size()] : 512;
+                    };
+
+                    // Held A: the reset state (Default) throughout.
+                    auto p = makeBands (channels, 0, mixedSpec);
+                    auto& pm = p->presetManager;
+                    pm.loadPreset ("Default");
+                    const auto heldA = renderSized (*p, input, rate, 512, sizeAt, {}, noHook);
+                    const double kA = kappaStereo (heldA, rate, from, to);
+
+                    for (size_t si = 0; si < specs.size(); ++si)
+                    {
+                        const juce::String name (specs[si].name);
+
+                        pm.loadPreset (name);
+                        const auto heldB = renderSized (*p, input, rate, 512, sizeAt, {}, noHook);
+
+                        pm.loadPreset ("Default");
+                        bool loaded = false;
+                        const auto engine = renderSized (*p, input, rate, 512, sizeAt, {}, [&] (BlockInfo& current)
+                        {
+                            if (! loaded && current.position >= loadAt)
+                            {
+                                loaded = pm.loadPreset (name);
+                            }
+                        });
+
+                        renders += 2;
+                        const juce::String where = name + " " + fmtG (rate / 1000.0, 4) + "k " + (channels == 1 ? "mono" : "stereo")
+                                                 + (randomBlocks ? " random" : " 512");
+                        finite.check (allFinite (heldB) && allFinite (engine) && allFinite (heldA) && loaded, where + " not finite / not loaded");
+
+                        const double kB = kappaStereo (heldB, rate, from, to);
+                        const double kE = kappaStereo (engine, rate, from, to);
+                        const double ratio = ratioOf (kE, juce::jmax (kA, kB));
+                        kappa.check (ratio <= 2.5, where + ": " + fmtG (ratio, 4) + "x");
+
+                        if (! (ratio <= worstK))
+                        {
+                            worstK = ratio;
+                            worstKAt = where;
+                        }
+
+                        if (rate == 48000.0 && ! randomBlocks)
+                        {
+                            // broadband level change over the last second (held B)
+                            double ein = 0.0, eout = 0.0;
+
+                            for (int ch = 0; ch < channels; ++ch)
+                                for (int i = loadAt; i < length; ++i)
+                                {
+                                    ein += (double) input.getSample (ch, i) * (double) input.getSample (ch, i);
+                                    eout += (double) heldB.getSample (ch, i) * (double) heldB.getSample (ch, i);
+                                }
+
+                            levelChange[si][(size_t) (channels - 1)] = 10.0 * std::log10 (juce::jmax (eout, 1.0e-300) / juce::jmax (ein, 1.0e-300));
+                        }
+                    }
+                }
+            }
+
+        row (finite.bad == 0 && finite.total == 13 * 5 * 2 * 2,
+             "FP5    13 presets x 44.1 / 48 / 88.2 / 96 / 192 kHz x mono / stereo x blocks 512 / random: 2 s pink noise, loaded at 1 s from Default and held from the start: every sample finite",
+             finite.detail() + " (" + juce::String (renders) + " renders)");
+
+        row (kappa.bad == 0 && kappa.total == 13 * 5 * 2 * 2,
+             "FP5k   the load transient (0.95 - 1.25 s): local kappa <= 2.5x the larger held render (Default / the preset throughout), the G3 step-row measure",
+             kappa.detail() + "; worst " + fmtG (worstK, 4) + "x at " + worstKAt);
+
+        // The settled response against the closed form: G9 (a) machinery and
+        // tolerance on each preset's bands. Auto gain off, as in the G9 (a)
+        // draws (g9RunJob resets the globals); FP5i reads auto gain.
+        struct Job { size_t preset; double rate; bool stereo; G9Config config; };
+        std::vector<Job> stereoJobs, monoJobs;
+
+        {
+            auto p = make();
+            const Handles h = handlesOf (*p);
+
+            for (size_t si = 0; si < specs.size(); ++si)
+            {
+                p->presetManager.loadPreset (specs[si].name);
+                G9Config c;
+                c.numBands = 0;
+
+                for (int b = 0; b < Processor::kNumBands; ++b)
+                {
+                    c.raw[(size_t) b] = rawOfHandles (h.band[(size_t) b]);
+                    c.numBands += c.raw[(size_t) b].enabled > 0.5f ? 1 : 0;
+                }
+
+                for (const double rate : rates)
+                {
+                    stereoJobs.push_back ({ si, rate, true, c });
+                    monoJobs.push_back ({ si, rate, false, c });
+                }
+            }
+        }
+
+        std::vector<G9Out> stereoOut (stereoJobs.size()), monoOut (monoJobs.size());
+
+        {
+            auto pool = makePool (2, (int) stereoJobs.size());
+            poolFor ((int) stereoJobs.size(), pool, [&stereoJobs, &stereoOut] (int j, Processor& p, const Handles& h)
+            {
+                const auto& job = stereoJobs[(size_t) j];
+                stereoOut[(size_t) j] = g9RunJob (p, h, job.config, job.rate, true, kG9Length, true, false);
+            });
+        }
+        {
+            auto pool = makePool (1, (int) monoJobs.size());
+            poolFor ((int) monoJobs.size(), pool, [&monoJobs, &monoOut] (int j, Processor& p, const Handles& h)
+            {
+                const auto& job = monoJobs[(size_t) j];
+                monoOut[(size_t) j] = g9RunJob (p, h, job.config, job.rate, false, kG9Length, true, false);
+            });
+        }
+
+        Tally g9;
+        double worst = 0.0;
+        juce::String worstAt;
+        int scored = 0;
+
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            const auto& jobs = pass == 0 ? stereoJobs : monoJobs;
+            const auto& outs = pass == 0 ? stereoOut : monoOut;
+
+            for (size_t j = 0; j < jobs.size(); ++j)
+            {
+                const auto& o = outs[j];
+                const juce::String where = juce::String (specs[jobs[j].preset].name) + " " + fmtG (jobs[j].rate / 1000.0, 4) + "k "
+                                         + (jobs[j].stereo ? "stereo" : "mono");
+                g9.check (o.rendered && o.parsedOk && o.finiteOutput && o.idOk && o.scored > 0 && o.worst <= kG9Limit,
+                          where + ": " + fmtG (o.worst, 3) + " dB, scored " + juce::String (o.scored) + (o.idOk ? "" : " id " + juce::String (o.idNote)));
+                scored += o.scored;
+
+                if (! (o.worst <= worst))
+                {
+                    worst = o.worst;
+                    worstAt = where;
+                }
+            }
+        }
+
+        row (g9.bad == 0 && g9.total == 13 * 5 * 2,
+             "FP5r   each preset's settled response (four impulses stereo, one mono; 2^17 samples, damped circle a^N = 1e-9) against the closed form from its DisplayModel packets: <= 0.05 dB (the G9 (a) machinery, floors and tolerance)",
+             g9.detail() + "; worst " + fmtG (worst, 3) + " dB at " + worstAt + "; " + juce::String (scored) + " points scored");
+
+        //======================================================================
+        // FP5i: auto gain per preset (forced on, measured as the on / off
+        // level ratio on pink noise, 48 kHz stereo), none at the -18 / +12
+        // clamp; and each preset's mono vs stereo broadband level change.
+        //======================================================================
+        {
+            const double rate = 48000.0;
+            const int length = (int) std::lround (2.0 * rate), from = (int) std::lround (1.0 * rate);
+            const auto input = pinkNoise (2, length, rate, 0x41f5aaaaull, 0.1);
+            Tally clamp;
+            juce::String figures;
+
+            for (size_t si = 0; si < specs.size(); ++si)
+            {
+                const juce::String name (specs[si].name);
+                double e[2] = { 0.0, 0.0 };
+
+                for (int on = 0; on < 2; ++on)
+                {
+                    auto p = makeBands (2, 0, mixedSpec);
+                    p->presetManager.loadPreset (name);
+                    setNormalised (*p, "auto_gain", on ? 1.0f : 0.0f);
+                    const auto y = renderAt (*p, input, rate, 512, {}, noHook);
+
+                    for (int ch = 0; ch < 2; ++ch)
+                        for (int i = from; i < length; ++i)
+                            e[on] += (double) y.getSample (ch, i) * (double) y.getSample (ch, i);
+                }
+
+                const double ag = 10.0 * std::log10 (juce::jmax (e[1], 1.0e-300) / juce::jmax (e[0], 1.0e-300));
+                bool presetSetsAutoGain = false;
+
+                for (const auto& v : specs[si].values)
+                    presetSetsAutoGain = presetSetsAutoGain || (v.id == "auto_gain" && v.value > 0.5f);
+
+                clamp.check (ag > eq::autoGainMinDb + 0.1 && ag < eq::autoGainMaxDb - 0.1, name + " auto gain " + fmtG (ag, 4) + " dB at the clamp");
+                figures += (figures.isEmpty() ? "" : "; ") + name + (presetSetsAutoGain ? " [AG on]" : "") + " AG " + fmtG (ag, 3)
+                         + " dB, level mono " + fmtG (levelChange[si][0], 3) + " / stereo " + fmtG (levelChange[si][1], 3) + " dB";
+            }
+
+            row (clamp.bad == 0 && clamp.total == 13,
+                 "FP5i   auto gain (forced on, on / off level ratio, pink noise, 48 kHz stereo): no preset at the -18 / +12 dB clamp. INFO: mono vs stereo broadband level change (C2: Mono Low End cuts the whole signal on mono)",
+                 clamp.detail());
+            info ("FP5i   " + figures);
+        }
+    }
+
+    //==========================================================================
+    // HT1 / HT1g: host text (PLAN-4.1 P2)
+    //==========================================================================
+    void hostTextRowsXr (const juce::File& goldenDir)
+    {
+        section ("HT. host text in units (Stage 4, PLAN-4.1 P2)");
+
+        auto p = make();
+        Tally rt, parse, fmtRows;
+        juce::String samples;
+
+        struct Kind { const char* id; double tol; bool relative; };
+
+        for (const auto k : { Kind { "b01_freq", 0.005, true }, Kind { "b01_gain", 0.05, false }, Kind { "output_gain", 0.05, false },
+                              Kind { "b01_q", 0.005, false }, Kind { "gain_scale", 0.5, false } })
+        {
+            auto* r = findParam (*p, k.id);
+
+            if (r == nullptr)
+            {
+                rt.check (false, juce::String (k.id) + " missing");
+                continue;
+            }
+
+            for (int i = 0; i < 20; ++i)
+            {
+                const float n = (float) i / 19.0f;
+                const double v = (double) r->convertFrom0to1 (n);
+                const auto text = r->getText (n, 1024);
+                const double back = (double) r->convertFrom0to1 (r->getValueForText (text));
+                const double err = k.relative ? std::abs (back - v) / std::abs (v) : std::abs (back - v);
+                rt.check (err <= k.tol + 1.0e-6 && ! text.contains ("-0.0 "), juce::String (k.id) + " " + fmtJ (v) + " -> '" + text + "' -> " + fmtJ (back));
+
+                if (i == 9)
+                    samples += (samples.isEmpty() ? "" : ", ") + juce::String (k.id) + " '" + text + "'";
+            }
+        }
+
+        const auto parsed = [&p] (const char* id, const juce::String& text)
+        {
+            auto* r = findParam (*p, id);
+            return r != nullptr ? (double) r->convertFrom0to1 (r->getValueForText (text)) : -1.0e30;
+        };
+
+        const auto near = [] (double a, double b) { return std::abs (a - b) <= 1.0e-3 * juce::jmax (1.0, std::abs (b)); };
+
+        parse.check (near (parsed ("b01_freq", "1k"), 1000.0), "'1k'");
+        parse.check (near (parsed ("b01_freq", "1.2 kHz"), 1200.0), "'1.2 kHz'");
+        parse.check (near (parsed ("b01_freq", "440hz"), 440.0), "'440hz'");
+        parse.check (near (parsed ("b01_freq", "2.5K"), 2500.0), "'2.5K'");
+        parse.check (near (parsed ("b01_gain", "-3 dB"), -3.0), "'-3 dB'");
+        parse.check (near (parsed ("b01_gain", "+3"), 3.0), "'+3'");
+        parse.check (near (parsed ("b01_gain", juce::String::fromUTF8 ("\xe2\x88\x92" "2.5 dB")), -2.5), "U+2212 minus");
+        parse.check (near (parsed ("gain_scale", "150%"), 150.0), "'150%'");
+        parse.check (near (parsed ("b01_q", "0,7"), 0.7), "'0,7'");
+
+        for (const auto* id : { "b01_freq", "b01_gain", "b01_q", "gain_scale", "output_gain" })
+        {
+            auto* r = findParam (*p, id);
+            const double def = r != nullptr ? (double) r->convertFrom0to1 (r->getDefaultValue()) : -1.0;
+            parse.check (near (parsed (id, "abc"), def), juce::String (id) + " 'abc' -> " + fmtJ (parsed (id, "abc")) + ", default " + fmtJ (def));
+            parse.check (near (parsed (id, ""), def), juce::String (id) + " '' -> default");
+        }
+
+        using namespace opeq::paramtext;
+        fmtRows.check (freqToText (999.9998779f) == "1.00 kHz", "999.9998779 -> " + freqToText (999.9998779f));
+        fmtRows.check (freqToText (440.0f) == "440 Hz", "440 -> " + freqToText (440.0f));
+        fmtRows.check (freqToText (42.5f) == "42.5 Hz", "42.5 -> " + freqToText (42.5f));
+        fmtRows.check (freqToText (99.97f) == "100 Hz", "99.97 -> " + freqToText (99.97f));
+        fmtRows.check (freqToText (12000.0f) == "12.0 kHz", "12000 -> " + freqToText (12000.0f));
+        fmtRows.check (freqToText (9999.0f) == "10.0 kHz", "9999 -> " + freqToText (9999.0f));
+        fmtRows.check (dbToText (3.0f) == "+3.0 dB", "3 -> " + dbToText (3.0f));
+        fmtRows.check (dbToText (-2.5f) == "-2.5 dB", "-2.5 -> " + dbToText (-2.5f));
+        fmtRows.check (dbToText (-0.04f) == "0.0 dB" && dbToText (0.0f) == "0.0 dB", "-0.04 -> " + dbToText (-0.04f));
+        fmtRows.check (qToText (0.71f) == "0.71", "0.71 -> " + qToText (0.71f));
+        fmtRows.check (percentToText (100.0f) == "100 %", "100 -> " + percentToText (100.0f));
+
+        row (rt.bad == 0 && rt.total == 100 && parse.bad == 0 && fmtRows.bad == 0,
+             "HT1    host text: 20 values per kind (freq / gain / output gain / Q / gain scale) round-trip within display precision (freq rel 0.5 %, 0.05 dB, Q 0.005, 0.5 %), never '-0.0'; '1k', '1.2 kHz', '440hz', '-3 dB', '+3', '150%' parse; '' and 'abc' give the default",
+             "round trips " + rt.detail() + "; parses " + parse.detail() + "; formats " + fmtRows.detail() + "; e.g. " + samples);
+
+        const auto golden = goldenDir.getChildFile ("params.tsv");
+        const auto dump = buildDump (*p);
+        const bool same = golden.existsAsFile() && golden.loadFileAsString().toStdString() == dump;
+
+        row (same, "HT1g   --dump-params byte-equal to tests/golden/params.tsv (host text changes no range, default or ID)",
+             same ? "identical (" + juce::String ((int) dump.size()) + " bytes)" : "DIFFERS");
+    }
+
+    //==========================================================================
+    // M1j: the meter hold under jittered block completions (VERIFICATION-3.3
+    // Issue 1): block b completes at (b + 1) T + u_b 0.3 T, u_b seeded uniform
+    // in [-1, 1]; the editor reads at 60 Hz.
+    //==========================================================================
+    void meterJitterRowsXr()
+    {
+        section ("M1j. PeakHold with jittered block completions (Stage 4, PLAN-4.1 task 17)");
+
+        Tally tally;
+        juce::String figures;
+        int controlEmpty = 0;
+
+        for (const int block : { 1024, 2048 })
+            for (const bool control : { false, true })
+            {
+                const double rate = 44100.0;
+                const double T = (double) block / rate;
+                auto p = p33Make (rate, 2, block);
+                const int numBlocks = (int) (10.0 / T);
+                const float amplitude = (float) std::pow (10.0, -6.0 / 20.0);
+                juce::AudioBuffer<float> input (2, numBlocks * block);
+
+                for (int i = 0; i < input.getNumSamples(); ++i)
+                {
+                    const auto v = (float) (amplitude * std::sin (2.0 * juce::MathConstants<double>::pi * 1000.0 * i / rate));
+                    input.setSample (0, i, v);
+                    input.setSample (1, i, v);
+                }
+
+                Xorshift random;
+                random.state = 0x41a1ull + (std::uint64_t) block;
+                std::vector<double> done ((size_t) numBlocks);
+
+                for (int b = 0; b < numBlocks; ++b)
+                    done[(size_t) b] = (b + 1) * T + (2.0 * random.uniform() - 1.0) * 0.3 * T;
+
+                const int depthH = opeq::PeakHold::depthFor (block, rate);
+                const int depth = control ? depthH - 1 : depthH;
+                std::array<opeq::PeakHold, 2> hold;
+                for (auto& h : hold) h.setDepth (depth);
+
+                juce::MidiBuffer midi;
+                int next = 0, empty = 0, ticks = 0;
+
+                for (int j = 1; j / 60.0 < (numBlocks - 1) * T; ++j)
+                {
+                    const double t = j / 60.0;
+
+                    while (next < numBlocks && done[(size_t) next] <= t)
+                    {
+                        juce::AudioBuffer<float> view (input.getArrayOfWritePointers(), 2, next * block, block);
+                        p->processBlock (view, midi);
+                        ++next;
+                    }
+
+                    for (int ch = 0; ch < 2; ++ch)
+                        hold[(size_t) ch].push (p->readAndResetOutputPeak (ch));
+
+                    if (t < 2.0 * T + (double) depthH / 60.0)
+                        continue;
+
+                    ++ticks;
+
+                    for (int ch = 0; ch < 2; ++ch)
+                        if (opeq::gainToTenthsDb (hold[(size_t) ch].max(), -600, 120) <= -600)
+                            ++empty;
+                }
+
+                const juce::String where = juce::String (block) + " / 44.1k H " + juce::String (depth);
+
+                if (control)
+                {
+                    controlEmpty += empty > 0 ? 1 : 0;
+                    figures += "; control H - 1 at " + juce::String (block) + ": " + juce::String (empty) + " empty reads";
+                }
+                else
+                {
+                    tally.check (empty == 0 && ticks > 300, where + ": " + juce::String (empty) + " empty reads over " + juce::String (ticks) + " ticks");
+                    figures += (figures.isEmpty() ? "" : ", ") + where + ": " + juce::String (empty) + " empty / " + juce::String (ticks) + " ticks";
+                }
+            }
+
+        row (tally.bad == 0 && tally.total == 2 && controlEmpty == 2,
+             "M1j    PeakHold H = ceil (1.3 B / fs x 60) + 1 with block completions jittered +-30 % of a block period (seeded), 10 s at 1024 and 2048 / 44.1 kHz, 60 Hz reads: 0 empty reads; H - 1 shows empty reads at both (control)",
+             tally.detail() + "  " + figures);
+    }
+
+    //==========================================================================
+    // --g10 (PLAN-4.1 P5; RESEARCH-4 Q3): PERF-02 gated. Release only. 48 kHz
+    // stereo, 512-sample blocks, 60 s of audio per case, 3 repeats, the
+    // median gated. Timed per block: the noise copy and processBlock, the
+    // same loop for the pass-through processor. The timing thread asks for
+    // QOS_CLASS_USER_INTERACTIVE (macOS has no pinning) and never sleeps.
+    //==========================================================================
+    struct PassThrough : juce::AudioProcessor
+    {
+        PassThrough() : juce::AudioProcessor (BusesProperties().withInput ("In", juce::AudioChannelSet::stereo(), true)
+                                                                .withOutput ("Out", juce::AudioChannelSet::stereo(), true)) {}
+        const juce::String getName() const override { return "pass"; }
+        void prepareToPlay (double, int) override {}
+        void releaseResources() override {}
+        void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override {}
+        double getTailLengthSeconds() const override { return 0.0; }
+        bool acceptsMidi() const override { return false; }
+        bool producesMidi() const override { return false; }
+        juce::AudioProcessorEditor* createEditor() override { return nullptr; }
+        bool hasEditor() const override { return false; }
+        int getNumPrograms() override { return 1; }
+        int getCurrentProgram() override { return 0; }
+        void setCurrentProgram (int) override {}
+        const juce::String getProgramName (int) override { return {}; }
+        void changeProgramName (int, const juce::String&) override {}
+        void getStateInformation (juce::MemoryBlock&) override {}
+        void setStateInformation (const void*, int) override {}
+    };
+
+    /** G10d on NET costs (PLAN-4.1 P5): the 24-band cost above the 0-band
+        baseline is at most 24x the 1-band cost above it, x 1.15.
+        ARCHITECTURE's gross form, a <= 24 d x 1.15, passes trivially (the
+        baseline is counted 24 times on the right); this is a reading of the
+        gate, not an amendment. */
+    bool g10Linear (double a, double c, double d)
+    {
+        return (a - c) <= 24.0 * (d - c) * 1.15;
+    }
+
+    /** % of one core: seconds of block work per second of audio. */
+    template <typename Before>
+    double g10Time (juce::AudioProcessor& p, const juce::AudioBuffer<float>& noise, double rate, int blockSize, int numBlocks, Before&& before)
+    {
+        juce::AudioBuffer<float> block (2, blockSize);
+        juce::MidiBuffer midi;
+        p.prepareToPlay (rate, blockSize);
+        double seconds = 0.0;
+
+        for (int k = 0; k < numBlocks; ++k)
+        {
+            before (k);
+            const auto t0 = std::chrono::steady_clock::now();
+
+            for (int channel = 0; channel < 2; ++channel)
+                block.copyFrom (channel, 0, noise, channel, 0, blockSize);
+
+            p.processBlock (block, midi);
+            const auto t1 = std::chrono::steady_clock::now();
+            seconds += std::chrono::duration<double> (t1 - t0).count();
+        }
+
+        p.releaseResources();
+        return 100.0 * seconds / ((double) numBlocks * (double) blockSize / rate);
+    }
+
+    /** G10d0 (M14): a synthetic cost quadratic in the band count (a
+        sleep-free busy loop, measured) must FAIL the net reading and PASS
+        the gross one; otherwise G10d tests nothing. In --g10 and --rows41. */
+    void g10SelfCheckRow()
+    {
+        const auto spin = [] (long units)
+        {
+            volatile double x = 1.0;
+            const auto t0 = std::chrono::steady_clock::now();
+            for (long u = 0; u < units * 2000; ++u)
+                x = x * 1.0000001 + 1.0e-9;
+            return std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
+        };
+
+        const long base = 1000;
+        const double sc = spin (base), sd = spin (base + 1), sa = spin (base + 24 * 24);
+        const bool grossPasses = sa <= 24.0 * sd * 1.15;
+        const bool netFails = ! g10Linear (sa, sc, sd);
+
+        row (grossPasses && netFails,
+             "G10d0  self-check: a measured cost quadratic in the band count fails the G10d reading and passes ARCHITECTURE's gross form (the row is not vacuous)",
+             "synthetic c " + fmtG (sc * 1e3, 4) + " ms, 1 band " + fmtG (sd * 1e3, 4) + " ms, 24 bands " + fmtG (sa * 1e3, 4) + " ms; gross "
+                 + (grossPasses ? "passes" : "FAILS") + ", G10d " + (netFails ? "fails" : "PASSES"));
+    }
+
+    int g10Mode()
+    {
+        std::printf ("O-ParametricEQ render harness --g10 (PLAN-4.1 P5, PERF-02)\n");
+
+       #if JUCE_DEBUG
+        bool gated = false;
+       #else
+        bool gated = true;
+       #endif
+
+       #if defined (__APPLE__)
+        pthread_set_qos_class_self_np (QOS_CLASS_USER_INTERACTIVE, 0);
+        const auto qos = qos_class_self();
+        const char* qosName = qos == QOS_CLASS_USER_INTERACTIVE ? "USER_INTERACTIVE" : qos == QOS_CLASS_USER_INITIATED ? "USER_INITIATED" : "other";
+       #else
+        const char* qosName = "n/a";
+       #endif
+
+        double load[3] = { -1.0, -1.0, -1.0 };
+        getloadavg (load, 3);
+        std::printf ("  build %s; timing thread QoS %s; 1-minute load average %.2f\n", gated ? "Release" : "Debug (NOT GATED)", qosName, load[0]);
+
+        constexpr int blockSize = 512, repeats = 3;
+        const double rate = 48000.0;
+        const int numBlocks = (int) (60.0 * rate / (double) blockSize);
+        const auto noise = makeNoiseAt (2, blockSize, 0x0C9100002, kNoise12);
+
+        const auto cuts = [] (int index) { return makeSpec (kHighCut, 20000.0f - 300.0f * (float) index, 0.0f, 1.0f, 7, kStereo); };
+        const auto swept = [] (int type, float gain)
+        {
+            return [type, gain] (int index) { return makeSpec (type, 40.0f * std::pow (300.0f, (float) index / 23.0f), gain, 1.0f, 7, kStereo); };
+        };
+
+        // X-cpu2's motion: a 2 s triangle in log frequency, one phase per band.
+        const auto sweeper = [rate] (Processor& p, float gain)
+        {
+            const Handles h = handlesOf (p);
+            return [h, rate, gain] (int k)
+            {
+                const double position = (double) (k * blockSize) / rate;
+
+                for (int b = 0; b < Processor::kNumBands; ++b)
+                {
+                    const double phase = std::fmod (position / 2.0 + (double) b / 24.0, 1.0);
+                    const double triangle = phase < 0.5 ? 2.0 * phase : 2.0 - 2.0 * phase;
+                    h.band[(size_t) b].freq->store ((float) (40.0 * std::pow (300.0, triangle)));
+
+                    if (gain != 0.0f)
+                        h.band[(size_t) b].gain->store ((float) ((double) gain * (0.5 + triangle)));
+                }
+            };
+        };
+
+        struct Reading { double median = 0.0, lo = 0.0, hi = 0.0; };
+
+        const auto measure = [&] (auto&& run)
+        {
+            std::vector<double> v;
+
+            for (int r = 0; r < repeats; ++r)
+                v.push_back (run());
+
+            std::sort (v.begin(), v.end());
+            return Reading { v[1], v.front(), v.back() };
+        };
+
+        const auto noMotion = [] (int) {};
+
+        const Reading a = measure ([&] { auto p = makeBands (2, 24, cuts); return g10Time (*p, noise, rate, blockSize, numBlocks, noMotion); });
+        const Reading b = measure ([&] { auto p = makeBands (2, 24, swept (kHighCut, 0.0f)); auto m = sweeper (*p, 0.0f); return g10Time (*p, noise, rate, blockSize, numBlocks, m); });
+        const Reading c = measure ([&] { auto p = makeBands (2, 0, cuts); return g10Time (*p, noise, rate, blockSize, numBlocks, noMotion); });
+        const Reading d = measure ([&] { auto p = makeBands (2, 1, cuts); return g10Time (*p, noise, rate, blockSize, numBlocks, noMotion); });
+        const Reading i = measure ([&] { auto p = makeBands (2, 24, swept (kHighShelf, 9.0f)); auto m = sweeper (*p, 9.0f); return g10Time (*p, noise, rate, blockSize, numBlocks, m); });
+        const Reading pass = measure ([&] { PassThrough p; return g10Time (p, noise, rate, blockSize, numBlocks, noMotion); });
+
+        const auto fig = [] (const Reading& r) { return fmtG (r.median, 4) + " % (min " + fmtG (r.lo, 4) + ", max " + fmtG (r.hi, 4) + ")"; };
+        const auto gatedRow = [gated] (bool ok, const juce::String& name, const juce::String& detail)
+        {
+            if (gated)
+                row (ok, name, detail);
+            else
+                std::printf ("  [NOT GATED: Debug] %-70s %s\n", name.toRawUTF8(), detail.toRawUTF8());
+        };
+
+        gatedRow (a.median <= 10.0, "G10a   24 High Cuts x 96 dB/oct, settled, 48 kHz stereo, block 512, 60 s x 3: median <= 10 % of one core", fig (a));
+        gatedRow (b.median <= 35.0, "G10b   the same 24 cuts, every frequency swept every block (X-cpu2 motion): median <= 35 %", fig (b));
+        // G10c as amended (ARCHITECTURE G10, Taylor's call 2026-11-16): the
+        // 1.5x ratio against a do-nothing pass-through is unmeetable by any
+        // processBlock with per-block work (a ratio against near zero), so an
+        // excess over the pass-through of <= 0.01 % of a core (about 1 us per
+        // 512-sample block at 48 kHz) also passes.
+        const bool g10cRatio = c.median <= 1.5 * pass.median, g10cFloor = c.median - pass.median <= 0.01;
+        gatedRow (c.median <= 0.3 && (g10cRatio || g10cFloor),
+                  "G10c   0 bands enabled: median <= 0.3 % and (<= 1.5x the pass-through processor, same loop and noise copy, or <= 0.01 % above it) (amended 2026-11-16)",
+                  fig (c) + "; pass-through " + fig (pass) + "; ratio " + fmtG (c.median / juce::jmax (pass.median, 1.0e-12), 3) + "x, excess "
+                      + fmtG (c.median - pass.median, 3) + " % (" + (g10cRatio ? "ratio" : g10cFloor ? "floor" : "neither") + ")");
+        gatedRow (g10Linear (a.median, c.median, d.median),
+                  "G10d   linearity on NET costs: (G10a - G10c) <= 24 x (1 cut - G10c) x 1.15 (ARCHITECTURE's gross form passes trivially; this reading subtracts the 0-band baseline)",
+                  "a - c " + fmtG (a.median - c.median, 4) + " %, 24 x (d - c) x 1.15 = " + fmtG (24.0 * (d.median - c.median) * 1.15, 4) + " % (1 cut " + fig (d) + ")");
+        info ("G10i   24 High Shelves x 96 dB/oct, +9 dB, all sweeping (X-cpu2 motion), against the 35 % line: " + fig (i)
+              + (i.median <= 35.0 ? " (under)" : " (OVER)"));
+
+        g10SelfCheckRow();
+
+        getloadavg (load, 3);
+        std::printf ("  1-minute load average after: %.2f\n", load[0]);
+        std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+        std::fflush (stdout);
+        return juce::jmin (failures, 255);
+    }
+
 }
 
 //==============================================================================
@@ -17799,6 +18792,8 @@ int main (int argc, char** argv)
 
     bool dumpParams = false;
     bool rows33Only = false;
+    bool g10Only = false;
+    bool rows41Only = false;
     juce::File dumpSessionsDir;
     juce::File goldenDir (juce::String::fromUTF8 (GOLDEN_DIR));
 
@@ -17826,6 +18821,14 @@ int main (int argc, char** argv)
         {
             lidDumpDir = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String::fromUTF8 (argv[++a]));
         }
+        else if (arg == "--rows41")
+        {
+            rows41Only = true;   // PLAN-4.1 task 27 mutant runs
+        }
+        else if (arg == "--g10")
+        {
+            g10Only = true;      // PLAN-4.1 P5: the gated G10 mode only
+        }
         else if (arg == "--rows33")
         {
             rows33Only = true;   // PLAN-3.3 T11 mutant runs: only phase33RowsXr
@@ -17836,7 +18839,7 @@ int main (int argc, char** argv)
         }
         else
         {
-            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>] [--dump-g9 <dir>] [--rows33]\n", argv[0]);
+            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>] [--dump-g9 <dir>] [--rows33] [--g10] [--rows41]\n", argv[0]);
             return 255;
         }
     }
@@ -17876,6 +18879,21 @@ int main (int argc, char** argv)
     }
 
     std::printf ("O-ParametricEQ render harness (Stage 1)  golden dir: %s\n", goldenDir.getFullPathName().toRawUTF8());
+
+    if (g10Only)
+        return g10Mode();
+
+    if (rows41Only)
+    {
+        // PLAN-4.1 task 27 mutant runs: the fast 4.1 rows (no FP5 renders).
+        factoryRowsXr();
+        hostTextRowsXr (goldenDir);
+        meterJitterRowsXr();
+        g10SelfCheckRow();
+        std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+        std::fflush (stdout);
+        return juce::jmin (failures, 255);
+    }
 
     if (rows33Only)
     {
@@ -17946,6 +18964,12 @@ int main (int argc, char** argv)
 
     // Stage 3, Phase 3.3 (PLAN-3.3 T3)
     phase33RowsXr();
+
+    // Stage 4, Phase 4.1 (PLAN-4.1 W4)
+    factoryRowsXr();
+    factoryRenderRowsXr();
+    hostTextRowsXr (goldenDir);
+    meterJitterRowsXr();
 
     listenAllocationRowsXr();
     cpuInfoListen();

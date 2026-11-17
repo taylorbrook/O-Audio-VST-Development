@@ -33,6 +33,11 @@
 //    `reviewed: false`. No native speaker has read it.
 // zh-Hans is MACHINE-DRAFTED against scripts/i18n-zh-glossary.js: every entry
 //    is `reviewed: 'mt'`.
+// Stage 4 (PLAN-4.1 P4): every fr and zh row revised by Claude against the
+//    glossaries after they gained the EQ vocabulary (bell ... side signal).
+//    Changes: zh Analyzer 频谱分析仪 (the instrument, not the act), zh Pre /
+//    Post 处理前 / 处理后 (a bare 前 / 后 reads front / back), fr Mid signal
+//    Signal central. fr stays `reviewed: false` until Taylor's spot read.
 
 export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
@@ -121,8 +126,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Analyseur',
               b: 'Ce que l’analyseur de spectre affiche derrière la courbe\u00A0: rien, l’entrée (Pré), la sortie (Post) ou les deux. Affichage uniquement, sans automation.',
               reviewed: false },
-        'zh-Hans': { t: '频谱分析',
-              b: '曲线后方频谱分析的显示内容：不显示、输入（前）、输出（后）或两者同时显示。仅用于显示，不参与自动化。',
+        'zh-Hans': { t: '频谱分析仪',
+              b: '频谱分析仪在曲线后方显示的内容：不显示、输入（处理前）、输出（处理后）或两者同时显示。仅用于显示，不参与自动化。',
               reviewed: 'mt' },
     },
     'display-range': {
@@ -139,7 +144,7 @@ export const I18N = Object.freeze({
         en: { t: 'Bands',
               b: 'The 24 bands. Click a band to select it. Click an empty slot to add that band at its stored settings.' },
         fr: { t: 'Bandes',
-              b: 'Les 24 bandes. Cliquez sur une bande pour la sélectionner. Cliquez sur un emplacement vide pour ajouter cette bande avec ses réglages enregistrés.',
+              b: 'Les 24 bandes. Cliquez sur une bande pour la sélectionner. Cliquez sur un emplacement vide pour ajouter cette bande avec ses réglages conservés.',
               reviewed: false },
         'zh-Hans': { t: '频段',
               b: '共 24 个频段。点击某个频段将其选中。点击空位可按其已存储的设置添加该频段。',
@@ -152,7 +157,7 @@ export const I18N = Object.freeze({
               b: 'Parcourez les préréglages avec les flèches, ou enregistrez les réglages actuels dans un fichier. Le mode de l’analyseur et la taille de la fenêtre ne font pas partie d’un préréglage.',
               reviewed: false },
         'zh-Hans': { t: '预设',
-              b: '用箭头逐个切换预设，或将当前设置保存到文件。频谱分析模式和窗口大小不属于预设内容。',
+              b: '用箭头逐个切换预设，或将当前设置保存到文件。频谱分析仪的模式和窗口大小不属于预设内容。',
               reviewed: 'mt' },
     },
     'meter': {
@@ -231,7 +236,7 @@ export const I18N = Object.freeze({
         en: { t: 'Placement',
               b: 'Which part of the signal the selected band processes: both channels (LR), left only, right only, the mid signal or the side signal. It has no effect on a mono track.' },
         fr: { t: 'Placement',
-              b: 'La partie du signal traitée par la bande sélectionnée\u00A0: les deux canaux (LR), la gauche seule, la droite seule, le signal du milieu ou le signal des côtés. Sans effet sur une piste mono.',
+              b: 'La partie du signal traitée par la bande sélectionnée\u00A0: les deux canaux (LR), la gauche seule, la droite seule, le signal central ou le signal des côtés. Sans effet sur une piste mono.',
               reviewed: false, sameAsEn: true },
         'zh-Hans': { t: '声道位置',
               b: '所选频段处理信号的哪一部分：左右两个声道（LR）、仅左、仅右、中置信号或侧向信号。在单声道音轨上不起作用。',
@@ -291,9 +296,9 @@ export const LABELS = Object.freeze({
                           'zh-Hans': { t: '全部 24 个频段均已使用', reviewed: 'mt' } },
 
     // ── Analyzer segments (Off is ui.off) ───────────────────────────────────
-    'opt.analyzer.pre':     { en: { t: 'Pre' },      fr: { t: 'Pré',      reviewed: false }, 'zh-Hans': { t: '前',    reviewed: 'mt' } },
-    'opt.analyzer.post':    { en: { t: 'Post' },     fr: { t: 'Post',     reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '后', reviewed: 'mt' } },
-    'opt.analyzer.prePost': { en: { t: 'Pre+Post' }, fr: { t: 'Pré+Post', reviewed: false }, 'zh-Hans': { t: '前+后', reviewed: 'mt' } },
+    'opt.analyzer.pre':     { en: { t: 'Pre' },      fr: { t: 'Pré',      reviewed: false }, 'zh-Hans': { t: '处理前', reviewed: 'mt' } },
+    'opt.analyzer.post':    { en: { t: 'Post' },     fr: { t: 'Post',     reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '处理后', reviewed: 'mt' } },
+    'opt.analyzer.prePost': { en: { t: 'Pre+Post' }, fr: { t: 'Pré+Post', reviewed: false }, 'zh-Hans': { t: '处理前+后', reviewed: 'mt' } },
 
     // ── Filter types, in bNN_type choice order ──────────────────────────────
     'opt.type.bell':      { en: { t: 'Bell' },       fr: { t: 'Cloche',          reviewed: false }, 'zh-Hans': { t: '钟形',     reviewed: 'mt' } },
@@ -317,7 +322,7 @@ export const LABELS = Object.freeze({
     'aria.placement.stereo': { en: { t: 'Stereo' },        fr: { t: 'Stéréo',       reviewed: false }, 'zh-Hans': { t: '立体声',   reviewed: 'mt' } },
     'aria.placement.left':   { en: { t: 'Left channel' },  fr: { t: 'Canal gauche', reviewed: false }, 'zh-Hans': { t: '左声道',   reviewed: 'mt' } },
     'aria.placement.right':  { en: { t: 'Right channel' }, fr: { t: 'Canal droit',  reviewed: false }, 'zh-Hans': { t: '右声道',   reviewed: 'mt' } },
-    'aria.placement.mid':    { en: { t: 'Mid signal' },    fr: { t: 'Signal du milieu', reviewed: false }, 'zh-Hans': { t: '中置信号', reviewed: 'mt' } },
+    'aria.placement.mid':    { en: { t: 'Mid signal' },    fr: { t: 'Signal central', reviewed: false }, 'zh-Hans': { t: '中置信号', reviewed: 'mt' } },
     'aria.placement.side':   { en: { t: 'Side signal' },   fr: { t: 'Signal des côtés', reviewed: false }, 'zh-Hans': { t: '侧向信号', reviewed: 'mt' } },
 });
 

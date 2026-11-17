@@ -1,0 +1,5 @@
+# PLAN-4.1: raw session dumps (SHA lists are kept), probe builds
+baseline/sessions-090/
+harness/sessions-0100/
+baseline/probe/
+harness/probe/

@@ -428,6 +428,28 @@ const TERMS = {
     'speed high':                 ['高频速度'],
     'tilt':                       ['倾斜'],
     'rolloff':                    ['滚降'],
+    // O-ParametricEQ Stage 4 (2026-11-16): the parametric-EQ vocabulary.
+    // Shelves match 'lf shelf' / 'hf shelf'; 'analyzer' is the instrument
+    // (频谱分析仪), not the act (频谱分析); a bare 前 / 后 reads front / back,
+    // so Pre / Post are 处理前 / 处理后.
+    'bell':                       ['钟形'],
+    'low shelf':                  ['低频搁架'],
+    'high shelf':                 ['高频搁架'],
+    'high cut':                   ['高切'],
+    'notch':                      ['陷波'],
+    'band pass':                  ['带通'],
+    'tilt shelf':                 ['倾斜搁架'],
+    'slope':                      ['斜率'],
+    'placement':                  ['声道位置'],
+    'listen':                     ['监听'],
+    'analyzer':                   ['频谱分析仪'],
+    'pre':                        ['处理前', '前置'],   // TWO senses: a signal tap before processing (O-ParametricEQ analyzer: 处理前) and a position in a chain (O-GranulatorInstrument reverb inside / outside the feedback loop: 前置)
+    'post':                       ['处理后', '后置'],   // the matched pair of 'pre'
+    'pre+post':                   ['处理前+后'],
+    'gain scale':                 ['增益缩放'],
+    'display range':              ['显示范围'],
+    'mid signal':                 ['中置信号'],
+    'side signal':                ['侧向信号'],
     'damp':                       ['阻尼'],
     'damping':                    ['阻尼'],
     'dist lpf':                   ['距离低通'],   // DISTANCE low-pass, not the distortion reading of the abbreviation. Settled by the only corpus site, O-GrainScatter, whose own tooltip body reads "Distance LPF sets how much Distance darkens the cloud". Corrected 260908-a8w.

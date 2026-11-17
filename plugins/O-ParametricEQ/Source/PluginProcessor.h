@@ -313,14 +313,19 @@ public:
     /** 196 parameters. State tree type "OParametricEQ". */
     juce::AudioProcessorValueTreeState parameters;
 
-    /** User presets (Phase 3.1, call C2): ~/Library/O-ParametricEQ/Presets.
+    /** Presets (Phase 3.1, call C2): ~/Library/O-ParametricEQ/Presets.
         output_gain and bypass are excluded (presets never set them); each
-        applied value is validated and is its own host gesture. Empty factory
-        set until Stage 4; directories are created lazily, so construction
-        does no file I/O. Session state does NOT go through it: the codec in
-        getStateInformation / setStateInformation is its own. Declared after
-        `parameters`, which it references. */
+        applied value is validated and is its own host gesture. The factory
+        bank (Stage 4, FactoryPresets.h) is written by initFactoryBank() at
+        construction, only when its stamp is stale. Session state does NOT go
+        through it: the codec in getStateInformation / setStateInformation is
+        its own. Declared after `parameters`, which it references. */
     OuariconPresetManager presetManager { parameters, "O-ParametricEQ" };
+
+    /** PLAN-4.1 P1: writes Factory/ when Factory/.bank-hash does not match
+        the bank (see the definition). Public for the render harness (FP2),
+        which re-runs it under a fake home. Message thread. */
+    void initFactoryBank();
 
     //==========================================================================
     // Session UI state. NOT host parameters, not in APVTS, not part of presets.

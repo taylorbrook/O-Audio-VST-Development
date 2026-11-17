@@ -148,9 +148,20 @@ button { cursor: pointer; }
 /* Content-sized header boxes are pinned at their widest language (fr), so
    nothing in the header moves when the language changes. */
 .hgroup .cap { width: 64px; text-align: right; }
+/* PLAN-4.1 (PN1, Taylor's call): below 960 px the preset bar sat at its
+   150 px min-width and the name box was 43 px, so every factory name was
+   ellipsised at 800 x 500. A tighter gap and no Analyzer caption (the
+   segment keeps its aria-label and tooltip) give the bar ~96 px back.
+   Nothing changes at 960 px and up. */
+@media (max-width: 959px) {
+  #header { gap: 8px; }
+  .hgroup .cap[data-i18n="analyzer"] { display: none; }
+}
 #seg-analyzer button { padding: 0; }
 #seg-analyzer button:nth-child(1) { width: 44px; }
-#seg-analyzer button:nth-child(2) { width: 35px; }
+/* Pre pinned at its widest language, zh 处理前 (36.8 px), PLAN-4.1 P4: the
+   same 39 px as Post (zh 处理后), so the segment does not move per language. */
+#seg-analyzer button:nth-child(2) { width: 39px; }
 #seg-analyzer button:nth-child(3) { width: 39px; }
 #seg-analyzer button:nth-child(4) { width: 60px; }
 #toggle-bypass { flex: none; width: 82px; padding: 0; }
@@ -688,6 +699,7 @@ const CREATE_DBLCLICK_MS = 450;   // a double-click that just created a node doe
 const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the window edge
 const TOOLTIP_DELAY_MS   = 350;   // hover dwell before a tip appears
 const BANDS_FULL_TIP_MS  = 1600;  // how long the 25th-band tip (U5) stays up
+const TOOLTIP_FADE_MS    = 110;   // .tooltip opacity transition (CSS); the point tip's class outlives it
 const TIPS_STORAGE_KEY   = 'opeq.tipsEnabled';
 
 const WIN_MIN_W = 800, WIN_MIN_H = 500, WIN_MAX_W = 1600, WIN_MAX_H = 1000;   // editor limits (C++ clamps too)
@@ -726,6 +738,7 @@ let tooltipTarget     = null;
 let tooltipSuppressed = false;
 let tipsEnabled       = true;
 let pointTipAnchor    = null;     // the U5 tip's zero-size rect at the pointer, while it shows
+let pointTipRemoval   = null;     // { timer, onEnd } while the point tip's class waits out the fade
 
 // ════════════════════════════════════════════════════════════════════════════
 // FUNCTION DECLARATIONS (hoisted — safe to call from init())
@@ -1351,7 +1364,12 @@ function createBand(b, freq, gain) {
 
 function deleteBand(b) {
     if (!b || !bandOn(b)) return;
-    toggleState[bid(b, 'enabled')].setValue(false);   // listen ends through the enabled hook
+    toggleState[bid(b, 'enabled')].setValue(false);
+    // Listen ends at once (PLAN-4.1 P3, VERIFICATION-3.3 Issue 5). A page
+    // delete is never a preset pass-through, so it does not wait out the
+    // enabled hook's LISTEN_DISABLE_SETTLE_MS; that hook still serves host
+    // and preset disables.
+    endListenOn(b);
     let next = 0;
     for (let i = b - 1; i >= 1 && !next; i--) if (bandOn(i)) next = i;
     for (let i = b + 1; i <= NB && !next; i++) if (bandOn(i)) next = i;
@@ -2385,6 +2403,7 @@ function showBandsFullTip(clientX, clientY) {
     clearTimeout(tooltipTimer);
     tooltipTarget = null;
     pointTipAnchor = { left: clientX, right: clientX, top: clientY, bottom: clientY, width: 0, height: 0 };
+    cancelPointTipRemoval();   // a re-show mid-fade keeps the class
     tooltipEl.classList.add('tip-point');
     setLabel(tooltipEl, 'bands-full');
     placeTip(pointTipAnchor);
@@ -2395,7 +2414,10 @@ function showBandsFullTip(clientX, clientY) {
 
 // The point tip's label binding is dropped before the box is reused, or a
 // later applyI18n would write 'bands-full' over a hover tip.
+// clearPointTip is the IMMEDIATE clear, for the paths that reuse the box at
+// once (showTooltip). hideTooltip defers it to the end of the fade instead.
 function clearPointTip() {
+    cancelPointTipRemoval();
     pointTipAnchor = null;
     if (!tooltipEl) return;
     tooltipEl.classList.remove('tip-point');
@@ -2404,12 +2426,36 @@ function clearPointTip() {
     delete tooltipEl.dataset.label;
 }
 
+// PLAN-4.1 P3 (VERIFICATION-3.2 Issue 5): dropping .tip-point when the fade
+// STARTS re-flows the fading text at the hover tip's size. The class and the
+// label binding go on the opacity transitionend instead, with a timer as the
+// fallback (reduced motion has no transition, so no transitionend). A tip
+// shown again in between cancels the removal.
+function cancelPointTipRemoval() {
+    if (!pointTipRemoval) return;
+    clearTimeout(pointTipRemoval.timer);
+    if (tooltipEl) tooltipEl.removeEventListener('transitionend', pointTipRemoval.onEnd);
+    pointTipRemoval = null;
+}
+
+function schedulePointTipRemoval() {
+    cancelPointTipRemoval();
+    const onEnd = (e) => { if (e.target === tooltipEl && e.propertyName === 'opacity') clearPointTip(); };
+    tooltipEl.addEventListener('transitionend', onEnd);
+    pointTipRemoval = { timer: setTimeout(clearPointTip, TOOLTIP_FADE_MS + 50), onEnd };
+}
+
 function hideTooltip() {
     clearTimeout(tooltipTimer);
     tooltipTarget = null;
 
     if (!tooltipEl) return;
-    clearPointTip();
+    if (tooltipEl.classList.contains('tip-point')) {
+        pointTipAnchor = null;          // the re-place observer stops; the box keeps its text and size
+        schedulePointTipRemoval();
+    } else {
+        clearPointTip();
+    }
     tooltipEl.classList.remove('visible');
     tooltipEl.setAttribute('aria-hidden', 'true');
 }

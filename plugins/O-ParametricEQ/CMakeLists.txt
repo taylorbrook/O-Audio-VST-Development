@@ -4,7 +4,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Single source of truth for the version. The test consoles derive
 # JucePlugin_VersionString from the plugin target, so nothing mirrors it.
-set(OPEQ_VERSION 0.9.0)
+set(OPEQ_VERSION 0.10.0)
 
 # Plugin formats: VST3, AU, Standalone. Effect, no MIDI.
 # NOTE: no comment in this file may spell the plugin-declaration command name
@@ -139,8 +139,11 @@ if(OUARICON_BUILD_TESTS)
     ouaricon_add_processor_console(OuariconParametricEQ ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/main.cpp render-harness)
 
+    # OPEQ_TEST_HOOKS (PLAN-4.1 FP2): the factory-bank spec hook in
+    # Source/FactoryPresets.h. Harness only; no plugin target defines it.
     target_compile_definitions(O-ParametricEQ-render-harness PRIVATE
-        GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden")
+        GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden"
+        OPEQ_TEST_HOOKS=1)
 
     # Gate G1 (offline): O-ParametricEQ-designer-harness. A plain C++17 console
     # over the std-only headers in Source/dsp: no plugin target, no framework

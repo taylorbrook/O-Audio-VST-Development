@@ -41,6 +41,8 @@
 */
 
 #include "PluginProcessor.h"
+#include "FactoryPresets.h"
+#include "ParamText.h"
 
 #if JUCE_WEB_BROWSER
  #include "PluginEditor.h"
@@ -165,7 +167,12 @@ namespace
         if (def.kind == Kind::centred)
             range.setSkewForCentre (def.centre);
 
-        return std::make_unique<juce::AudioParameterFloat> (parameterId, name, range, def.defaultValue);
+        // PLAN-4.1 P2: host text in units, by the parameter's kind (freq / dB /
+        // Q / %). Text only: the range, the default and the ID are unchanged,
+        // so the layout golden and every session stay byte-identical.
+        return std::make_unique<juce::AudioParameterFloat> (
+            parameterId, name, range, def.defaultValue,
+            opeq::paramtext::attributesFor (opeq::paramtext::kindForId (def.id), def.defaultValue));
     }
 
     //==========================================================================
@@ -285,9 +292,49 @@ OuariconParametricEQAudioProcessor::OuariconParametricEQAudioProcessor()
     jassert (rawValues[kRawAutoGain] == parameters.getRawParameterValue ("auto_gain"));
 
     // Presets (Phase 3.1, call C2): never output gain or bypass; values
-    // validated and applied one host gesture each. No factory presets yet.
+    // validated and applied one host gesture each.
     presetManager.setExcludedParameters ({ "output_gain", "bypass" });
     presetManager.setValidatedApply (true);
+
+    // The factory bank (Stage 4), after the manager is configured.
+    initFactoryBank();
+}
+
+//==============================================================================
+// PLAN-4.1 P1: the factory bank, ported line for line from
+// O-GranulatorInstrument (PluginProcessor.cpp initFactoryBank). Two traps:
+//  - The manager's sentinel is keyed on the version string, and its init
+//    never deletes. A re-voiced bank at an unchanged version would never
+//    reach ~/Library, and a renamed preset would leave an undeletable orphan
+//    (isFactoryPreset is true for it).
+//  - Every process that constructs the processor runs this. The harness and
+//    the editor bench re-exec under CFFIXED_USER_HOME first, so a test bank
+//    never touches the real Factory/.
+// The stamp (XXH64 over the canonical bank) is Factory/.bank-hash. On a
+// mismatch or a missing stamp: the *.json files DIRECTLY in Factory/ and both
+// sentinels are deleted, the bank is written, and the stamp is written LAST,
+// so an interrupted init runs again. Nothing outside Factory/; User/ never.
+void OuariconParametricEQAudioProcessor::initFactoryBank()
+{
+    const auto defs  = opeq::factory::makeFactoryPresets (parameters);
+    const auto stamp = opeq::factory::bankHash (defs);
+    const auto dir   = presetManager.getFactoryPresetsDirectory();
+    const auto stampFile = dir.getChildFile (".bank-hash");
+    const bool current = stampFile.existsAsFile() && stampFile.loadFileAsString().trim() == stamp;
+
+    if (! current && dir.isDirectory())
+    {
+        for (const auto& f : dir.findChildFiles (juce::File::findFiles, false, "*.json"))
+            f.deleteFile();
+
+        dir.getChildFile (".factory-version").deleteFile();
+        stampFile.deleteFile();
+    }
+
+    presetManager.initializeFactoryPresets (defs);   // a no-op while .factory-version matches
+
+    if (! current && dir.getChildFile (".factory-version").existsAsFile())
+        stampFile.replaceWithText (stamp);
 }
 
 //==============================================================================

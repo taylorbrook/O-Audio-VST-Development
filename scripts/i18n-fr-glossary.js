@@ -217,6 +217,28 @@ const TERMS = {
     'high':                     ['aigu'],
     'low cut':                  ['coupe-bas', 'coupe-b'],
     'high cut':                 ['coupe-haut', 'coupe-h'],
+    // O-ParametricEQ Stage 4 (2026-11-16): the parametric-EQ vocabulary. Shelf
+    // is 'plateau' with grave / aigu as in 'eq low gain'; the M/S signals take
+    // 'central' (the usual French M/S word) and 'côtés' as in 'sides'.
+    'bell':                     ['cloche'],
+    'low shelf':                ['plateau grave'],
+    'high shelf':               ['plateau aigu'],
+    'notch':                    ['réjecteur'],
+    'band pass':                ['passe-bande'],
+    'tilt shelf':               ['plateau incliné'],
+    'slope':                    ['pente'],
+    'placement':                ['placement'],
+    'listen':                   ['écoute'],
+    'analyzer':                 ['analyseur'],
+    'pre':                      ['pré'],
+    'post':                     ['post'],
+    'pre+post':                 ['pré+post'],
+    'gain scale':               ['échelle de gain'],
+    'output gain':              ['gain de sortie'],
+    'output level':             ['niveau de sortie'],
+    'display range':            ['plage d\'affichage'],
+    'mid signal':               ['signal central'],
+    'side signal':              ['signal des côtés'],
     'lp filter':                ['filtre passe-bas', 'filtre pb'],
     'mid freq':                 ['fréq. médium', 'fréq. méd', 'fq. méd'],   // O-Prism: 60.28 px in a 52 px knob
     'eq bypass':                ['contournement de l\'égaliseur', 'contournement de l\'eq'],
