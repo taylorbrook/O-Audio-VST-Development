@@ -1,0 +1,90 @@
+[
+ {
+  "id": "control-h",
+  "desc": "no edit",
+  "targets": [
+   "FC1",
+   "FC2",
+   "FP5m"
+  ],
+  "verdict": "control PASS",
+  "fails": [],
+  "evidence": {
+   "FC1": "[PASS] FC1    the 13-preset spec table in engineering units (names sorted, { id, value %.6g } sorted by id, XXH64) equals the pinned hash: a re-voice moves the pin in the same edit pin dc778e7b20220d2d, table dc778e7b20220d2d",
+   "FP5m": "[PASS] FP5m   Mono Low End (C2): broadband level change (pink noise, 48 kHz, 512, last second) on mono is below stereo's by >= 0.16 dB (half the 4.1 gap 0.319); control: Air Shelf (Stereo) shows no such gap Mono Low End mono -0.7139 / stereo -0.395 dB (gap -0.3189); Air Shelf gap 0.003706 dB",
+   "FC2": "[PASS] FC2    each preset's defining feature (Rumble Cut b01 96 dB/oct Low Cut; Telephone LC + BP + HC >= 48, auto gain; Hum Notch harmonics; Mono Low End LC on Side; Side Air Mid + Side; L-R Left + Right; Air Shelf HS >= 8 kHz, +; Tilt |g| <= 3; Vocal / Kick / De-Mud type + gain-sign sequence); global: 13 presets, no forbidden key, |gain| <= 5 dB, bands b01 up ascending in frequency features 16/16 (13 / 13 presets); global 80/80"
+  }
+ },
+ {
+  "id": "V9",
+  "desc": "placement dropped from every def (Mono Low End / Side Air / L-R Pair Match lose M/S, L/R)",
+  "targets": [
+   "FC2",
+   "FP5m"
+  ],
+  "verdict": "CAUGHT by FC2,FP5m",
+  "fails": [
+   "FC1",
+   "FC2",
+   "FP5m"
+  ],
+  "evidence": {
+   "FP5m": "[FAIL] FP5m   Mono Low End (C2): broadband level change (pink noise, 48 kHz, 512, last second) on mono is below stereo's by >= 0.16 dB (half the 4.1 gap 0.319); control: Air Shelf (Stereo) shows no such gap Mono Low End mono -0.7139 / stereo -0.8197 dB (gap 0.1058); Air Shelf gap 0.003706 dB",
+   "FC2": "[FAIL] FC2    each preset's defining feature (Rumble Cut b01 96 dB/oct Low Cut; Telephone LC + BP + HC >= 48, auto gain; Hum Notch harmonics; Mono Low End LC on Side; Side Air Mid + Side; L-R Left + Right; Air Shelf HS >= 8 kHz, +; Tilt |g| <= 3; Vocal / Kick / De-Mud type + gain-sign sequence); global: 13 presets, no forbidden key, |gain| <= 5 dB, bands b01 up ascending in frequency features 13/16  e.g. Mono Low End: no Low Cut on Side; Side Air: needs one Mid and one Side band; L-R Pair Match: needs one Left and one Right band (13 / 13 presets); global 80/80",
+   "FC1": "[FAIL] FC1    the 13-preset spec table in engineering units (names sorted, { id, value %.6g } sorted by id, XXH64) equals the pinned hash: a re-voice moves the pin in the same edit pin dc778e7b20220d2d, table f1ab5874d74b57cb"
+  }
+ },
+ {
+  "id": "V10",
+  "desc": "Rumble Cut slope 96 -> 6 dB/oct",
+  "targets": [
+   "FC2"
+  ],
+  "verdict": "CAUGHT by FC2",
+  "fails": [
+   "FC1",
+   "FC2"
+  ],
+  "evidence": {
+   "FC1": "[FAIL] FC1    the 13-preset spec table in engineering units (names sorted, { id, value %.6g } sorted by id, XXH64) equals the pinned hash: a re-voice moves the pin in the same edit pin dc778e7b20220d2d, table be3e5c1acdfebb8e",
+   "FC2": "[FAIL] FC2    each preset's defining feature (Rumble Cut b01 96 dB/oct Low Cut; Telephone LC + BP + HC >= 48, auto gain; Hum Notch harmonics; Mono Low End LC on Side; Side Air Mid + Side; L-R Left + Right; Air Shelf HS >= 8 kHz, +; Tilt |g| <= 3; Vocal / Kick / De-Mud type + gain-sign sequence); global: 13 presets, no forbidden key, |gain| <= 5 dB, bands b01 up ascending in frequency features 15/16  e.g. Rumble Cut: b01 not a 96 dB/oct Low Cut (13 / 13 presets); global 80/80"
+  }
+ },
+ {
+  "id": "V14",
+  "desc": "Kick Tighten b02 62 -> 63 Hz (one-value drift, no feature change)",
+  "targets": [
+   "FC1"
+  ],
+  "verdict": "CAUGHT by FC1",
+  "fails": [
+   "FC1"
+  ],
+  "evidence": {
+   "FC1": "[FAIL] FC1    the 13-preset spec table in engineering units (names sorted, { id, value %.6g } sorted by id, XXH64) equals the pinned hash: a re-voice moves the pin in the same edit pin dc778e7b20220d2d, table de73a1bbcd2302bb"
+  }
+ },
+ {
+  "id": "control-pn1",
+  "desc": "no edit",
+  "verdict": "control PASS",
+  "rc": 0,
+  "fails": [],
+  "pn1": "== O-ParametricEQ preset_name_fit (PN1 / PN1n) — 13 names ==\n  PASS: PN1 en: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1 fr: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1 zh-Hans: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1n a 40-character name overflows the box (225 / 135 px) — the gate is live\nALL PASS\n"
+ },
+ {
+  "id": "V12",
+  "desc": "800 px header keeps the Analyzer caption; scratch root, no workaround",
+  "verdict": "CAUGHT by PN1",
+  "rc": 1,
+  "fails": [
+   "FAIL: PN1 en: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 63 px (text + padding)",
+   "FAIL: PN1 en: \"Vocal Presence\" 85/63, \"Kick Tighten\" 79/63, \"Rumble Cut\" 76/63, \"Hum Notch 50 Hz\" 107/63, \"Hum Notch 60 Hz\" 107/63, \"Gentle Master Tilt\" 108/63, \"Mono Low End\" 92/63, \"L-R Pair Match\" 96/63",
+   "FAIL: PN1 fr: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 63 px (text + padding)",
+   "FAIL: PN1 fr: \"Vocal Presence\" 85/63, \"Kick Tighten\" 79/63, \"Rumble Cut\" 76/63, \"Hum Notch 50 Hz\" 107/63, \"Hum Notch 60 Hz\" 107/63, \"Gentle Master Tilt\" 108/63, \"Mono Low End\" 92/63, \"L-R Pair Match\" 96/63",
+   "FAIL: PN1 zh-Hans: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 63 px (text + padding)",
+   "FAIL: PN1 zh-Hans: \"Vocal Presence\" 85/63, \"Kick Tighten\" 79/63, \"Rumble Cut\" 76/63, \"Hum Notch 50 Hz\" 107/63, \"Hum Notch 60 Hz\" 107/63, \"Gentle Master Tilt\" 108/63, \"Mono Low End\" 92/63, \"L-R Pair Match\" 96/63"
+  ],
+  "pn1": "== O-ParametricEQ preset_name_fit (PN1 / PN1n) — 13 names ==\n  FAIL: PN1 en: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 63 px (text + padding)\n  FAIL: PN1 en: \"Vocal Presence\" 85/63, \"Kick Tighten\" 79/63, \"Rumble Cut\" 76/63, \"Hum Notch 50 Hz\" 107/63, \"Hum Notch 60 Hz\" 107/63, \"Gentle Master Tilt\" 108/63, \"Mono Low End\" 92/63, \"L-R Pair Match\" 96/63\n  FAIL: PN1 fr: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 63 px (text + padding)\n  FAIL: PN1 fr: \"Vocal Presence\" 85/63, \"Kick Tighten\" 79/63, \"Rumble Cut\" 76/63, \"Hum Notch 50 Hz\" 107/63, \"Hum Notch 60 Hz\" 107/63, \"Gentle Master Tilt\" 108/63, \"Mono Low End\" 92/63, \"L-R Pair Match\" 96/63\n  FAIL: PN1 zh-Hans: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 63 px (text + padding)\n  FAIL: PN1 zh-Hans: \"Vocal Presence\" 85/63, \"Kick Tighten\" 79/63, \"Rumble Cut\" 76/63, \"Hum Notch 50 Hz\" 107/63, \"Hum Notch 60 Hz\" 107/63, \"Gentle Master Tilt\" 108/63, \"Mono Low End\" 92/63, \"L-R Pair Match\" 96/63\n  PASS: PN1n a 40-character name overflows the box (225 / 63 px) — the gate is live\n3 FAILURE(S)\n"
+ }
+]

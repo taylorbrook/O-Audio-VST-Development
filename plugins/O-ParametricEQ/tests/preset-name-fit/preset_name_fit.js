@@ -71,7 +71,10 @@ function presetNames() {
     const fail = (msg) => { ++failures; console.log(`  FAIL: ${msg}`); };
     if (names.length !== EXPECTED) fail(`parsed ${names.length} names from FactoryPresets.h (want ${EXPECTED})`);
 
-    const built = S.buildRoot('O-ParametricEQ');
+    // repoRoot from this script's own location: a scratch copy of the plugin
+    // serves its own page (serve-ui.js resolves its symlinked __dirname to the
+    // real repo otherwise; VERIFICATION-4.1 Issue 4). In-repo, the same root.
+    const built = S.buildRoot('O-ParametricEQ', { repoRoot });
     const srv = await S.serve(built.root);
     const browser = await pw.chromium.launch();
     const page = await browser.newPage({ viewport: { width: 800, height: 500 } });

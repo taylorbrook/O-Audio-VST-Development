@@ -1,0 +1,5 @@
+df0cdfd005a25e56c8b29faf223f16084684fc72
+3
+/Users/taylorbrook/Library/Audio/Plug-Ins/Components/O-ParametricEQ-dev.component
+/Users/taylorbrook/Library/Audio/Plug-Ins/VST3/O-ParametricEQ-dev.vst3
+installed 0.10.0 -dev; no unsuffixed orphan

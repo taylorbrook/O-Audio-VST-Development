@@ -251,6 +251,11 @@
       O-ParametricEQ-render-harness --g10               only the gated G10 mode (PERF-02: G10a - d,
                                                         G10i, G10d0; Release; ~2 min; not in the default run)
 
+    Stage 4, Phase 4.2 (PLAN-4.2 W1): FC1 spec-table pin, FC2 defining
+    features, FP5m Mono Low End mono vs stereo (default run), and:
+
+      O-ParametricEQ-render-harness --rows42            only FC1, FC2 and FP5m (PLAN-4.2 task 6 mutant runs)
+
     Harness references (PLAN-2.6 P12), none of which calls eq::Listen,
     OutputStage::process / nextGains or a DisplayModel design call:
     listenRefRender (P4 - P6 re-stated per sample: the D11 mapping, the solo
@@ -17787,6 +17792,8 @@ namespace
     //          finite; load transient local kappa <= 2.5x held; settled
     //          damped-circle response vs the closed form (G9 (a))
     //   FP5i   auto gain off the clamp; mono vs stereo broadband level (C2)
+    //   FP5m   Mono Low End mono vs stereo gap gated (PLAN-4.2); Air Shelf control
+    //   FC1    spec-table pin; FC2 defining features (PLAN-4.2 D2)
     //   HT1    host text both ways; HT1g the params golden byte-identical
     //   M1j    PeakHold H with jittered block completions; H - 1 control
     //   --g10  G10a - d, G10i, gated (Release), not in the default run
@@ -18146,11 +18153,271 @@ namespace
     }
 
     //==========================================================================
+    // FC1 / FC2: the bank's CONTENT (PLAN-4.2 D2, VERIFICATION-4.1 Issue 2)
+    //
+    //   FC1  a pin of factoryPresetSpecs() in engineering units: names sorted,
+    //        per preset { id, value } sorted by id, values %.6g, XXH64 hex.
+    //        Independent of bankHash (normalised defs). A re-voice moves
+    //        kFactorySpecPin in the same edit; the row prints the new hash.
+    //   FC2  each preset's defining feature, as a structural assertion that
+    //        survives any re-voice (a pin update would bless an accident made
+    //        in the same edit). A re-voice that INTENDS to change a feature
+    //        changes its line here, with a comment naming Taylor's call.
+    //==========================================================================
+    static constexpr const char* kFactorySpecPin = "dc778e7b20220d2d";   // 4.1 table (0.10.0)
+
+    juce::String factorySpecCanonical (const std::vector<opeq::factory::PresetSpec>& specs)
+    {
+        std::vector<const opeq::factory::PresetSpec*> order;
+        for (const auto& s : specs)
+            order.push_back (&s);
+
+        std::sort (order.begin(), order.end(), [] (auto* a, auto* b) { return std::strcmp (a->name, b->name) < 0; });
+
+        juce::String out;
+
+        for (const auto* s : order)
+        {
+            auto values = s->values;
+            std::sort (values.begin(), values.end(), [] (const auto& a, const auto& b) { return a.id < b.id; });
+            out << s->name << "\n";
+
+            for (const auto& v : values)
+            {
+                char buf[64];
+                std::snprintf (buf, sizeof (buf), "%.6g", (double) v.value);
+                out << v.id << "=" << buf << ";";
+            }
+
+            out << "\n";
+        }
+
+        return out;
+    }
+
+    juce::String factorySpecPin (const std::vector<opeq::factory::PresetSpec>& specs)
+    {
+        const auto text = factorySpecCanonical (specs);
+        const auto utf8 = text.toStdString();
+        return juce::String::toHexString ((juce::int64) opeq::factory::hash::xxh64 (utf8.data(), utf8.size(), 0)).paddedLeft ('0', 16);
+    }
+
+    void factoryContentRowsXr()
+    {
+        section ("FC. the factory bank's content (PLAN-4.2 D2: FC1 spec pin, FC2 defining features)");
+
+        using namespace opeq::factory;
+        const auto specs = factoryPresetSpecs();
+
+        //======================================================================
+        // FC1
+        //======================================================================
+        {
+            const auto got = factorySpecPin (specs);
+            row (got == juce::String (kFactorySpecPin),
+                 "FC1    the 13-preset spec table in engineering units (names sorted, { id, value %.6g } sorted by id, XXH64) equals the pinned hash: a re-voice moves the pin in the same edit",
+                 "pin " + juce::String (kFactorySpecPin) + ", table " + got);
+        }
+
+        //======================================================================
+        // FC2
+        //======================================================================
+        struct Band { int n; int type; double freq, gain, q; int slope, placement; };
+
+        const auto bandsOf = [] (const PresetSpec& s)
+        {
+            std::map<juce::String, double> m;
+            for (const auto& v : s.values)
+                m[v.id] = (double) v.value;
+
+            std::vector<Band> out;
+
+            for (int n = 1; n <= 24; ++n)
+            {
+                const auto p = "b" + juce::String (n).paddedLeft ('0', 2) + "_";
+                const auto get = [&m, &p] (const char* k, double def) { const auto it = m.find (p + k); return it == m.end() ? def : it->second; };
+
+                if (get ("enabled", 0.0) > 0.5)
+                    out.push_back ({ n, (int) std::lround (get ("type", -1.0)), get ("freq", -1.0), get ("gain", 0.0), get ("q", -1.0),
+                                     (int) std::lround (get ("slope", -1.0)), (int) std::lround (get ("placement", 0.0)) });
+            }
+
+            return out;
+        };
+
+        const auto find = [&specs] (const char* name) -> const PresetSpec*
+        {
+            for (const auto& s : specs)
+                if (std::strcmp (s.name, name) == 0)
+                    return &s;
+            return nullptr;
+        };
+
+        const auto valueOf = [] (const PresetSpec& s, const char* id, double def)
+        {
+            for (const auto& v : s.values)
+                if (v.id == id)
+                    return (double) v.value;
+            return def;
+        };
+
+        const auto count = [] (const std::vector<Band>& bs, auto pred) { return (int) std::count_if (bs.begin(), bs.end(), pred); };
+        const auto signOf = [] (double g) { return g > 0.0 ? 1 : (g < 0.0 ? -1 : 0); };
+
+        Tally fc2;
+        int presetsChecked = 0;
+
+        // Exact type / gain-sign sequences, read from the 4.1 table (b01 up).
+        struct Shape { const char* name; std::vector<std::pair<int, int>> typeSign; };
+        const Shape shapes[] = {
+            { "Vocal Presence", { { lowCut, 0 }, { bell, -1 }, { bell, +1 }, { highShelf, +1 } } },
+            { "Kick Tighten",   { { lowCut, 0 }, { bell, +1 }, { bell, -1 }, { bell, +1 } } },
+            { "De-Mud",         { { bell, -1 }, { bell, -1 } } },
+        };
+
+        for (const auto& sh : shapes)
+        {
+            const auto* s = find (sh.name);
+            fc2.check (s != nullptr, juce::String (sh.name) + " missing");
+            if (s == nullptr) continue;
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            bool ok = bs.size() == sh.typeSign.size();
+
+            for (size_t i = 0; ok && i < bs.size(); ++i)
+                ok = bs[i].type == sh.typeSign[i].first
+                  && (sh.typeSign[i].second == 0 || signOf (bs[i].gain) == sh.typeSign[i].second);
+
+            fc2.check (ok, juce::String (sh.name) + ": type / gain-sign sequence changed");
+        }
+
+        if (const auto* s = find ("Default"))
+        {
+            ++presetsChecked;
+            fc2.check (s->values.empty(), "Default names values");
+        }
+        else fc2.check (false, "Default missing");
+
+        if (const auto* s = find ("Rumble Cut"))
+        {
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            fc2.check (! bs.empty() && bs[0].n == 1 && bs[0].type == lowCut && bs[0].slope == s96, "Rumble Cut: b01 not a 96 dB/oct Low Cut");
+        }
+        else fc2.check (false, "Rumble Cut missing");
+
+        if (const auto* s = find ("Telephone"))
+        {
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            const int lc = count (bs, [] (const Band& b) { return b.type == lowCut && b.slope >= s48; });
+            const int hc = count (bs, [] (const Band& b) { return b.type == highCut && b.slope >= s48; });
+            const int bp = count (bs, [] (const Band& b) { return b.type == bandPass; });
+            fc2.check (lc >= 1 && hc >= 1 && bp >= 1 && valueOf (*s, "auto_gain", 0.0) > 0.5,
+                       "Telephone: needs Low Cut + Band Pass + High Cut (cuts >= 48 dB/oct) and auto_gain on");
+        }
+        else fc2.check (false, "Telephone missing");
+
+        for (const auto& [name, base] : { std::pair<const char*, double> { "Hum Notch 50 Hz", 50.0 }, { "Hum Notch 60 Hz", 60.0 } })
+        {
+            const auto* s = find (name);
+            if (s == nullptr) { fc2.check (false, juce::String (name) + " missing"); continue; }
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            bool ok = ! bs.empty();
+
+            for (const auto& b : bs)
+            {
+                const double k = b.freq / base;
+                ok = ok && b.type == notch && k >= 1.0 - 1.0e-6 && std::abs (k - std::round (k)) < 1.0e-6;
+            }
+
+            fc2.check (ok, juce::String (name) + ": every band a Notch at an integer multiple of " + fmtG (base, 3) + " Hz");
+        }
+
+        if (const auto* s = find ("Mono Low End"))
+        {
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            fc2.check (count (bs, [] (const Band& b) { return b.type == lowCut && b.placement == side; }) >= 1, "Mono Low End: no Low Cut on Side");
+        }
+        else fc2.check (false, "Mono Low End missing");
+
+        if (const auto* s = find ("Side Air"))
+        {
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            fc2.check (count (bs, [] (const Band& b) { return b.placement == mid; }) >= 1
+                    && count (bs, [] (const Band& b) { return b.placement == side; }) >= 1, "Side Air: needs one Mid and one Side band");
+        }
+        else fc2.check (false, "Side Air missing");
+
+        if (const auto* s = find ("L-R Pair Match"))
+        {
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            fc2.check (count (bs, [] (const Band& b) { return b.placement == left; }) >= 1
+                    && count (bs, [] (const Band& b) { return b.placement == right; }) >= 1, "L-R Pair Match: needs one Left and one Right band");
+        }
+        else fc2.check (false, "L-R Pair Match missing");
+
+        if (const auto* s = find ("Air Shelf"))
+        {
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            fc2.check (count (bs, [] (const Band& b) { return b.type == highShelf && b.freq >= 8000.0 && b.gain > 0.0; }) >= 1,
+                       "Air Shelf: no High Shelf >= 8 kHz with gain > 0");
+        }
+        else fc2.check (false, "Air Shelf missing");
+
+        if (const auto* s = find ("Gentle Master Tilt"))
+        {
+            ++presetsChecked;
+            const auto bs = bandsOf (*s);
+            fc2.check (count (bs, [] (const Band& b) { return b.type == tiltShelf && std::abs (b.gain) <= 3.0 && b.gain != 0.0; }) >= 1,
+                       "Gentle Master Tilt: no Tilt band with 0 < |gain| <= 3 dB");
+        }
+        else fc2.check (false, "Gentle Master Tilt missing");
+
+        // Global: 13 presets; no forbidden key; |gain| <= 5 dB; bands
+        // contiguous from b01 in ascending frequency.
+        Tally global;
+        global.check (specs.size() == 13, "bank has " + juce::String ((int) specs.size()) + " presets");
+        global.check (specsNameNoForbiddenKey (specs), "a def names output_gain / bypass / customState");
+
+        for (const auto& s : specs)
+        {
+            const auto bs = bandsOf (s);
+
+            for (size_t i = 0; i < bs.size(); ++i)
+            {
+                global.check (bs[i].n == (int) i + 1, juce::String (s.name) + ": band " + juce::String (bs[i].n) + " not contiguous from b01");
+                global.check (std::abs (bs[i].gain) <= 5.0 + 1.0e-6, juce::String (s.name) + ": |gain| " + fmtG (bs[i].gain, 3) + " > 5 dB");
+
+                if (i > 0)
+                    global.check (bs[i].freq > bs[i - 1].freq, juce::String (s.name) + ": b" + juce::String (bs[i].n) + " not above b" + juce::String (bs[i - 1].n) + " in frequency");
+            }
+        }
+
+        row (fc2.bad == 0 && global.bad == 0 && presetsChecked == 13,
+             "FC2    each preset's defining feature (Rumble Cut b01 96 dB/oct Low Cut; Telephone LC + BP + HC >= 48, auto gain; Hum Notch harmonics; Mono Low End LC on Side; Side Air Mid + Side; L-R Left + Right; Air Shelf HS >= 8 kHz, +; Tilt |g| <= 3; Vocal / Kick / De-Mud type + gain-sign sequence); global: 13 presets, no forbidden key, |gain| <= 5 dB, bands b01 up ascending in frequency",
+             "features " + fc2.detail() + " (" + juce::String (presetsChecked) + " / 13 presets); global " + global.detail());
+    }
+
+    //==========================================================================
     // FP5 / FP5i: every preset rendered on real content at five rates
     //==========================================================================
-    void factoryRenderRowsXr()
+    // FP5m (PLAN-4.2 D2, VERIFICATION-4.1 Issue 2): Mono Low End's mono level
+    // change is more negative than its stereo one by at least this margin.
+    // Half the 4.1 FP5i gap: mono -0.714 dB, stereo -0.395 dB (gap 0.319).
+    static constexpr double kFP5mMarginDb = 0.16;
+
+    /** fp5mOnly (--rows42): only the 48 kHz / 512 held renders FP5m reads,
+        and only the FP5m row; FP5 / FP5k / FP5r / FP5i are skipped. */
+    void factoryRenderRowsXr (bool fp5mOnly = false)
     {
-        section ("FP5. the factory presets at 44.1 / 48 / 88.2 / 96 / 192 kHz, mono and stereo (PLAN-4.1 P1, COMPAT-02)");
+        section (fp5mOnly ? "FP5m. Mono Low End mono vs stereo level (48 kHz / 512 renders only, --rows42)"
+                          : "FP5. the factory presets at 44.1 / 48 / 88.2 / 96 / 192 kHz, mono and stereo (PLAN-4.1 P1, COMPAT-02)");
 
         const auto specs = opeq::factory::factoryPresetSpecs();
         const double rates[5] = { 44100.0, 48000.0, 88200.0, 96000.0, 192000.0 };
@@ -18167,6 +18434,9 @@ namespace
         for (const double rate : rates)
             for (const int channels : { 1, 2 })
             {
+                if (fp5mOnly && rate != 48000.0)
+                    continue;
+
                 const int length = (int) std::lround (2.0 * rate);
                 const int loadAt = (int) std::lround (1.0 * rate);
                 const auto input = pinkNoise (channels, length, rate, 0x41f50000ull + (std::uint64_t) rate, 0.1);
@@ -18174,6 +18444,9 @@ namespace
 
                 for (const bool randomBlocks : { false, true })
                 {
+                    if (fp5mOnly && randomBlocks)
+                        continue;
+
                     const auto sizeAt = [&sequence, randomBlocks] (int index, int)
                     {
                         return randomBlocks ? sequence[(size_t) index % sequence.size()] : 512;
@@ -18236,6 +18509,36 @@ namespace
                     }
                 }
             }
+
+        //======================================================================
+        // FP5m: Mono Low End's C2 behaviour gated (it was FP5i INFO). On a
+        // mono instance the Side Low Cut processes the whole channel, so the
+        // mono level change is more negative than the stereo one by a margin.
+        // Control: Air Shelf (Stereo placement) must NOT show the gap.
+        //======================================================================
+        {
+            int mle = -1, air = -1;
+
+            for (size_t si = 0; si < specs.size(); ++si)
+            {
+                if (juce::String (specs[si].name) == "Mono Low End") mle = (int) si;
+                if (juce::String (specs[si].name) == "Air Shelf")    air = (int) si;
+            }
+
+            const auto gapOf = [&levelChange] (int si) { return si < 0 ? 0.0 : levelChange[(size_t) si][0] - levelChange[(size_t) si][1]; };
+            const double gMle = gapOf (mle), gAir = gapOf (air);
+            const bool mleOk = mle >= 0 && gMle <= -kFP5mMarginDb;
+            const bool controlOk = air >= 0 && ! (gAir <= -kFP5mMarginDb);
+
+            row (mleOk && controlOk,
+                 "FP5m   Mono Low End (C2): broadband level change (pink noise, 48 kHz, 512, last second) on mono is below stereo's by >= 0.16 dB (half the 4.1 gap 0.319); control: Air Shelf (Stereo) shows no such gap",
+                 "Mono Low End mono " + (mle >= 0 ? fmtG (levelChange[(size_t) mle][0], 4) : juce::String ("missing"))
+                     + " / stereo " + (mle >= 0 ? fmtG (levelChange[(size_t) mle][1], 4) : juce::String ("missing"))
+                     + " dB (gap " + fmtG (gMle, 4) + "); Air Shelf gap " + fmtG (gAir, 4) + " dB" + (controlOk ? "" : " (CONTROL FIRES)"));
+        }
+
+        if (fp5mOnly)
+            return;
 
         row (finite.bad == 0 && finite.total == 13 * 5 * 2 * 2,
              "FP5    13 presets x 44.1 / 48 / 88.2 / 96 / 192 kHz x mono / stereo x blocks 512 / random: 2 s pink noise, loaded at 1 s from Default and held from the start: every sample finite",
@@ -18794,6 +19097,7 @@ int main (int argc, char** argv)
     bool rows33Only = false;
     bool g10Only = false;
     bool rows41Only = false;
+    bool rows42Only = false;
     juce::File dumpSessionsDir;
     juce::File goldenDir (juce::String::fromUTF8 (GOLDEN_DIR));
 
@@ -18825,6 +19129,10 @@ int main (int argc, char** argv)
         {
             rows41Only = true;   // PLAN-4.1 task 27 mutant runs
         }
+        else if (arg == "--rows42")
+        {
+            rows42Only = true;   // PLAN-4.2 task 6 mutant runs: FC1, FC2, FP5m
+        }
         else if (arg == "--g10")
         {
             g10Only = true;      // PLAN-4.1 P5: the gated G10 mode only
@@ -18839,7 +19147,7 @@ int main (int argc, char** argv)
         }
         else
         {
-            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>] [--dump-g9 <dir>] [--rows33] [--g10] [--rows41]\n", argv[0]);
+            std::fprintf (stderr, "usage: %s [--dump-params] [--golden-dir <dir>] [--long] [--dump-sessions <dir>] [--lid-dir <dir>] [--dump-g9 <dir>] [--rows33] [--g10] [--rows41] [--rows42]\n", argv[0]);
             return 255;
         }
     }
@@ -18883,10 +19191,21 @@ int main (int argc, char** argv)
     if (g10Only)
         return g10Mode();
 
+    if (rows42Only)
+    {
+        // PLAN-4.2 task 6 mutant runs: the content rows and FP5m only.
+        factoryContentRowsXr();
+        factoryRenderRowsXr (true);
+        std::printf ("\n%d PASS, %d FAIL\n", passes, failures);
+        std::fflush (stdout);
+        return juce::jmin (failures, 255);
+    }
+
     if (rows41Only)
     {
         // PLAN-4.1 task 27 mutant runs: the fast 4.1 rows (no FP5 renders).
         factoryRowsXr();
+        factoryContentRowsXr();
         hostTextRowsXr (goldenDir);
         meterJitterRowsXr();
         g10SelfCheckRow();
@@ -18965,8 +19284,9 @@ int main (int argc, char** argv)
     // Stage 3, Phase 3.3 (PLAN-3.3 T3)
     phase33RowsXr();
 
-    // Stage 4, Phase 4.1 (PLAN-4.1 W4)
+    // Stage 4, Phase 4.1 (PLAN-4.1 W4); FC1 / FC2 and FP5m from PLAN-4.2 W1
     factoryRowsXr();
+    factoryContentRowsXr();
     factoryRenderRowsXr();
     hostTextRowsXr (goldenDir);
     meterJitterRowsXr();
