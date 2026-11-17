@@ -1,0 +1,210 @@
+[
+ {
+  "id": "control-h",
+  "desc": "no edit",
+  "targets": [
+   "FP1",
+   "FP1o",
+   "FP2",
+   "FP3",
+   "FP4",
+   "HT1",
+   "HT1g",
+   "M1j",
+   "G10d0"
+  ],
+  "verdict": "control FAIL",
+  "fails": [
+   "G10d0"
+  ],
+  "evidence": {
+   "FP1": "[PASS] FP1    13 factory presets: each loads (from random state); every named value reads back in engineering units (freq / Q rel <= 1e-5, gain <= 1e-4 dB, choices exact); every other parameter at its default 2535/2535; listed 13/13; named values 152; worst freq / Q rel 5.34e-07, worst gain 1.67e-06 dB",
+   "FP1o": "[PASS] FP1o   output_gain (+5 dB) and bypass (on) unchanged by all 13 loads; no Factory/*.json names output_gain, bypass or customState; no def names them loads 13/13; files 13/13 (13 json)",
+   "FP2": "[PASS] FP2    bank hash (temp home): (a) first construct writes 13 json + .factory-version + .bank-hash; (b) same bank: no file rewritten (content, inode, mtime); (c) a re-voice at the same version reaches Factory/ (others byte-equal, sentinel unchanged); (d) a rename leaves no orphan; (e) User/x.json untouched (a) ok (b) ok (c) ok Air Shelf gain 3.5 (d) ok (e) ok; restored ok",
+   "FP3": "[PASS] FP3    E16: savePreset (\"Vocal Presence\") refused, its factory file byte-identical; refusal for Factory/Kick Tighten.json, Factory/sub/x.json, User/De-Mud.json; none for User/Mine.json or an export path savePreset refused, file unchanged; refusals 111; allowed 11",
+   "FP4": "[PASS] FP4    R2: validated apply of a hand-written User/ file: \"abc\" keeps the default, 1.7 clamps to 1, -3 to 0; one begin / end gesture pair per set (194 reset + 2 applied) values ok (b01_freq 0.5, b02_gain 1, b03_q 0); gesture pairs 196, unpaired 0",
+   "HT1": "[PASS] HT1    host text: 20 values per kind (freq / gain / output gain / Q / gain scale) round-trip within display precision (freq rel 0.5 %, 0.05 dB, Q 0.005, 0.5 %), never '-0.0'; '1k', '1.2 kHz', '440hz', '-3 dB', '+3', '150%' parse; '' and 'abc' give the default round trips 100/100; parses 19/19; formats 11/11; e.g. b01_freq '769 Hz', b01_gain '-1.6 dB', output_gain '-1.9 dB', b01_q '0.75', gain_scale '95 %'",
+   "HT1g": "[PASS] HT1g   --dump-params byte-equal to tests/golden/params.tsv (host text changes no range, default or ID) identical (17634 bytes)",
+   "M1j": "[PASS] M1j    PeakHold H = ceil (1.3 B / fs x 60) + 1 with block completions jittered +-30 % of a block period (seeded), 10 s at 1024 and 2048 / 44.1 kHz, 60 Hz reads: 0 empty reads; H - 1 shows empty reads at both (control) 2/2  1024 / 44.1k H 3: 0 empty / 592 ticks; control H - 1 at 1024: 2 empty reads, 2048 / 44.1k H 5: 0 empty / 586 ticks; control H - 1 at 2048: 4 empty reads",
+   "G10d0": "[FAIL] G10d0  self-check: a measured cost quadratic in the band count fails the G10d reading and passes ARCHITECTURE's gross form (the row is not vacuous) synthetic c 7.783 ms, 1 band 8.249 ms, 24 bands 9.537 ms; gross passes, G10d PASSES"
+  }
+ },
+ {
+  "id": "V1",
+  "desc": "PeakHold jitter margin 1.3 -> 1.0 (the pre-Taylor-call depth)",
+  "targets": [
+   "M1j"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "M1j",
+   "G10d0"
+  ],
+  "evidence": {
+   "M1j": "[FAIL] M1j    PeakHold H = ceil (1.3 B / fs x 60) + 1 with block completions jittered +-30 % of a block period (seeded), 10 s at 1024 and 2048 / 44.1 kHz, 60 Hz reads: 0 empty reads; H - 1 shows empty reads at both (control) 1/2  e.g. 2048 / 44.1k H 4: 4 empty reads over 587 ticks  1024 / 44.1k H 3: 0 empty / 592 ticks; control H - 1 at 1024: 2 empty reads, 2048 / 44.1k H 4: 4 empty / 587 ticks; control H - 1 at 2048: 82 empty reads"
+  }
+ },
+ {
+  "id": "V2",
+  "desc": "dbToText \"-0.0\" guard removed",
+  "targets": [
+   "HT1"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "HT1"
+  ],
+  "evidence": {
+   "HT1": "[FAIL] HT1    host text: 20 values per kind (freq / gain / output gain / Q / gain scale) round-trip within display precision (freq rel 0.5 %, 0.05 dB, Q 0.005, 0.5 %), never '-0.0'; '1k', '1.2 kHz', '440hz', '-3 dB', '+3', '150%' parse; '' and 'abc' give the default round trips 100/100; parses 19/19; formats 10/11  e.g. -0.04 -> -0.0 dB; e.g. b01_freq '769 Hz', b01_gain '-1.6 dB', output_gain '-1.9 dB', b01_q '0.75', gain_scale '95 %'"
+  }
+ },
+ {
+  "id": "V3",
+  "desc": "freqToText Hz/kHz threshold on the raw value (999.9998 -> \"1000 Hz\")",
+  "targets": [
+   "HT1"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "HT1"
+  ],
+  "evidence": {
+   "HT1": "[FAIL] HT1    host text: 20 values per kind (freq / gain / output gain / Q / gain scale) round-trip within display precision (freq rel 0.5 %, 0.05 dB, Q 0.005, 0.5 %), never '-0.0'; '1k', '1.2 kHz', '440hz', '-3 dB', '+3', '150%' parse; '' and 'abc' give the default round trips 100/100; parses 19/19; formats 10/11  e.g. 999.9998779 -> 1000 Hz; e.g. b01_freq '769 Hz', b01_gain '-1.6 dB', output_gain '-1.9 dB', b01_q '0.75', gain_scale '95 %'"
+  }
+ },
+ {
+  "id": "V4",
+  "desc": "parser drops a leading minus",
+  "targets": [
+   "HT1"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "HT1",
+   "G10d0"
+  ],
+  "evidence": {
+   "HT1": "[FAIL] HT1    host text: 20 values per kind (freq / gain / output gain / Q / gain scale) round-trip within display precision (freq rel 0.5 %, 0.05 dB, Q 0.005, 0.5 %), never '-0.0'; '1k', '1.2 kHz', '440hz', '-3 dB', '+3', '150%' parse; '' and 'abc' give the default round trips 80/100  e.g. b01_gain -30 -> '-30.0 dB' -> 30; b01_gain -26.8421059 -> '-26.8 dB' -> 26.7999992; b01_gain -23.6842098 -> '-23.7 dB' -> 23.7000027; b01_gain -20.5263157 -> '-20.5 dB' -> 20.4999981; parses 17/19  e.g. '-3 d"
+  }
+ },
+ {
+  "id": "V5",
+  "desc": "textToFreq ignores k / kHz",
+  "targets": [
+   "HT1"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "HT1"
+  ],
+  "evidence": {
+   "HT1": "[FAIL] HT1    host text: 20 values per kind (freq / gain / output gain / Q / gain scale) round-trip within display precision (freq rel 0.5 %, 0.05 dB, Q 0.005, 0.5 %), never '-0.0'; '1k', '1.2 kHz', '440hz', '-3 dB', '+3', '150%' parse; '' and 'abc' give the default round trips 90/100  e.g. b01_freq 1284.2522 -> '1.28 kHz' -> 10; b01_freq 2046.78381 -> '2.05 kHz' -> 10; b01_freq 3135.35205 -> '3.14 kHz' -> 10; b01_freq 4644.04492 -> '4.64 kHz' -> 10; parses 16/19  e.g. '1k'; '1.2 kHz'; '2.5K'; f"
+  }
+ },
+ {
+  "id": "V6",
+  "desc": "initFactoryBank deletes + rewrites on every construct (no stamp short-cut)",
+  "targets": [
+   "FP2"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "FP2"
+  ],
+  "evidence": {
+   "FP2": "[FAIL] FP2    bank hash (temp home): (a) first construct writes 13 json + .factory-version + .bank-hash; (b) same bank: no file rewritten (content, inode, mtime); (c) a re-voice at the same version reaches Factory/ (others byte-equal, sentinel unchanged); (d) a rename leaves no orphan; (e) User/x.json untouched (a) ok (b) FAIL (c) ok Air Shelf gain 3.5 (d) ok (e) ok; restored ok"
+  }
+ },
+ {
+  "id": "V7",
+  "desc": "mismatch deletes the json but keeps .factory-version (manager init then a no-op: empty bank)",
+  "targets": [
+   "FP2"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "FP2",
+   "FP3"
+  ],
+  "evidence": {
+   "FP2": "[FAIL] FP2    bank hash (temp home): (a) first construct writes 13 json + .factory-version + .bank-hash; (b) same bank: no file rewritten (content, inode, mtime); (c) a re-voice at the same version reaches Factory/ (others byte-equal, sentinel unchanged); (d) a rename leaves no orphan; (e) User/x.json untouched (a) ok (b) ok (c) FAIL Air Shelf gain -30 (d) FAIL (e) ok; restored FAIL"
+  }
+ },
+ {
+  "id": "V8",
+  "desc": "bankHash ignores parameter values (a re-voice keeps the stamp)",
+  "targets": [
+   "FP2"
+  ],
+  "verdict": "CAUGHT",
+  "fails": [
+   "FP2"
+  ],
+  "evidence": {
+   "FP2": "[FAIL] FP2    bank hash (temp home): (a) first construct writes 13 json + .factory-version + .bank-hash; (b) same bank: no file rewritten (content, inode, mtime); (c) a re-voice at the same version reaches Factory/ (others byte-equal, sentinel unchanged); (d) a rename leaves no orphan; (e) User/x.json untouched (a) ok (b) ok (c) FAIL Air Shelf gain 3 (d) ok (e) ok; restored ok"
+  }
+ },
+ {
+  "id": "V9",
+  "desc": "PROBE: placement dropped from every def (Mono Low End / Side Air / L-R Pair Match lose M/S, L/R)",
+  "targets": [],
+  "verdict": "PROBE no row",
+  "fails": [],
+  "evidence": {}
+ },
+ {
+  "id": "V10",
+  "desc": "PROBE: Rumble Cut slope 96 -> 6 dB/oct (preset content vs RESEARCH table)",
+  "targets": [],
+  "verdict": "PROBE no row",
+  "fails": [],
+  "evidence": {}
+ },
+ {
+  "id": "V11",
+  "desc": "PROBE: stamp written even when the bank write failed",
+  "targets": [],
+  "verdict": "PROBE no row",
+  "fails": [],
+  "evidence": {}
+ },
+ {
+  "id": "control-pn1",
+  "desc": "no edit",
+  "verdict": "control PASS",
+  "rc": 0,
+  "fails": [],
+  "pn1": "== O-ParametricEQ preset_name_fit (PN1 / PN1n) — 13 names ==\n  PASS: PN1 en: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1 fr: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1 zh-Hans: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1n a 40-character name overflows the box (225 / 135 px) — the gate is live\nALL PASS\n"
+ },
+ {
+  "id": "V12",
+  "desc": "800 px header keeps the Analyzer caption (deviation 1 regressed)",
+  "verdict": "SURVIVED",
+  "rc": 0,
+  "fails": [],
+  "pn1": "== O-ParametricEQ preset_name_fit (PN1 / PN1n) — 13 names ==\n  PASS: PN1 en: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1 fr: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1 zh-Hans: 13 names in #preset-name at 800 x 500 — widest \"Gentle Master Tilt\" 109 / 135 px (text + padding)\n  PASS: PN1n a 40-character name overflows the box (225 / 135 px) — the gate is live\nALL PASS\n"
+ },
+ {
+  "id": "control-labels",
+  "desc": "no edit",
+  "verdict": "control PASS",
+  "rc": 0,
+  "fails": [],
+  "pn1": null
+ },
+ {
+  "id": "V13",
+  "desc": "Pre segment back to 35 px (zh 处理前 36.8 px)",
+  "verdict": "CAUGHT",
+  "rc": 6,
+  "fails": [
+   "FAIL: [4][zh-Hans] no leaf label's TEXT is wider than its own content box (the case overflow:visible hides from scrollWidth) — 1: opt.analyzer.pre \"处理前\" 36.8>34.0",
+   "FAIL: [4][zh-Hans] no leaf label's TEXT is wider than its own content box (the case overflow:visible hides from scrollWidth) — 1: opt.analyzer.pre \"处理前\" 36.8>34.0",
+   "FAIL: [4][zh-Hans] no leaf label's TEXT is wider than its own content box (the case overflow:visible hides from scrollWidth) — 1: opt.analyzer.pre \"处理前\" 36.8>34.0",
+   "FAIL: [4][zh-Hans] no leaf label's TEXT is wider than its own content box (the case overflow:visible hides from scrollWidth) — 1: opt.analyzer.pre \"处理前\" 36.8>34.0",
+   "FAIL: [4][zh-Hans] no leaf label's TEXT is wider than its own content box (the case overflow:visible hides from scrollWidth) — 1: opt.analyzer.pre \"处理前\" 36.8>34.0",
+   "FAIL: [4][zh-Hans] no leaf label's TEXT is wider than its own content box (the case overflow:visible hides from scrollWidth) — 1: opt.analyzer.pre \"处理前\" 36.8>34.0"
+  ],
+  "pn1": null
+ }
+]

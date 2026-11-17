@@ -1,0 +1,6 @@
+designer: 150 PASS, 0 FAIL, 18 INFO
+render default --lid-dir: 183 PASS, 0 FAIL
+sessions vs verify-3.3/sessions-090.sha (= 0.5.0): 16/16 equal
+params.tsv vs golden: byte-equal
+probe N1e: 6274ff9b5b0e488a
+render --long: 183 PASS, 0 FAIL

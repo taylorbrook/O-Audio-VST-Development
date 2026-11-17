@@ -25,7 +25,7 @@ lastUpdated: 2026-11-15
 | FUNC-04 | Per-band bypass and global click-free bypass | must | complete | stage-2 |
 | FUNC-05 | Output gain and gain scale | must | complete | stage-2 |
 | FUNC-06 | Auto gain compensates the curve's loudness change | should | complete | stage-2 |
-| FUNC-07 | Presets via the suite preset-manager, with a factory set | should | pending | stage-4 |
+| FUNC-07 | Presets via the suite preset-manager, with a factory set | should | partial | stage-4 |
 | FUNC-08 | Band solo / listen | should | complete | stage-3 |
 
 ### DSP (DSP)
@@ -48,7 +48,7 @@ lastUpdated: 2026-11-15
 | UI-02 | Displayed curve equals the true filter response at the session sample rate | must | complete | stage-3 |
 | UI-03 | Real-time spectrum analyzer: Off / Pre / Post / Pre+Post | should | complete | stage-3 |
 | UI-04 | Selected-band strip with typed value entry and double-click reset | should | complete | stage-3 |
-| UI-05 | Ouaricon house style, French and zh-Hans localisation | should | pending | stage-4 |
+| UI-05 | Ouaricon house style, French and zh-Hans localisation | should | partial | stage-4 |
 | UI-06 | Output level meter | nice | complete | stage-3 |
 | UI-07 | Per-band curve fills coloured by band | nice | complete | stage-3 |
 
@@ -239,3 +239,5 @@ _Complete 2026-11-14 (`stages/2-dsp/VERIFICATION-2.3.md`): G7 as amended; residu
 *Phase 3.2 verify, 2026-11-16 (`stages/3-gui/VERIFICATION-3.2.md`): UI-01, UI-02, UI-04 and DSP-06 complete. UI-02 by the chain G9 (a) 2.03e-3 dB + G9 (b) 1.37e-8 dB at all five rates and mono; UI-01 gestures proven in-process (Logic / VST3 lane recording is a hands-on row); UI-04 / DSP-06 by E-ends 20 / 20 exact and E-dblclick. FUNC-08, UI-03, UI-06, UI-07 close in 3.3.*
 
 *Phase 3.3 verify, 2026-11-16 (`stages/3-gui/VERIFICATION-3.3.md`), Stage 3 closed: FUNC-08, UI-03, UI-06, UI-07 complete. UI-03 by E-an-modes / stale / nyq / peak and AO1 / AO2; UI-06 by M1 (−6 dBFS within 0.5 dB, blocks 1024 – 4096, 44.1 / 48 / 192 k), E-meter and meter-ballistics; UI-07 by E-fills; FUNC-08 by E-listen33 (a)–(j) and N1e 16 / 16. Verify mutation run 17 / 17 scored mutants caught. By-ear listen and meter-vs-Logic rows are hands-on.*
+
+*Phase 4.1 verify, 2026-11-16 (`stages/4-polish/VERIFICATION-4.1.md`): FUNC-07 and UI-05 partial. 13-preset factory bank built and gated (FP1 – FP5i, E16 / R2); fr / zh revised against the grown glossaries, five UI gates 0. Owed in 4.2: DAW loads, the listening pass (QUAL-01), the French spot read and fr flip. PERF-02 (binding `--g10`) and COMPAT-02 (Logic, Reaper, Windows CI) stay pending for 4.2.*
