@@ -1,0 +1,421 @@
+[
+ {
+  "mutant": "control-bench",
+  "scorer": "bench",
+  "targets": [],
+  "benchVerdict": "ALL-PASS",
+  "benchFailing": [],
+  "lockedDuringRun": false,
+  "failedChecks": [],
+  "caught": null,
+  "controlPass": true
+ },
+ {
+  "mutant": "control-harness",
+  "scorer": "harness",
+  "targets": [],
+  "harnessFailing": [],
+  "harnessTally": [
+   "5",
+   "0"
+  ],
+  "caught": null,
+  "controlPass": true
+ },
+ {
+  "mutant": "control-node",
+  "scorer": "node",
+  "targets": [],
+  "nodeFailing": [],
+  "nodeTail": [
+   "  [PASS] control (per-frame decay): 60 Hz -16.000 vs 120 Hz -26.000 at 0.5 s differ by > 1 dB (fires)",
+   "",
+   "meter ballistics PASS"
+  ],
+  "caught": null,
+  "controlPass": true
+ },
+ {
+  "mutant": "W1-emit-ignores-mode",
+  "scorer": "bench",
+  "targets": [
+   "E-an-modes"
+  ],
+  "benchVerdict": "FAIL E-an-modes,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-modes",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-modes / mode 0: taps emitted and written",
+   "E-an-modes / mode 1: taps emitted and written",
+   "E-an-modes / mode 2: taps emitted and written"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W2-tap-events-swapped",
+  "scorer": "bench",
+  "targets": [
+   "E-an-peak"
+  ],
+  "benchVerdict": "FAIL E-an-peak,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-peak",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-peak / span-centre sine: highest trace pixel within 1 px of fx(f)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W4-level-every-tick",
+  "scorer": "bench",
+  "targets": [
+   "E-idle33"
+  ],
+  "benchVerdict": "FAIL E-idle,E-eq-idle,E-meter-rest,E-idle33,bench failedChecks empty",
+  "benchFailing": [
+   "E-idle",
+   "E-eq-idle",
+   "E-meter-rest",
+   "E-idle33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-eq-idle",
+   "E-meter-rest / no meter frames for 2 s at rest (frames while playing > 5)",
+   "E-idle33 / after audio and decay: 0 relay / eqSections / analyzer / outputLevel messages"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W5-mono-sends-two",
+  "scorer": "bench",
+  "targets": [
+   "E-meter"
+  ],
+  "benchVerdict": "FAIL E-meter,bench failedChecks empty",
+  "benchFailing": [
+   "E-meter",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-meter / mono: two equal bars at my(-6) +- 1 px"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W21-reload-keeps-sent",
+  "scorer": "bench",
+  "targets": [],
+  "benchVerdict": "ALL-PASS",
+  "benchFailing": [],
+  "lockedDuringRun": false,
+  "failedChecks": [],
+  "caught": false
+ },
+ {
+  "mutant": "W22-no-mode-add-reemit",
+  "scorer": "bench",
+  "targets": [],
+  "benchVerdict": "ALL-PASS",
+  "benchFailing": [],
+  "lockedDuringRun": false,
+  "failedChecks": [],
+  "caught": false
+ },
+ {
+  "mutant": "W3-nyquist-at-fs",
+  "scorer": "bench",
+  "targets": [
+   "E-an-nyq"
+  ],
+  "benchVerdict": "FAIL E-an-nyq,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-nyq",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-nyq / null exactly from the first span >= 24 kHz; no analyzer ink right of fx(24 kHz)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W6-power-db",
+  "scorer": "bench+harness",
+  "targets": [
+   "E-meter",
+   "M1"
+  ],
+  "benchVerdict": "FAIL E-meter,bench failedChecks empty",
+  "benchFailing": [
+   "E-meter",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-meter / 48 k / 512: both bar tops at my(-6) +- 1 px after 0.5 s (peak line and level fill)",
+   "E-meter / 44.1 k / 2048: level-fill top range <= 1 px over 2 s (no sawtooth), near my(-6); peak line range <= 1 px",
+   "E-meter / mono: two equal bars at my(-6) +- 1 px"
+  ],
+  "harnessFailing": [
+   "M1"
+  ],
+  "harnessTally": [
+   "4",
+   "1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W7-depth-no-plus-one",
+  "scorer": "bench+harness",
+  "targets": [
+   "E-meter",
+   "M1"
+  ],
+  "benchVerdict": "ALL-PASS",
+  "benchFailing": [],
+  "lockedDuringRun": false,
+  "failedChecks": [],
+  "harnessFailing": [],
+  "harnessTally": [
+   "5",
+   "0"
+  ],
+  "caught": false
+ },
+ {
+  "mutant": "W8-off-rule-bits-swapped",
+  "scorer": "bench+harness",
+  "targets": [
+   "E-an-peak"
+  ],
+  "benchVerdict": "FAIL E-an-nyq,E-an-peak,bench failedChecks empty",
+  "benchFailing": [
+   "E-an-nyq",
+   "E-an-peak",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-an-nyq / null exactly from the first span >= 24 kHz; no analyzer ink right of fx(24 kHz)",
+   "E-an-peak / span-centre sine: highest trace pixel within 1 px of fx(f)"
+  ],
+  "harnessFailing": [
+   "AO2"
+  ],
+  "harnessTally": [
+   "4",
+   "1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W17-goidle-keeps-flag",
+  "scorer": "harness",
+  "targets": [],
+  "harnessFailing": [],
+  "harnessTally": [
+   "5",
+   "0"
+  ],
+  "caught": false
+ },
+ {
+  "mutant": "W18-voice-check-right-only",
+  "scorer": "harness",
+  "targets": [
+   "N1e"
+  ],
+  "harnessFailing": [
+   "N1e"
+  ],
+  "harnessTally": [
+   "4",
+   "1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W9-settle-removed",
+  "scorer": "bench",
+  "targets": [
+   "E-listen33"
+  ],
+  "benchVerdict": "FAIL E-listen33,bench failedChecks empty",
+  "benchFailing": [
+   "E-listen33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-listen33 / (f) preset load keeping band 3 enabled: 2",
+   "E-listen33 / (g) bypass band 3: 2"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W10-drag-listen-sticks",
+  "scorer": "bench",
+  "targets": [
+   "E-listen33"
+  ],
+  "benchVerdict": "FAIL E-listen33,bench failedChecks empty",
+  "benchFailing": [
+   "E-listen33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-listen33 / (a) release: -1",
+   "E-listen33 / (b) click on node 5 without movement: 0 setListenBand writes, listen off",
+   "E-listen33 / (c) release returns to the latch: 2",
+   "E-listen33 / (d) host disables band 3: -1",
+   "E-listen33 / (e) re-latched 3: 2",
+   "E-listen33 / (e) preset load disabling band 3: -1",
+   "E-listen33 / (f) preset load keeping band 3 enabled: 2",
+   "E-listen33 / (g) bypass band 3: 2",
+   "E-listen33 / (h) Delete key on band 3: -1",
+   "E-listen33 / (i) strip Listen: 2",
+   "E-listen33 / (i) strip Listen again: -1",
+   "E-listen33 / (j) cancel ends it: -1",
+   "E-listen33 / (j) lost ends it: -1"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W11-bypass-ends-listen",
+  "scorer": "bench",
+  "targets": [
+   "E-listen33"
+  ],
+  "benchVerdict": "FAIL E-listen33,bench failedChecks empty",
+  "benchFailing": [
+   "E-listen33",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-listen33 / (g) bypass band 3: 2"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W15-strip-button-follows-listen",
+  "scorer": "bench",
+  "targets": [],
+  "benchVerdict": "ALL-PASS",
+  "benchFailing": [],
+  "lockedDuringRun": false,
+  "failedChecks": [],
+  "caught": false
+ },
+ {
+  "mutant": "W12-meter-mono-right-silent",
+  "scorer": "bench",
+  "targets": [
+   "E-meter"
+  ],
+  "benchVerdict": "FAIL E-meter,bench failedChecks empty",
+  "benchFailing": [
+   "E-meter",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-meter / mono: two equal bars at my(-6) +- 1 px"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W13-meter-never-rests",
+  "scorer": "bench",
+  "targets": [
+   "E-meter-rest"
+  ],
+  "benchVerdict": "FAIL E-meter-rest,bench failedChecks empty",
+  "benchFailing": [
+   "E-meter-rest",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-meter-rest / no meter frames for 2 s at rest (frames while playing > 5)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W14-fills-ignore-bypass",
+  "scorer": "bench",
+  "targets": [
+   "E-fills"
+  ],
+  "benchVerdict": "FAIL E-fills,bench failedChecks empty",
+  "benchFailing": [
+   "E-fills",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-fills / band 2 bypassed: that pixel is the background (alpha < 6)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W16-double-draw-restored",
+  "scorer": "bench",
+  "targets": [
+   "E-fps"
+  ],
+  "benchVerdict": "FAIL E-fps,bench failedChecks empty",
+  "benchFailing": [
+   "E-fps",
+   "bench failedChecks empty"
+  ],
+  "lockedDuringRun": false,
+  "failedChecks": [
+   "E-fps / rAF intervals during the drag: median <= 17.5 ms, p99 <= 25 ms (draw() recorded)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W19-no-peak-hold",
+  "scorer": "node",
+  "targets": [
+   "meter-ballistics"
+  ],
+  "nodeFailing": [
+   "meter-ballistics"
+  ],
+  "nodeTail": [
+   "  [PASS] control (per-frame decay): 60 Hz -16.000 vs 120 Hz -26.000 at 0.5 s differ by > 1 dB (fires)",
+   "",
+   "meter ballistics FAIL (2)"
+  ],
+  "caught": true
+ },
+ {
+  "mutant": "W20-release-10dbps",
+  "scorer": "node",
+  "targets": [
+   "meter-ballistics"
+  ],
+  "nodeFailing": [
+   "meter-ballistics"
+  ],
+  "nodeTail": [
+   "  [PASS] control (per-frame decay): 60 Hz -11.000 vs 120 Hz -16.000 at 0.5 s differ by > 1 dB (fires)",
+   "",
+   "meter ballistics FAIL (5)"
+  ],
+  "caught": true
+ }
+]

@@ -1,0 +1,9 @@
+verify 3.3, 488033a8, harness objects deleted and rebuilt
+designer: 150 PASS, 0 FAIL, 18 INFO  rc 0
+render: 171 PASS, 0 FAIL  rc 0
+render-long: 171 PASS, 0 FAIL  rc 0
+sessions-090.sha == verify-2.6/sessions-050.sha (16 / 16)
+probe33 n: N1e 16 / 16, hash 6274ff9b5b0e488a
+meter-ballistics PASS; G9 (b) PASS 1.372e-8 dB
+gates rc: check-i18n 0, i18n-fr-lint 0, i18n-zh-lint 0, check-ui-labels 0, boot-all-uis --strict-tips 0 (0 DEAD)
+pluginval 10 VST3 SUCCESS, AU SUCCESS; auval AU VALIDATION SUCCEEDED
