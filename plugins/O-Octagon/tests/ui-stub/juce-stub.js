@@ -113,8 +113,8 @@ const RANGES = {
   width:      { start: 0,   end: 12, skew: 1, interval: 0,     def: 0.0 },
   decorr:     { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.0 },
 
-  rolloff:    { start: 3,   end: 12, skew: 1, interval: 0,     def: 4.0 },
-  blur:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.09 },
+  rolloff:    { start: 3,   end: 18, skew: 1, interval: 0,     def: 12.0 },
+  blur:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.0 },
 
   w1:         { start: 0,   end: 1,  skew: 1, interval: 0,     def: 1.0 },
   w2:         { start: 0,   end: 1,  skew: 1, interval: 0,     def: 1.0 },

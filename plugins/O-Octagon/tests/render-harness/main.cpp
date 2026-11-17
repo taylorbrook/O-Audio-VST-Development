@@ -2259,7 +2259,6 @@ int main()
     // bound. If it does not, the sweep is too slow to be a test at all.
     {
         constexpr int total = 48000;                  // 1 second
-        constexpr float bound = 1.0f / 240.0f + 1.0e-6f;
 
         const auto sweep = [&] (bool sweepWeights)
         {
@@ -2335,6 +2334,24 @@ int main()
         const auto positionSweep = sweep (false);
         const auto weightSweep   = sweep (true);
 
+        // v1.17.0 — THE BOUND IS THE RAMP LENGTH TIMES THE GAIN'S REACH, NOT TIMES 1. A 5 ms linear
+        // ramp moves at most |target − current| / 240 per sample, and for non-negative gains that is
+        // at most peak / 240. "v_i <= 1" was true of the bare DBAP vector but never of the rendered
+        // gain: the z-cue trim multiplies it, and at the v1.17.0 default rolloff of 12 (a ≈ 2) a
+        // srcZ sweep lifts the near speakers above unity, so the step legitimately exceeds 1/240
+        // without a single sample stepping. The peak is MEASURED from the same render, floored at 1
+        // so a quiet render cannot loosen the bound below its old value.
+        const auto peakOf = [] (const juce::AudioBuffer<float>& b)
+        {
+            float peak = 0.0f;
+            for (int ch = 0; ch < b.getNumChannels(); ++ch)
+                peak = std::max (peak, b.getMagnitude (ch, 0, b.getNumSamples()));
+            return peak;
+        };
+
+        const float reach = std::max ({ 1.0f, peakOf (positionSweep), peakOf (weightSweep) });
+        const float bound = reach / 240.0f + 1.0e-6f;
+
         const float positionWorst = worstStep (positionSweep, 1);
         const float weightWorst   = worstStep (weightSweep, 1);
 
@@ -2352,6 +2369,7 @@ int main()
 
         check ("AS no-zipper-on-sweep", ok,
                juce::String ("bound ") + juce::String (bound, 7)
+                   + " (peak gain " + juce::String (reach, 4) + ")"
                    + "; per-sample: position " + juce::String (positionWorst, 7)
                    + ", weights " + juce::String (weightWorst, 7)
                    + (ramped ? " (both under)" : " — OVER THE BOUND")
@@ -6002,6 +6020,8 @@ int main()
         // included, at r_s = 0 and a defeated filter under BOTH laws.
         setParam (proc, "blur",      0.0f);
         setParam (proc, "airAmount", 0.0f);
+        // v1.17.0 moves the rolloff DEFAULT 4 → 12. The anchor was captured at 4, so pin it.
+        setParam (proc, "rolloff",   4.0f);
 
         negotiate (proc, mono, set71);
         applyRotatedLabels (proc);
@@ -6590,6 +6610,8 @@ int main()
         // included, at r_s = 0 and a defeated filter under BOTH laws.
         setParam (proc, "blur",      0.0f);
         setParam (proc, "airAmount", 0.0f);
+        // v1.17.0 moves the rolloff DEFAULT 4 → 12. The anchor was captured at 4, so pin it.
+        setParam (proc, "rolloff",   4.0f);
 
         negotiate (proc, mono, set71);
         applyRotatedLabels (proc);
@@ -6726,8 +6748,12 @@ int main()
                 else
                 {
                     ++authored;
+                    // v1.17.0 — a 1.7.0 stamp is also < 1.17, so rolloff takes the range-widening
+                    // arm: the same float expression as migrateParameters' rescale().
                     expect = std::strcmp (id, "blur") == 0
                                  ? oo::dbap::blurFractionLinearToSquare (want[(size_t) i])
+                           : std::strcmp (id, "rolloff") == 0
+                                 ? juce::jlimit (0.0f, 1.0f, want[(size_t) i] * (9.0f / 15.0f))
                                  : want[(size_t) i];
                 }
 

@@ -113,8 +113,8 @@ static_assert (kPreserved.size() + kAuthored.size() == params::kCount,
 
     | Preset          | width m | rolloff dB/2x | blur | hullAtten dB/m | airAmount |
     |-----------------|---------|---------------|------|----------------|-----------|
-    | Dry Point       |   0.0   |      6.0      | 0.00 |      2.2       |   0.00    |
-    | Concert Default |   0.0   |      4.0      | 0.10 |      1.0       |   0.35    |
+    | Dry Point       |   0.0   |     18.0      | 0.00 |      2.2       |   0.00    |
+    | Concert Default |   0.0   |     12.0      | 0.00 |      1.0       |   0.35    |
     | Chamber         |   1.5   |      4.5      | 0.18 |      1.4       |   0.25    |
     | Wide Hall       |   3.0   |      3.5      | 0.35 |      0.7       |   0.55    |
     | Distant Field   |   4.5   |      3.0      | 0.55 |      0.4       |   0.85    |
@@ -125,7 +125,11 @@ static_assert (kPreserved.size() + kAuthored.size() == params::kCount,
 
     ── The axis is a constraint, not a description ───────────────────────────────────────────────
 
-    rolloff falls 6.0 -> 3.0 while blur rises 0.00 -> 0.80, and hullAtten falls with them, because a
+    v1.17.0 — rolloff default 4 → 12 on a 3-18 range and blur default 0.09 → 0: Concert Default
+    follows both (12 / 0) and Dry Point moves 6 → 18 so it stays the most focused row. The other
+    rows are unchanged.
+
+    rolloff falls 18.0 -> 3.0 while blur rises 0.00 -> 0.80, and hullAtten falls with them, because a
     diffuse image under a steep outside-hull trim fights itself.
 
     CONCERT DEFAULT'S FIVE ARE EXACTLY THE SHIPPED DEFAULTS (verified against
@@ -183,8 +187,8 @@ factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
     // 3.21 → 3.22 m — every one under 0.1 dB of spread). Concert Default = the shipped 0.09.
     static constexpr Row rows[] = {
         //  name              width  rolloff  blur  hullAtten  air
-        { "Dry Point",         0.0f,   6.0f,  0.00f,    2.2f, 0.00f },
-        { "Concert Default",   0.0f,   4.0f,  0.09f,    1.0f, 0.35f },
+        { "Dry Point",         0.0f,  18.0f,  0.00f,    2.2f, 0.00f },
+        { "Concert Default",   0.0f,  12.0f,  0.00f,    1.0f, 0.35f },   // v1.17.0: shipped defaults
         { "Chamber",           1.5f,   4.5f,  0.12f,    1.4f, 0.25f },
         { "Wide Hall",         3.0f,   3.5f,  0.17f,    0.7f, 0.55f },
         { "Distant Field",     4.5f,   3.0f,  0.21f,    0.4f, 0.85f },
@@ -325,6 +329,14 @@ inline void migrateParameters (juce::DynamicObject& parameters, const juce::Stri
             parameters.setProperty (key,
                 dbap::blurFractionLinearToSquare (static_cast<float> (parameters.getProperty (key))));
     }
+
+    // ── < 1.17: rolloff range 3-12 → 3-18 dB/2x (v1.17.0) ───────────────────────────────────
+    //
+    // ITS OWN GATE (pattern_preset_migration_per_param_version_gate). Same dB/2x ⇒
+    //   3 + 9·f_old = 3 + 15·f_new  ⇒  f_new = 0.6 · f_old.
+    // A pre-1.3 preset passes through both rolloff arms in order: ÷3 onto 3-12, then × 0.6.
+    if (before (17))
+        rescale ("rolloff", 9.0f / 15.0f);
 }
 
 //==============================================================================

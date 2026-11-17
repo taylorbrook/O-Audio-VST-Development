@@ -1,5 +1,18 @@
 # O-Octagon Changelog
 
+## [1.17.0] — 2026-11-16
+
+### Changed
+- **Rolloff now goes to 18 dB/2x (was 12) and defaults to 12 (was 4).** The image is tighter and more defined out of the box, and there is more focus left above the default. At 18 the DBAP exponent is about 3, so the nearest speakers dominate.
+- **Blur now defaults to 0 (was 0.09).** No spatial blur out of the box, so the image follows the source position exactly. The range is unchanged and saved presets/sessions keep their blur.
+- **Factory presets:** Concert Default follows the new defaults (rolloff 12, blur 0). Dry Point moves from 6 to 18 so it stays the most focused preset. The other presets are unchanged.
+- The Rolloff tooltip now reads 3–18 dB in English, French and Chinese.
+
+### Migration
+- Presets saved before 1.17.0 keep their dB/2x value: a new gate in `PresetPolicy::migrateParameters` scales the stored normalised rolloff by 0.6. Pre-1.3 presets go through both rolloff steps in order (÷3, then ×0.6).
+- Saved sessions store dB/2x and load unchanged. A session or preset that never set rolloff now opens at 12.
+- **Host automation lanes store normalised values,** so an existing lane drawn at the old maximum (12) now plays 18. v1.3.0 had the same side effect.
+
 ## [1.16.2] — 2026-10-19
 
 ### Fixed

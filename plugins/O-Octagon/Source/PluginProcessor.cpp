@@ -147,7 +147,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
         // spread only reached ~13 dB at R = 6. R = 12 (a ≈ 2) reaches ~25 dB: a real focus
         // control. Default 4.0 unchanged; < 1.3.0 presets re-mapped (÷3 in normalised terms) by
         // the editor's migration hook.
-        makeFloat (kHintV1_0, "rolloff", "Rolloff", linearRange (3.0f, 12.0f), 4.0f, "dB/2x"),
+        // v1.17.0: rolloff max 12 → 18 dB/2x (a ≈ 3) and DEFAULT 4 → 12 — a tighter, more defined
+        // image out of the box. < 1.17.0 presets re-mapped (× 0.6 in normalised terms) by
+        // PresetPolicy::migrateParameters' own gate. Sessions store dB/2x and are unaffected.
+        makeFloat (kHintV1_0, "rolloff", "Rolloff", linearRange (3.0f, 18.0f), 12.0f, "dB/2x"),
         // v1.3.0: default 0.10 → 0.03. kBlurScale tripled (0.5 → 1.5, DbapSolver.h) so blur = 1 is
         // a true wash; 0.03 keeps the shipped default radius at ~0.36 m (was 0.40 m) — audibly the
         // same starting point. Concert Default (PresetPolicy.h) moves with it: that preset must
@@ -155,7 +158,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
         // v1.13.0: default 0.03 → 0.09. The law went SQUARE with kBlurScale 6 (DbapSolver.h);
         // 0.09 keeps the shipped default radius at ~0.39 m (was 0.36 m) — again audibly the same
         // starting point (0.03 dB of spread either way). Presets < 1.13 migrate blur → ½√blur.
-        makeFloat (kHintV1_0, "blur",    "Blur",    linearRange (0.0f, 1.0f), 0.09f)));
+        // v1.17.0: default 0.09 → 0 — no spatial blur out of the box, paired with the rolloff
+        // default 4 → 12 for a sharper image. Range unchanged, so no preset migration.
+        makeFloat (kHintV1_0, "blur",    "Blur",    linearRange (0.0f, 1.0f), 0.0f)));
 
     // ── Weights ─────────────────────────────────────────────────────────────────
     // No label, deliberately: these are DBAP weights, not percentages of anything. Inventing

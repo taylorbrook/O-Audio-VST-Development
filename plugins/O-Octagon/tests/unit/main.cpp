@@ -1389,9 +1389,10 @@ int main()
         double worst = 0.0;
         int    tested = 0, inside = 0, outside = 0, nonFinite = 0;
 
-        for (int ri = 0; ri <= 6; ++ri)
+        // v1.17.0: swept to the live 18 dB/2x ceiling (a ≈ 3), not the paper's 6.
+        for (int ri = 0; ri <= 10; ++ri)
         {
-            const float rolloff = 3.0f + 0.5f * static_cast<float> (ri);   // 3.0 .. 6.0
+            const float rolloff = 3.0f + 1.5f * static_cast<float> (ri);   // 3.0 .. 18.0
 
             for (int bi = 0; bi <= 5; ++bi)
             {
@@ -1536,7 +1537,7 @@ int main()
 
             bool finite = true;
 
-            for (float rolloff : { 3.0f, 6.0f })
+            for (float rolloff : { 3.0f, 6.0f, 12.0f, 18.0f })   // v1.17.0: live max is 18
                 for (int i = 0; i < 8; ++i)
                     finite = finite && allFiniteGains (rig.solve (v.speaker (i), rolloff, 0.0f,
                                                                   kUnitWeights));

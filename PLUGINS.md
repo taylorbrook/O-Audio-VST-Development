@@ -68,7 +68,7 @@ Ouaricon Plugins:
 | O-simplePhysicalModelSynth | 📦 Installed | 1.5.0 | Synth (Pedagogical Physical Modeling) | 2026-10-27 |
 | O-simpleAmbisonics | 📦 Installed | 1.0.2 | Audio Effect (Pedagogical Ambisonic Spatializer) | 2026-10-19 |
 | O-ReverseDelay | 📦 Installed | 1.22.4 | Audio Effect (Granular Reverse Delay) | 2026-10-19 |
-| O-Octagon | 📦 Installed | 1.16.2 | Audio Effect (8-Channel DBAP Spatializer) | 2026-10-19 |
+| O-Octagon | 📦 Installed | 1.17.0 | Audio Effect (8-Channel DBAP Spatializer) | 2026-11-16 |
 | O-Bitrot | 📦 Installed | 1.17.3 | Audio Effect (Broken-Media Degradation) | 2026-10-19 |
 | O-Tapestop | 📦 Installed | 1.7.3 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-10-19 |
 | O-Emulator | 📦 Installed | 1.5.1 | Audio Effect (Retro Console Emulation) | 2026-10-19 |

@@ -653,13 +653,13 @@ export const I18N = Object.freeze({
     // ── Solve ───────────────────────────────────────────────────────────────
     'rolloff': {
         en: { t: 'Rolloff',
-              b: 'DBAP distance rolloff, 3–12 dB per distance doubling. Higher concentrates energy hard into the nearest speakers; lower spreads it across the whole array.' },
+              b: 'DBAP distance rolloff, 3–18 dB per distance doubling. Higher concentrates energy hard into the nearest speakers; lower spreads it across the whole array.' },
         fr: { t: 'Décroissance',
               termNote: 'DBAP distance rolloff — a dB-per-doubling attenuation law, not a filter slope; this page has a real filter (Air) and Pente would name that instead',
-              b: 'Décroissance DBAP avec la distance, de 3 à 12 dB par doublement de distance. Une valeur élevée concentre fortement l’énergie sur les haut-parleurs les plus proches ; une valeur faible la répartit sur tout le dispositif.',
+              b: 'Décroissance DBAP avec la distance, de 3 à 18 dB par doublement de distance. Une valeur élevée concentre fortement l’énergie sur les haut-parleurs les plus proches ; une valeur faible la répartit sur tout le dispositif.',
               reviewed: true },
         'zh-Hans': { t: '滚降',
-              b: 'DBAP 距离滚降，每距离加倍 3 到 12 dB。'
+              b: 'DBAP 距离滚降，每距离加倍 3 到 18 dB。'
                 + '数值越高，能量越集中到最近的扬声器上；越低则铺满整个阵列。',
               reviewed: 'bt' },
     },

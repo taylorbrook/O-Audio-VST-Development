@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.16.0 (dev build installed; v1.13.0 is the public release)
+- **Version:** 1.17.0 (dev build installed; v1.13.0 is the public release)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -513,6 +513,16 @@ fact was refused twice), and none affects a recorded result:
   Note: the fold comes in one HOST block after the fade ends, not one 64-sample control block —
   `monitorOn` is read once per processBlock. The behaviour is harmless; the CHANGELOG and code
   comment that said otherwise were corrected in e7caa16b. Hands-on DAW check still open.
+- **2026-11-16 (v1.17.0 — `/improve`, sharper default focus):** Rolloff range 3-12 → 3-18 dB/2x
+  (a ≈ 3) and default 4 → 12; blur default 0.09 → 0 (range unchanged, no migration). Concert
+  Default follows both (12 / 0); ui_frontend §15 now pins blur 0 and rolloff 12 as the non-endpoint; Dry Point 6 → 18 so it stays the most
+  focused row. Own migration gate `< 1.17` in `migrateParameters` (rolloff fraction × 0.6). CU/DC
+  pin rolloff 4 (their anchors were captured at the old default). Probe AS's bound re-derived as
+  peak / 240: the z-cue trim lifts gains to ~1.9-2.0 under its srcZ sweep at rolloff 4 AND 12, so
+  "v_i <= 1" never held for the rendered gain; it passed only while steps stayed small. Render
+  88/0, geometry 64/0, ui_layout 39/39, check-i18n pass, pluginval 10 + auval pass. ui_frontend
+  §28 (shared module edited by DigiDelay/simpleGrain) and §30 (GainStage reset() count 23 vs 20)
+  were red BEFORE this change — files untouched here, left open.
 - **2026-10-12 (v1.15.2 — `/improve`, Round 3b: B14 B15 B17 B20 B25):** the verify ping ducks
   the programme on its own raised cosine (held through auto gaps), fades on stop/abort/retarget
   from its current level, and is `kill()`ed for bypass/unmapped/`isNonRealtime()`. The fold lands at
