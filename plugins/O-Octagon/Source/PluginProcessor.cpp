@@ -306,7 +306,21 @@ bool OOctagonProcessor::isBusesLayoutSupported (const BusesLayout& layouts) cons
     if (in.isDisabled() || out.isDisabled())
         return false;
 
-    if (in != juce::AudioChannelSet::mono() && in != juce::AudioChannelSet::stereo())
+    // v1.17.1 — VST3 ONLY: a WIDE INPUT IS ADMITTED BESIDE A REAL-RIG OUTPUT.
+    //
+    // Reaper's VST3 bus size "Auto" asks for the TRACK's width on BOTH sides (8 in / 8 out on an
+    // 8-channel track). The mono/stereo input rule rejected that, and the wrapper's next-best
+    // fallback (VST3.cpp setBusArrangements) settled on 2 in / 2 out — the binaural SAFE fold, with
+    // no 8-channel output bus visible to the host at all. Only channels 1-2 of a wide input are read
+    // (processBlock clamps numIn to 2); 3-8 are overwritten by the mapped speaker feeds.
+    //
+    // Gated on wrapperType so the AU predicate — and therefore the AUChannelInfo set JUCE derives
+    // from it, which auval exercises and Logic offers — is byte-for-byte unchanged.
+    const bool wideInputOk = wrapperType == wrapperType_VST3
+                          && oo::rig::isRealRig (out)
+                          && in.size() >= 1 && in.size() <= out.size();
+
+    if (in != juce::AudioChannelSet::mono() && in != juce::AudioChannelSet::stereo() && ! wideInputOk)
         return false;
 
     // Real mode — the three 8-channel containers Logic exposes.
@@ -813,7 +827,9 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // while the buffer holds only n channels (RESEARCH F3). getTotalNumOutputChannels() returns 8
     // in exactly that state — it is the accessor that lies.
     const int numOut = buffer.getNumChannels();
-    const int numIn  = juce::jmin (getTotalNumInputChannels(), numOut);
+    // Clamped to 2 (v1.17.1): a VST3 host may negotiate a wide input beside the rig (see
+    // isBusesLayoutSupported) — the source is channels 1-2 of it, never more.
+    const int numIn  = juce::jmin (getTotalNumInputChannels(), numOut, 2);
 
     // The G1 branch, stated in exactly one place (mappedOutputAvailable) and PASSED IN. GainStage
     // calls neither this helper's inputs nor getTotalNumOutputChannels() — it is handed the answer

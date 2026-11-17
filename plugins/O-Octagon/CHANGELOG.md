@@ -1,5 +1,14 @@
 # O-Octagon Changelog
 
+## [1.17.1] — 2026-11-17
+
+### Fixed
+- **VST3 on an 8-channel track in Reaper now opens with an 8-channel output.** Before this fix it came up as 2 in / 2 out and ran the binaural stereo fold. Reaper's VST3 bus size "Auto" asks for the track's width on both sides (8 in / 8 out). The plugin accepted only a mono or stereo input, so it rejected that request. JUCE's next-best fallback then settled on stereo/stereo.
+  - Root cause: `isBusesLayoutSupported()` rejected every input wider than stereo, even with a real-rig output (7.1, 7.1-SDDS or 5.1.2). Reaper's 8-channel request is `k71Cine`, which JUCE maps to 7.1-SDDS.
+  - Fix: the VST3 wrapper now also accepts a wide input (1 to 8 channels) next to a real-rig output. Only input channels 1–2 are read (`numIn` is clamped to 2 in `processBlock`). Channels 3–8 are always overwritten by the mapped speaker feeds.
+  - The AU predicate is unchanged (gated on `wrapperType`), so the AUChannelInfo set that auval and Logic see is the same as in 1.17.0.
+- Side effect: when the host bypasses the VST3 with an 8-channel input negotiated, JUCE's default bypass passes all 8 track channels through instead of 1–2.
+
 ## [1.17.0] — 2026-11-16
 
 ### Changed
