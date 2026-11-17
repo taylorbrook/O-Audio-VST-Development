@@ -307,7 +307,7 @@ Suite traps to check here: the first-order `IIR::Filter` default constructor is 
 | Time-varying stability is argued from a paper whose proof was not read | MEDIUM | 2.3 (G3, G5) | Longer ramps, 40 ms crossfades |
 | Click metric confounded by level changes of slow filters | MEDIUM | 2.3 / 2.4 | Local κ and a firing hard control are already specified |
 | CPU model is not a measurement | MEDIUM | 4 (early smoke measurement in 2.2) | 2-wide SIMD over Stereo lanes |
-| 196 WebView relays | LOW (WKWebView measured ≤ 274 ms cold, RESEARCH-3.1) | 3.1; WebView2 timing in Stage 4 Windows CI | None planned (C1 dropped the selected-band fallback) |
+| 196 WebView relays | LOW (WKWebView measured ≤ 274 ms cold, RESEARCH-3.1) | 3.1; WebView2 load proven by pluginval 10 on windows-latest (4.2); open time and preset settle owed to the first Windows hands-on (no hardware) (PLAN-4.1, 2026-11-16) | None planned (C1 dropped the selected-band fallback) |
 | `vu-meter` 1.0.0 has no consumer in the registry | RETIRED (RESEARCH-3.3 C1, 2026-11-16: the fallback taken; page-drawn meter) | 3.3 | — |
 | Notch and band pass above their frequency clamp park a feature inside the audio band (characterised in Stage 2 research Q2; D10 keeps the clamp) | LOW | 2.1 INFO rows | Clamp as specified |
 
