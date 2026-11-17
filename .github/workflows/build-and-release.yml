@@ -138,7 +138,7 @@ jobs:
     # Runs on validate-only dispatches too: on the public repo, macOS minutes are
     # free and the validate run doubles as the signing/notarization secrets gate.
     # No Release is published either way — create-release has its own guard.
-    runs-on: macos-14  # Apple Silicon runner
+    runs-on: macos-15  # Apple Silicon runner (macos-14 image retired 2026-11)
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
