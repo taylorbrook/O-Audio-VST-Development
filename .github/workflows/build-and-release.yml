@@ -235,24 +235,34 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
 
-          # Import Developer ID Application certificate
+          # Labelled import. "already exists" is a skip, not a failure: the
+          # macos-15 image (macos-14 retired 2026-11) aborted this step with
+          # "SecKeychainItemImport: The specified item already exists" right
+          # after the first p12 printed "1 certificate imported" — on macos-14
+          # both p12s printed "1 identity imported". The identity checks at the
+          # end of this step are the real gate, so a skipped duplicate is safe.
+          kc_import() {
+            local label="$1"; shift
+            local out
+            if out=$(security import "$@" -k "$KEYCHAIN_PATH" 2>&1); then
+              echo "[$label] $out"
+            elif echo "$out" | grep -q "already exists"; then
+              echo "[$label] skipped (already in keychain)"
+            else
+              echo "::error::[$label] import failed: $out"
+              return 1
+            fi
+          }
+
+          # p12 imports: no `-t cert`. The item type is a hint; a p12 is an
+          # aggregate (cert + private key), and a cert-only import leaves no
+          # identity behind.
           echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
-          security import certificate.p12 \
-            -P "$MACOS_CERTIFICATE_PWD" \
-            -A \
-            -t cert \
-            -f pkcs12 \
-            -k "$KEYCHAIN_PATH"
+          kc_import "Application p12" certificate.p12 -f pkcs12 -P "$MACOS_CERTIFICATE_PWD" -A
           rm certificate.p12
 
-          # Import Developer ID Installer certificate
           echo "$MACOS_INSTALLER_CERTIFICATE" | base64 --decode > installer-certificate.p12
-          security import installer-certificate.p12 \
-            -P "$MACOS_INSTALLER_CERTIFICATE_PWD" \
-            -A \
-            -t cert \
-            -f pkcs12 \
-            -k "$KEYCHAIN_PATH"
+          kc_import "Installer p12" installer-certificate.p12 -f pkcs12 -P "$MACOS_INSTALLER_CERTIFICATE_PWD" -A
           rm installer-certificate.p12
 
           # Import Apple's Developer ID intermediate CAs. A Keychain Access p12
@@ -261,8 +271,8 @@ jobs:
           # leaf and key imported cleanly.
           curl -fsSL -o DeveloperIDCA.cer   https://www.apple.com/certificateauthority/DeveloperIDCA.cer
           curl -fsSL -o DeveloperIDG2CA.cer https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
-          security import DeveloperIDCA.cer   -t cert -A -k "$KEYCHAIN_PATH"
-          security import DeveloperIDG2CA.cer -t cert -A -k "$KEYCHAIN_PATH"
+          kc_import "Developer ID CA"    DeveloperIDCA.cer   -t cert -A
+          kc_import "Developer ID G2 CA" DeveloperIDG2CA.cer -t cert -A
           rm DeveloperIDCA.cer DeveloperIDG2CA.cer
 
           # Allow codesign/productsign to access the keychain without UI prompt
@@ -277,6 +287,11 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
           if security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -q "0 valid identities"; then
             echo "::error::Certificate imported but no VALID codesigning identity — check that the p12 contains the private key and the chain is complete."
+            exit 1
+          fi
+          # productsign needs the Installer identity too (basic policy, not codesigning).
+          if ! security find-identity -v "$KEYCHAIN_PATH" | grep -q "Developer ID Installer"; then
+            echo "::error::No valid Developer ID Installer identity in the keychain — the Installer p12 did not import with its private key."
             exit 1
           fi
 
